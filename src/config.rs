@@ -81,23 +81,23 @@ fn get_config() -> Config {
     .author(env!("CARGO_PKG_AUTHORS"))
     .about(env!("CARGO_PKG_DESCRIPTION"))
     .arg(
-      Arg::with_name("NETWORK")
+      Arg::with_name("CHAIN")
           .index(1)
           .possible_values(&["westend", "kusama", "polkadot"])
-          .required(true)
+          .default_value("westend")
           .help(
-            "Choose the network to look for available flakes (staking rewards)",
+            "Choose the substrate-based chain for which 'crunch' will try to connect",
           )
     )
     .subcommand(SubCommand::with_name("flakes")
-      .about("Crunch delicious flakes daily or in turbo mode (4x faster) (Submit payout for unclaimed staking rewards daily or four times a day) (default)")
+      .about("Crunch delicious flakes daily or in turbo mode -> 4x faster (Claim staking rewards for unclaimed eras once a day or four times a day) [default subcommand]")
       .arg(
         Arg::with_name("MODE")
             .index(1)
             .possible_values(&["daily", "turbo"])
-            .required(true)
+            .default_value("turbo")
             .help(
-              "Choose how often flakes (staking rewards) should be crunched - once a day or four times a day",
+              "Choose how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. with the option 'daily' means 'crunch' task will be repeated every 24 hours; option 'turbo' means 'crunch' task will be repeated every 6 hours)",
             )
       )
       .arg(
@@ -105,8 +105,9 @@ fn get_config() -> Config {
           .short("f")
           .long("seed_file")
           .takes_value(true)
+          .default_value(".private.seed")
           .help(
-            "File path containing the private seed phrase to Sign the extrinsic payout call. (default is \".private.seed\")",
+            "File path containing the private seed phrase to Sign the extrinsic payout call.",
           ),
       )
       .arg(
@@ -114,12 +115,16 @@ fn get_config() -> Config {
           .short("m")
           .long("maximum_payouts")
           .takes_value(true)
-          .help("Maximum number of unclaimed eras to which an extrinsic payout will be submitted. (default is 4)"))
+          .default_value("4")
+          .help("Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address will be 4)."))
       .arg(
         Arg::with_name("debug")
           .short("d")
           .long("debug")
-          .help("Print debug information verbosely."))
+          .help("Prints debug information verbosely."))
+    )
+    .subcommand(SubCommand::with_name("search")
+      .about("Search for delicious flakes (staking rewards) to crunch (claim) and display claimed and unclaimed eras.")
     )
     .arg(
       Arg::with_name("stashes")
@@ -127,7 +132,7 @@ fn get_config() -> Config {
         .long("stashes")
         .takes_value(true)
         .help(
-          "Crunch flakes for the stash addresses - specify more than one like, e.g. stash_1,stash_2,stash_3.",
+          "Validator stash addresses for which 'crunch search' and 'crunch flakes' will be applied. If needed specify more than one (e.g. stash_1,stash_2,stash_3).",
         ),
     )
     .arg(
@@ -136,7 +141,7 @@ fn get_config() -> Config {
         .long("substrate_ws_url")
         .takes_value(true)
         .help(
-          "Substrate websocket endpoint to connect to, e.g. wss://kusama-rpc.polkadot.io",
+          "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
         ),
     )
     .arg(
@@ -144,8 +149,9 @@ fn get_config() -> Config {
         .short("c")
         .long("config_file")
         .takes_value(true)
+        .default_value(".env")
         .help(
-          "File path containing Crunch environment configuration variables. (default is \".env\")",
+          "File path containing 'crunch' configuration variables.",
         ),
     )
     .get_matches();
@@ -156,7 +162,7 @@ fn get_config() -> Config {
     info!("Loading configuration from {} file", &config_file);
   }
 
-  match matches.value_of("NETWORK") {
+  match matches.value_of("CHAIN") {
     Some("westend") => {
       env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://westend-rpc.polkadot.io");
     }
@@ -200,8 +206,8 @@ fn get_config() -> Config {
       }
     }
     _ => {
-      warn!("Do not forget to specify subcommand \"flakes\" when running Crunch CLI.");
-    },
+      warn!("Do not forget to specify subcommand \"flakes\" when running crunch CLI.");
+    }
   }
 
   if matches.is_present("debug") {
