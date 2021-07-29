@@ -57,6 +57,11 @@ fn default_maximum_payouts() -> usize {
   4
 }
 
+/// provides default value for only_view if CRUNCH_ONLY_VIEW env var is not set
+fn default_only_view() -> bool {
+  false
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
   #[serde(default = "default_interval")]
@@ -67,6 +72,8 @@ pub struct Config {
   pub stashes: Vec<String>,
   #[serde(default = "default_maximum_payouts")]
   pub maximum_payouts: usize,
+  #[serde(default = "default_only_view")]
+  pub only_view: bool,
   // matrix configuration
   pub matrix_username: String,
   pub matrix_password: String,
@@ -123,8 +130,8 @@ fn get_config() -> Config {
           .long("debug")
           .help("Prints debug information verbosely."))
     )
-    .subcommand(SubCommand::with_name("search")
-      .about("Search for delicious flakes (staking rewards) to crunch (claim) and display claimed and unclaimed eras.")
+    .subcommand(SubCommand::with_name("view")
+      .about("Inspect for delicious flakes (staking rewards) to crunch (claim) and display claimed and unclaimed eras.")
     )
     .arg(
       Arg::with_name("stashes")
@@ -132,7 +139,7 @@ fn get_config() -> Config {
         .long("stashes")
         .takes_value(true)
         .help(
-          "Validator stash addresses for which 'crunch search' and 'crunch flakes' will be applied. If needed specify more than one (e.g. stash_1,stash_2,stash_3).",
+          "Validator stash addresses for which 'crunch view' and 'crunch flakes' will be applied. If needed specify more than one (e.g. stash_1,stash_2,stash_3).",
         ),
     )
     .arg(
@@ -218,6 +225,9 @@ fn get_config() -> Config {
       if flakes_matches.is_present("debug") {
         env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
       }
+    }
+    ("view", Some(_)) => {
+      env::set_var("CRUNCH_ONLY_VIEW", "true");
     }
     _ => {
       warn!("Besides subcommand 'flakes' being the default subcommand, would be cool to have it visible, so that CLI becomes more expressive (e.g. 'crunch flakes daily')");

@@ -21,13 +21,13 @@
 
 use crate::config::CONFIG;
 use crate::errors::MatrixError;
+use async_recursion::async_recursion;
 use base64::encode;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use std::result::Result;
-use url::form_urlencoded::byte_serialize;
 use std::{thread, time};
-use async_recursion::async_recursion;
+use url::form_urlencoded::byte_serialize;
 
 const MATRIX_URL: &str = "https://matrix.org/_matrix/client/r0";
 
@@ -81,7 +81,7 @@ struct SendRoomMessageRequest {
   msgtype: String,
   body: String,
   format: String,
-  formatted_body: String
+  formatted_body: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -108,16 +108,32 @@ fn get_user_private_room_alias_name(chain_name: &str) -> String {
 
 pub struct Matrix {
   pub client: reqwest::Client,
+  access_token: Option<String>,
+  disabled: bool
+}
+
+impl Default for Matrix {
+  fn default() -> Matrix {
+    Matrix {
+      client: reqwest::Client::new(),
+      access_token: None,
+      disabled: false
+    }
+  }
 }
 
 impl Matrix {
   pub async fn new() -> Matrix {
+    // let config = CONFIG.clone();
     Matrix {
-      client: reqwest::Client::new(),
+      ..Default::default()
     }
   }
 
-  pub async fn login(&self) -> Result<AccessToken, MatrixError> {
+  pub async fn login(&mut self) -> Result<(), MatrixError> {
+    if self.disabled {
+      return Ok(())
+    }
     let client = self.client.clone();
     let config = CONFIG.clone();
 
@@ -137,7 +153,8 @@ impl Matrix {
     match res.status() {
       reqwest::StatusCode::OK => {
         let response = res.json::<LoginResponse>().await?;
-        Ok(response.access_token)
+        self.access_token = Some(response.access_token);
+        Ok(())
       }
       _ => {
         let response = res.json::<ErrorResponse>().await?;
@@ -145,11 +162,40 @@ impl Matrix {
       }
     }
   }
+  pub async fn logout(&mut self) -> Result<(), MatrixError> {
+    if self.disabled {
+      return Ok(())
+    }
+    match &self.access_token {
+      Some(access_token) => {
+        let client = self.client.clone();
+        let res = client
+          .post(format!("{}/logout?access_token={}", MATRIX_URL, access_token))
+          .send()
+          .await?;
+        debug!("response {:?}", res);
+        match res.status() {
+          reqwest::StatusCode::OK => {
+            self.access_token = None;
+            Ok(())
+          }
+          _ => {
+            let response = res.json::<ErrorResponse>().await?;
+            Err(MatrixError::Other(response.error))
+          }
+        }
+      }
+      None => Err(MatrixError::Other("access_token not defined".into())),
+    }
+  }
 
   pub async fn get_room_id_by_room_alias_name(
     &self,
     room_alias_name: &str,
   ) -> Result<Option<RoomID>, MatrixError> {
+    if self.disabled {
+      return Ok(None)
+    }
     let client = self.client.clone();
     let config = CONFIG.clone();
     let room_alias = format!("#{}:{}", room_alias_name, config.matrix_server);
@@ -178,110 +224,124 @@ impl Matrix {
 
   pub async fn create_private_room(
     &self,
-    access_token: &str,
     chain_name: &str,
     room_alias_name: &str,
-  ) -> Result<RoomID, MatrixError> {
-    let client = self.client.clone();
-    let req = CreateRoomRequest {
-      name: format!("Crunch Bot @ {} (Private)", chain_name),
-      room_alias_name: room_alias_name.into(),
-      topic: "Crunch Bot <> Automate staking rewards (flakes) every X hours".into(),
-      preset: "trusted_private_chat".into(),
-      is_direct: true,
-    };
+  ) -> Result<Option<RoomID>, MatrixError> {
+    if self.disabled {
+      return Ok(None)
+    }
+    match &self.access_token {
+      Some(access_token) => {
+        let client = self.client.clone();
+        let req = CreateRoomRequest {
+          name: format!("Crunch Bot @ {} (Private)", chain_name),
+          room_alias_name: room_alias_name.into(),
+          topic: "Crunch Bot <> Automate staking rewards (flakes) every X hours".into(),
+          preset: "trusted_private_chat".into(),
+          is_direct: true,
+        };
+        let res = client
+          .post(format!(
+            "{}/createRoom?access_token={}",
+            MATRIX_URL, access_token
+          ))
+          .json(&req)
+          .send()
+          .await?;
 
-    let res = client
-      .post(format!(
-        "{}/createRoom?access_token={}",
-        MATRIX_URL, access_token
-      ))
-      .json(&req)
-      .send()
-      .await?;
-
-    debug!("response {:?}", res);
-    match res.status() {
-      reqwest::StatusCode::OK => {
-        let response = res.json::<CreateRoomResponse>().await?;
-        info!(
-          "{} * Matrix private room alias created",
-          response.room_alias
-        );
-        Ok(response.room_id)
+        debug!("response {:?}", res);
+        match res.status() {
+          reqwest::StatusCode::OK => {
+            let response = res.json::<CreateRoomResponse>().await?;
+            info!(
+              "{} * Matrix private room alias created",
+              response.room_alias
+            );
+            Ok(Some(response.room_id))
+          }
+          _ => {
+            let response = res.json::<ErrorResponse>().await?;
+            Err(MatrixError::Other(response.error))
+          }
+        }
       }
-      _ => {
-        let response = res.json::<ErrorResponse>().await?;
-        Err(MatrixError::Other(response.error))
-      }
+      None => Err(MatrixError::Other("access_token not defined".into())),
     }
   }
 
-  pub async fn get_user_private_room_id(
-    &self,
-    access_token: &str,
-    chain_name: &str,
-  ) -> Result<RoomID, MatrixError> {
-    //  First verify if room_id already exists based on user_private_room_alias_name
-    let room_alias_name = get_user_private_room_alias_name(chain_name);
-    match self
-      .get_room_id_by_room_alias_name(&room_alias_name)
-      .await?
-    {
-      Some(room_id) => Ok(room_id),
-      None => Ok(
-        self
-          .create_private_room(access_token, chain_name, &room_alias_name)
-          .await?,
-      ),
+  pub async fn get_user_private_room_id(&self, chain_name: &str) -> Result<Option<RoomID>, MatrixError> {
+    if self.disabled {
+      return Ok(None)
+    }
+    match &self.access_token {
+      Some(_) => {
+        //  First verify if room_id already exists based on user_private_room_alias_name
+        let room_alias_name = get_user_private_room_alias_name(chain_name);
+        match self
+          .get_room_id_by_room_alias_name(&room_alias_name)
+          .await?
+        {
+          Some(room_id) => Ok(Some(room_id)),
+          None => Ok(
+            self
+              .create_private_room(chain_name, &room_alias_name)
+              .await?,
+          ),
+        }
+      }
+      None => Err(MatrixError::Other("access_token not defined".into())),
     }
   }
 
   #[async_recursion]
   pub async fn send_message(
     &self,
-    access_token: &str,
     room_id: &str,
     message: &str,
     formatted_message: &str,
-  ) -> Result<EventID, MatrixError> {
-    let client = self.client.clone();
-    let req = SendRoomMessageRequest {
-      msgtype: "m.text".into(),
-      body: message.to_string(),
-      format: "org.matrix.custom.html".into(),
-      formatted_body: formatted_message.to_string(),
-    };
+  ) -> Result<Option<EventID>, MatrixError> {
+    if self.disabled {
+      return Ok(None)
+    }
+    match &self.access_token {
+      Some(access_token) => {
+        let client = self.client.clone();
+        let req = SendRoomMessageRequest {
+          msgtype: "m.text".into(),
+          body: message.to_string(),
+          format: "org.matrix.custom.html".into(),
+          formatted_body: formatted_message.to_string(),
+        };
 
-    let res = client
-      .post(format!(
-        "{}/rooms/{}/send/m.room.message?access_token={}",
-        MATRIX_URL, room_id, access_token
-      ))
-      .json(&req)
-      .send()
-      .await?;
+        let res = client
+          .post(format!(
+            "{}/rooms/{}/send/m.room.message?access_token={}",
+            MATRIX_URL, room_id, access_token
+          ))
+          .json(&req)
+          .send()
+          .await?;
 
-    debug!("response {:?}", res);
-    match res.status() {
-      reqwest::StatusCode::OK => {
-        let response = res.json::<SendRoomMessageResponse>().await?;
-        debug!(
-          "{} * Matrix private messsage sent",
-          response.event_id
-        );
-        Ok(response.event_id)
+        debug!("response {:?}", res);
+        match res.status() {
+          reqwest::StatusCode::OK => {
+            let response = res.json::<SendRoomMessageResponse>().await?;
+            debug!("{} * Matrix private messsage sent", response.event_id);
+            Ok(Some(response.event_id))
+          }
+          reqwest::StatusCode::TOO_MANY_REQUESTS => {
+            let response = res.json::<ErrorResponse>().await?;
+            warn!("Matrix {} -> Mwait 5 seconds and try again", response.error);
+            thread::sleep(time::Duration::from_secs(5));
+            return self.send_message(room_id, message, formatted_message).await;
+          }
+          _ => {
+            let response = res.json::<ErrorResponse>().await?;
+            Err(MatrixError::Other(response.error))
+          }
+        }
       }
-      reqwest::StatusCode::TOO_MANY_REQUESTS => {
-        let response = res.json::<ErrorResponse>().await?;
-        warn!("Matrix {} -> Mwait 5 seconds and try again", response.error);
-        thread::sleep(time::Duration::from_secs(5));
-        return self.send_message(access_token, room_id, message, formatted_message).await;
-      }
-      _ => {
-        let response = res.json::<ErrorResponse>().await?;
-        Err(MatrixError::Other(response.error))
-      }
+      None => Err(MatrixError::Other("access_token not defined".into())),
     }
   }
 }

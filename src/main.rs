@@ -24,6 +24,7 @@ mod crunch;
 mod errors;
 mod matrix;
 
+use crate::config::CONFIG;
 use crate::crunch::Crunch;
 use log::info;
 use std::env;
@@ -33,11 +34,16 @@ fn main() {
     env_logger::try_init().unwrap_or_default();
 
     info!(
-        "Hey {} v{} * {}",
+        "{} v{} * {}",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
         env!("CARGO_PKG_DESCRIPTION")
     );
 
-    Crunch::it();
+    let config = CONFIG.clone();
+    if config.only_view {
+        return Crunch::view();
+    }
+    Crunch::flakes()
+    
 }

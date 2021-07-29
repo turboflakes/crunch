@@ -96,14 +96,26 @@ impl Crunch {
     }
   }
 
-  /// Spawn and restart crunch task on error
-  pub fn it() {
-    spawn_and_restart_crunch_on_error();
+  /// Spawn and restart crunch flakes task on error
+  pub fn flakes() {
+    spawn_and_restart_crunch_flakes_on_error();
   }
 
+  /// Spawn crunch view task
+  pub fn view() {
+    spawn_crunch_view();
+  }
+
+  //
   async fn run(&self) -> Result<(), CrunchError> {
     let client = self.client.clone();
     let config = CONFIG.clone();
+
+    let properties = client.properties();
+    // Display SS58 addresses based on the connected chain
+    crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
+      properties.ss58_format.into(),
+    ));
 
     // Seed account
     let seed =
@@ -114,16 +126,17 @@ impl Crunch {
     let seed_account_id: AccountId32 = seed_account.public().into();
 
     // Matrix properties
-    let m: Matrix = Matrix::new().await;
-    let access_token = m.login().await?;
-    let room_id = m
-      .get_user_private_room_id(&access_token, client.chain_name())
-      .await?;
+    let mut m: Matrix = Matrix::new().await;
+    m.login().await?;
+    let room_id = match m.get_user_private_room_id(client.chain_name()).await? {
+      Some(room_id) => room_id,
+      None => String::from(""),
+    };
 
     let message = format!("Hey, it's crunch time!");
     let formatted_message = format!("⏰ Hey, it's crunch time 🦾");
     info!("{}", message);
-    m.send_message(&access_token, &room_id, &message, &formatted_message)
+    m.send_message(&room_id, &message, &formatted_message)
       .await?;
 
     let message = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
@@ -132,25 +145,19 @@ impl Crunch {
       env!("CARGO_PKG_NAME"),
       env!("CARGO_PKG_VERSION")
     );
-    m.send_message(&access_token, &room_id, &message, &formatted_message)
+    m.send_message(&room_id, &message, &formatted_message)
       .await?;
 
-    let properties = client.properties();
-    // Display SS58 addresses based on the connected chain
-    crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
-      properties.ss58_format.into(),
-    ));
-
-    let history_depth: u32 = client.history_depth(None).await?;
-    let active_era = client.active_era(None).await?;
-
+    // log seed public account
     let message = format!("{} * Signer account", seed_account_id);
     let formatted_message = format!("✍️ Signer account 👉 <code>{}</code>", seed_account_id);
 
     info!("{}", message);
-    m.send_message(&access_token, &room_id, &message, &formatted_message)
+    m.send_message(&room_id, &message, &formatted_message)
       .await?;
 
+    let history_depth: u32 = client.history_depth(None).await?;
+    let active_era = client.active_era(None).await?;
     for (i, stash_str) in config.stashes.iter().enumerate() {
       let stash = AccountId32::from_str(stash_str)?;
 
@@ -158,14 +165,14 @@ impl Crunch {
       let formatted_message = format!("🏁 {} --> Go crunch it!", i + 1);
 
       info!("{}", message);
-      m.send_message(&access_token, &room_id, &message, &formatted_message)
+      m.send_message(&room_id, &message, &formatted_message)
         .await?;
 
       let message = format!("{} * Stash account", stash);
       let formatted_message = format!("💰 Stash account 👉 <code>{}</code>", stash);
 
       info!("{}", message);
-      m.send_message(&access_token, &room_id, &message, &formatted_message)
+      m.send_message(&room_id, &message, &formatted_message)
         .await?;
 
       let start_index = active_era.index - history_depth;
@@ -201,7 +208,7 @@ impl Crunch {
               claimed.len()
             );
             info!("{}", message);
-            m.send_message(&access_token, &room_id, &message, &formatted_message)
+            m.send_message(&room_id, &message, &formatted_message)
               .await?;
           } else {
             let message = format!(
@@ -213,7 +220,7 @@ impl Crunch {
               history_depth
             );
             info!("{}", message);
-            m.send_message(&access_token, &room_id, &message, &formatted_message)
+            m.send_message(&room_id, &message, &formatted_message)
               .await?;
           }
           debug!(
@@ -246,7 +253,7 @@ impl Crunch {
               quantity
             );
             info!("{}", message);
-            m.send_message(&access_token, &room_id, &message, &formatted_message)
+            m.send_message(&room_id, &message, &formatted_message)
               .await?;
 
             debug!("{} * Unclaimed rewards {:?}", stash, unclaimed);
@@ -260,7 +267,7 @@ impl Crunch {
                   let message = format!("Crunch flakes in era {}", stash);
                   let formatted_message = format!("🥣 Crunch flakes in era {}", claim_era);
                   info!("{}", message);
-                  m.send_message(&access_token, &room_id, &message, &formatted_message)
+                  m.send_message(&room_id, &message, &formatted_message)
                     .await?;
 
                   // Call extrinsic payout stakers and wait for event
@@ -299,7 +306,7 @@ impl Crunch {
                     stash_amount, stash_amount_percentage
                   );
                   info!("{}", message);
-                  m.send_message(&access_token, &room_id, &message, &formatted_message)
+                  m.send_message(&room_id, &message, &formatted_message)
                     .await?;
 
                   // Nominators reward amount
@@ -321,7 +328,7 @@ impl Crunch {
                     others_amount, others_amount_percentage
                   );
                   info!("{}", message);
-                  m.send_message(&access_token, &room_id, &message, &formatted_message)
+                  m.send_message(&room_id, &message, &formatted_message)
                     .await?;
                 }
                 maximum_payouts = Some(i - 1);
@@ -344,7 +351,7 @@ impl Crunch {
                 symbols
               );
               warn!("{} * {:?}", message, unclaimed);
-              m.send_message(&access_token, &room_id, &message, &formatted_message)
+              m.send_message(&room_id, &message, &formatted_message)
                 .await?;
             } else {
               let message = format!("Well done! Stash account {} Just run out of flakes!", stash);
@@ -353,14 +360,14 @@ impl Crunch {
                 stash
               );
               info!("{}", message);
-              m.send_message(&access_token, &room_id, &message, &formatted_message)
+              m.send_message(&room_id, &message, &formatted_message)
                 .await?;
             }
           } else {
             let message = format!("And nothing to crunch this time!");
             let formatted_message = format!("🙃 And nothing to crunch this time 🪴 📚");
             info!("{}", message);
-            m.send_message(&access_token, &room_id, &message, &formatted_message)
+            m.send_message(&room_id, &message, &formatted_message)
               .await?;
           }
         }
@@ -370,11 +377,6 @@ impl Crunch {
           stash
         );
       }
-      // let message = format!("{} finished", i + 1);
-      // let formatted_message = format!("🏁 {} finished 🏁", i + 1);
-      // info!("{}", message);
-      // m.send_message(&access_token, &room_id, &message, &formatted_message)
-      //   .await?;
     }
 
     let message = format!(
@@ -386,13 +388,77 @@ impl Crunch {
       config.interval / 3600
     );
     info!("{}", message);
-    m.send_message(&access_token, &room_id, &message, &formatted_message)
+    m.send_message(&room_id, &message, &formatted_message)
       .await?;
+    m.logout().await?;
+    Ok(())
+  }
+  async fn inspect(&self) -> Result<(), CrunchError> {
+    let client = self.client.clone();
+    let config = CONFIG.clone();
+
+    let properties = client.properties();
+    // Display SS58 addresses based on the connected chain
+    crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
+      properties.ss58_format.into(),
+    ));
+
+    let message = format!(
+      "Inspect stashes -> {}",
+      config.stashes.join(",")
+    );
+    info!("{}", message);
+
+    let history_depth: u32 = client.history_depth(None).await?;
+    let active_era = client.active_era(None).await?;
+    for stash_str in config.stashes.iter() {
+      let stash = AccountId32::from_str(stash_str)?;
+      let message = format!("{} * Stash account", stash);
+      info!("{}", message);
+
+      let start_index = active_era.index - history_depth;
+      let mut unclaimed: Vec<u32> = Vec::new();
+      let mut claimed: Vec<u32> = Vec::new();
+
+      if let Some(controller) = client.bonded(stash.clone(), None).await? {
+        if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
+          // Find unclaimed eras in previous 84 eras
+          for era_index in start_index..active_era.index {
+            // If reward was already claimed skip it
+            if ledger_response.claimed_rewards.contains(&era_index) {
+              claimed.push(era_index);
+              continue;
+            }
+            // Verify if stash was active in set
+            let exposure = client.eras_stakers(era_index, stash.clone(), None).await?;
+            if exposure.total > 0 {
+              unclaimed.push(era_index)
+            }
+          }
+        }
+      }
+      let message = format!(
+        "{} claimed eras in the last {} -> {:?}",
+        claimed.len(),
+        history_depth,
+        claimed
+      );
+      info!("{}", message);
+      let message = format!(
+        "{} unclaimed eras in the last {} -> {:?}",
+        unclaimed.len(),
+        history_depth,
+        unclaimed
+      );
+      info!("{}", message);
+    }
+    let message = format!("Job done!");
+    info!("{}", message);
     Ok(())
   }
 }
 
-fn spawn_and_restart_crunch_on_error() {
+fn spawn_and_restart_crunch_flakes_on_error() {
   let crunch_task = task::spawn(async {
     let config = CONFIG.clone();
     loop {
@@ -404,6 +470,16 @@ fn spawn_and_restart_crunch_on_error() {
       };
       thread::sleep(time::Duration::from_secs(config.interval));
     }
+  });
+  task::block_on(crunch_task);
+}
+
+fn spawn_crunch_view() {
+  let crunch_task = task::spawn(async {
+    let c: Crunch = Crunch::new().await;
+    if let Err(e) = c.inspect().await {
+      error!("{}", e);
+    };
   });
   task::block_on(crunch_task);
 }
