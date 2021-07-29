@@ -20,63 +20,24 @@
 // SOFTWARE.
 
 mod config;
-mod errors;
 mod crunch;
+mod errors;
+mod matrix;
 
-use crate::config::CONFIG;
 use crate::crunch::Crunch;
 use log::info;
 use std::env;
 
 fn main() {
-    // Load configuration
-    let config = CONFIG.clone();
+    env::set_var("RUST_LOG", "crunch=info");
+    env_logger::try_init().unwrap_or_default();
 
     info!(
-        "Starting {} version {} <> {}",
+        "Hey {} v{} * {}",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
-        config.substrate_ws_url
+        env!("CARGO_PKG_DESCRIPTION")
     );
 
     Crunch::it();
 }
-
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//     // Load configuration
-//     let config = CONFIG.clone();
-
-//     info!(
-//         "Starting {} version {} <{}>",
-//         env!("CARGO_PKG_NAME"),
-//         env!("CARGO_PKG_VERSION"),
-//         config.substrate_ws_url
-//     );
-
-//     // Spawn history and subscription sincronization tasks
-//     Sync::run();
-
-//     // Start http server
-//     let addr = format!("{}:{}", config.turboflakes_host, config.turboflakes_port);
-//     HttpServer::new(move || {
-//         let cors = Cors::default()
-//             .allowed_origin_fn(|origin, _req_head| {
-//                 let allowed_origin =
-//                     env::var("TURBOFLAKES_CORS_ALLOW_ORIGIN").unwrap_or("*".to_string());
-//                 origin.as_bytes().ends_with(allowed_origin.as_bytes())
-//             })
-//             .allowed_methods(vec!["GET", "OPTIONS"])
-//             .allowed_headers(vec![http::header::CONTENT_TYPE])
-//             .supports_credentials()
-//             .max_age(3600);
-//         App::new()
-//             .wrap(middleware::Logger::default())
-//             .wrap(cors)
-//             .configure(add_pool)
-//             .configure(routes)
-//     })
-//     .bind(addr)?
-//     .run()
-//     .await
-// }

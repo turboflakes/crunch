@@ -19,8 +19,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use derive_more::Display;
-use serde::{Deserialize, Serialize};
+use codec;
+use reqwest;
+use std::string::String;
 use thiserror::Error;
 
 /// Crunch specific error messages
@@ -28,6 +29,10 @@ use thiserror::Error;
 pub enum CrunchError {
     #[error("Substrate_subxt error: {0}")]
     SubxtError(#[from] substrate_subxt::Error),
+    #[error("Codec error: {0}")]
+    CodecError(#[from] codec::Error),
+    #[error("Matrix error: {0}")]
+    MatrixError(String),
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -38,3 +43,29 @@ impl From<&str> for CrunchError {
         CrunchError::Other(error.into())
     }
 }
+
+/// Crunch specific error messages
+#[derive(Error, Debug)]
+pub enum MatrixError {
+    #[error("Reqwest error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
+    #[error("ParseError error: {0}")]
+    ParseError(#[from] url::ParseError),
+    #[error("{0}")]
+    Other(String),
+}
+
+/// Convert MatrixError to Sttring
+impl From<MatrixError> for String {
+    fn from(error: MatrixError) -> Self {
+        format!("{}", error).to_string()
+    }
+}
+
+/// Convert MatrixError to CrunchError
+impl From<MatrixError> for CrunchError {
+    fn from(error: MatrixError) -> Self {
+        CrunchError::MatrixError(error.into())
+    }
+}
+

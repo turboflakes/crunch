@@ -21,28 +21,18 @@
 
 use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
+use crate::matrix::Matrix;
 use async_std::task;
-use chrono::Utc;
-use codec::Encode;
 use log::{debug, error, info, warn};
-use regex::Regex;
 use std::fs;
-use std::{
-  collections::BTreeMap, convert::TryInto, marker::PhantomData, result::Result, str::FromStr,
-};
+use std::{result::Result, str::FromStr};
 use std::{thread, time};
 use substrate_subxt::{
-  identity::{IdentityOfStoreExt, Judgement, SubsOfStoreExt, SuperOfStoreExt},
-  session::{NewSessionEvent, ValidatorsStore},
-  sp_core::storage::StorageKey,
-  sp_core::Decode,
-  sp_core::{sr25519, Pair as PairT},
+  sp_core::{crypto, sr25519, Pair as PairT},
   sp_runtime::AccountId32,
   staking::{
-    ActiveEraStoreExt, BondedStoreExt, EraIndex, EraPayoutEvent, ErasRewardPointsStoreExt, PayoutStakersCallExt,
-    ErasStakersClippedStoreExt, ErasStakersStoreExt, ErasTotalStakeStoreExt,
-    ErasValidatorPrefsStoreExt, ErasValidatorRewardStoreExt, HistoryDepthStoreExt, LedgerStoreExt,
-    NominatorsStoreExt, PayeeStoreExt, RewardDestination, RewardPoint, ValidatorsStoreExt,
+    ActiveEraStoreExt, BondedStoreExt, ErasStakersStoreExt, HistoryDepthStoreExt, LedgerStoreExt,
+    PayoutStakersCallExt, RewardEvent,
   },
   Client, ClientBuilder, DefaultNodeRuntime, PairSigner,
 };
@@ -60,25 +50,39 @@ pub async fn create_substrate_node_client(
 pub async fn create_or_await_substrate_node_client(config: Config) -> Client<DefaultNodeRuntime> {
   loop {
     match create_substrate_node_client(config.clone()).await {
-      Ok(client) => break client,
+      Ok(client) => {
+        info!(
+          "Connected to {} network <> {} * Substrate node <> {} v{}",
+          client.chain_name(),
+          config.substrate_ws_url,
+          client.node_name(),
+          client.node_version()
+        );
+        break client;
+      }
       Err(e) => {
         error!("{}", e);
-        info!("Awaiting for Substrate node client to be ready");
+        info!("Awaiting for connection <> {}", config.substrate_ws_url);
         thread::sleep(time::Duration::from_secs(6));
       }
     }
   }
 }
 
-fn get_account_id_from_storage_key(key: StorageKey) -> AccountId32 {
-  let s = &key.0[key.0.len() - 32..];
-  let v: [u8; 32] = s.try_into().expect("slice with incorrect length");
-  AccountId32::new(v)
-}
-
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
   sr25519::Pair::from_string(seed, pass).expect("constructed from known-good static value; qed")
+}
+
+fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
+  let cap: usize = match n {
+    n if n < (max / 4) as usize => 1,
+    n if n < (max / 2) as usize => 2,
+    n if n < max - (max / 4) as usize => 3,
+    _ => 4,
+  };
+  let v = vec![""; cap + 1];
+  v.join(symbol)
 }
 
 pub struct Crunch {
@@ -101,38 +105,81 @@ impl Crunch {
     let client = self.client.clone();
     let config = CONFIG.clone();
 
+    // Seed account
+    let seed =
+      fs::read_to_string(config.seed_file).expect("Something went wrong reading the seed file");
+    let seed_account: sr25519::Pair = get_from_seed(&seed, None);
+    let seed_account_signer =
+      PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account.clone());
+    let seed_account_id: AccountId32 = seed_account.public().into();
+
+    // Matrix properties
+    let m: Matrix = Matrix::new().await;
+    let access_token = m.login().await?;
+    let room_id = m
+      .get_user_private_room_id(&access_token, client.chain_name())
+      .await?;
+
+    let message = format!("Hey, it's crunch time!");
+    let formatted_message = format!("⏰ Hey, it's crunch time 🦾");
+    info!("{}", message);
+    m.send_message(&access_token, &room_id, &message, &formatted_message)
+      .await?;
+
+    let message = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    let formatted_message = format!(
+      "🤖 <code>{} v{}</code>",
+      env!("CARGO_PKG_NAME"),
+      env!("CARGO_PKG_VERSION")
+    );
+    m.send_message(&access_token, &room_id, &message, &formatted_message)
+      .await?;
+
+    let properties = client.properties();
+    // Display SS58 addresses based on the connected chain
+    crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
+      properties.ss58_format.into(),
+    ));
+
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
-    
 
+    let message = format!("{} * Signer account", seed_account_id);
+    let formatted_message = format!("✍️ Signer account 👉 <code>{}</code>", seed_account_id);
 
-    info!("Looking for flakes in stashes: {:?}", config.stashes);
-    let seed = fs::read_to_string(config.seed_phrase_filename)
-      .expect("Something went wrong reading the file");
+    info!("{}", message);
+    m.send_message(&access_token, &room_id, &message, &formatted_message)
+      .await?;
 
-    let seed_account: sr25519::Pair = get_from_seed(&seed, None);
-    let seed_account_signer = PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account);
-    for stash_str in config.stashes.iter() {
+    for (i, stash_str) in config.stashes.iter().enumerate() {
       let stash = AccountId32::from_str(stash_str)?;
+
+      let message = format!("Task {} -> Go crunch it!", i + 1);
+      let formatted_message = format!("🏁 {} --> Go crunch it!", i + 1);
+
+      info!("{}", message);
+      m.send_message(&access_token, &room_id, &message, &formatted_message)
+        .await?;
+
+      let message = format!("{} * Stash account", stash);
+      let formatted_message = format!("💰 Stash account 👉 <code>{}</code>", stash);
+
+      info!("{}", message);
+      m.send_message(&access_token, &room_id, &message, &formatted_message)
+        .await?;
 
       let start_index = active_era.index - history_depth;
       let mut unclaimed: Vec<u32> = Vec::new();
-      let mut max_unclaimed = Some(config.max_unclaimed);
+      let mut claimed: Vec<u32> = Vec::new();
+      let mut maximum_payouts = Some(config.maximum_payouts);
 
       if let Some(controller) = client.bonded(stash.clone(), None).await? {
         if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
-          debug!(
-            "stash {} already claimed rewards: {:?}",
-            stash, ledger_response.claimed_rewards
-          );
           // Find unclaimed eras in previous 84 eras
           for era_index in start_index..active_era.index {
             // If reward was already claimed skip it
             if ledger_response.claimed_rewards.contains(&era_index) {
-              info!(
-                "Stash {} crunched already some tasty flakes at era: {:?}",
-                stash, era_index
-              );
+              claimed.push(era_index);
               continue;
             }
             // Verify if stash was active in set
@@ -141,37 +188,206 @@ impl Crunch {
               unclaimed.push(era_index)
             }
           }
-
-          info!("unclaimed eras: {:?}", unclaimed);
-
-          while let Some(i) = max_unclaimed {
-            if i == 0 {
-              println!("Equal 0, quit!");
-              max_unclaimed = None;
-            } else {
-              if let Some(claim_era) = unclaimed.pop() {
-                info!("CLaim era {}", claim_era);
-                // Payout unclaimed eras
-                let response = client.payout_stakers_and_watch(&seed_account_signer, stash.clone(), claim_era).await?;
-                println!("response: {:?}", response);
-              }
-              max_unclaimed = Some(i - 1);
-            }
-          }
-          if unclaimed.len() > 0 {
-            warn!(
-              "Stash {} still has {} bowls full of delicious flakes to go!",
-              stash,
-              unclaimed.len()
+          if claimed.len() > 0 {
+            let message = format!(
+              "In the last {} eras -> {} have already been crunched * {:?}",
+              history_depth,
+              claimed.len(),
+              claimed
             );
+            let formatted_message = format!(
+              "📒 In the last {} eras --> {} have already been crunched 💨",
+              history_depth,
+              claimed.len()
+            );
+            info!("{}", message);
+            m.send_message(&access_token, &room_id, &message, &formatted_message)
+              .await?;
           } else {
-            info!("Stash {} run out of flakes!", stash);
+            let message = format!(
+              "In the last {} eras -> There was nothing to crunch",
+              history_depth
+            );
+            let formatted_message = format!(
+              "📒 In the last {} eras --> There was nothing to crunch 😞",
+              history_depth
+            );
+            info!("{}", message);
+            m.send_message(&access_token, &room_id, &message, &formatted_message)
+              .await?;
+          }
+          debug!(
+            "{} * Claimed rewards {:?}",
+            stash, ledger_response.claimed_rewards
+          );
+
+          if unclaimed.len() > 0 {
+            // Get how many eras will be claimed based on maximum_payouts
+            let quantity = if unclaimed.len() >= config.maximum_payouts {
+              config.maximum_payouts
+            } else {
+              unclaimed.len()
+            };
+
+            let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
+            let message = format!(
+              "{} And {} eras still have delicious flakes to crunch {} So, let's crunch {}!",
+              symbols,
+              unclaimed.len(),
+              symbols,
+              quantity
+            );
+            let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
+            let formatted_message = format!(
+              "{} And {} eras still have delicious flakes to crunch {} So, let's crunch {} 😋",
+              symbols,
+              unclaimed.len(),
+              symbols,
+              quantity
+            );
+            info!("{}", message);
+            m.send_message(&access_token, &room_id, &message, &formatted_message)
+              .await?;
+
+            debug!("{} * Unclaimed rewards {:?}", stash, unclaimed);
+
+            // Call extrinsic payout stakers as many and unclaimed eras or maximum_payouts reached
+            while let Some(i) = maximum_payouts {
+              if i == 0 {
+                maximum_payouts = None;
+              } else {
+                if let Some(claim_era) = unclaimed.pop() {
+                  let message = format!("Crunch flakes in era {}", stash);
+                  let formatted_message = format!("🥣 Crunch flakes in era {}", claim_era);
+                  info!("{}", message);
+                  m.send_message(&access_token, &room_id, &message, &formatted_message)
+                    .await?;
+
+                  // Call extrinsic payout stakers and wait for event
+                  let result = client
+                    .payout_stakers_and_watch(&seed_account_signer, stash.clone(), claim_era)
+                    .await?;
+
+                  debug!("{} * Result {:?}", stash, result);
+
+                  // Calculate validator and nominators reward amounts
+                  let mut stash_amount_value: u128 = 0;
+                  let mut others_amount_value: u128 = 0;
+                  for reward in result.find_events::<RewardEvent<_>>()? {
+                    if reward.stash == stash {
+                      stash_amount_value = reward.amount;
+                    } else {
+                      others_amount_value += reward.amount;
+                    }
+                  }
+
+                  // Validator reward amount
+                  let stash_amount = format!(
+                    "{} {}",
+                    stash_amount_value as f64 / 10f64.powi(properties.token_decimals.into()),
+                    properties.token_symbol
+                  );
+                  let stash_amount_percentage = (stash_amount_value as f64
+                    / (stash_amount_value + others_amount_value) as f64)
+                    * 100.0;
+                  let message = format!(
+                    "Validator crunched tasty flakes worth of {} ({:.2}%)",
+                    stash_amount, stash_amount_percentage,
+                  );
+                  let formatted_message = format!(
+                    "🧑‍🚀 Validator crunched tasty flakes worth of {} ({:.2}%)",
+                    stash_amount, stash_amount_percentage
+                  );
+                  info!("{}", message);
+                  m.send_message(&access_token, &room_id, &message, &formatted_message)
+                    .await?;
+
+                  // Nominators reward amount
+                  let others_amount = format!(
+                    "{} {}",
+                    others_amount_value as f64 / 10f64.powi(properties.token_decimals.into()),
+                    properties.token_symbol
+                  );
+                  let others_amount_percentage = (others_amount_value as f64
+                    / (stash_amount_value + others_amount_value) as f64)
+                    * 100.0;
+
+                  let message = format!(
+                    "Nominators crunched tasty flakes worth of {} ({:.2}%)",
+                    others_amount, others_amount_percentage,
+                  );
+                  let formatted_message = format!(
+                    "🦸 Nominators crunched tasty flakes worth of {} ({:.2}%)",
+                    others_amount, others_amount_percentage
+                  );
+                  info!("{}", message);
+                  m.send_message(&access_token, &room_id, &message, &formatted_message)
+                    .await?;
+                }
+                maximum_payouts = Some(i - 1);
+              }
+            }
+            // Check if there are still eras left to claim
+            if unclaimed.len() > 0 {
+              let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
+              let message = format!(
+                "{} There are still some left -> {} eras with delicious flakes to crunch {}",
+                symbols,
+                unclaimed.len(),
+                symbols
+              );
+              let symbols = number_to_symbols(unclaimed.len(), "⚠️", history_depth as usize);
+              let formatted_message = format!(
+                "{} There are still some left --> {} eras with delicious flakes to crunch {}",
+                symbols,
+                unclaimed.len(),
+                symbols
+              );
+              warn!("{} * {:?}", message, unclaimed);
+              m.send_message(&access_token, &room_id, &message, &formatted_message)
+                .await?;
+            } else {
+              let message = format!("Well done! Stash account {} Just run out of flakes!", stash);
+              let formatted_message = format!(
+                "✌️ Well done! Stash account 👉 <code>{}</code> Just run out of flakes ✨💙",
+                stash
+              );
+              info!("{}", message);
+              m.send_message(&access_token, &room_id, &message, &formatted_message)
+                .await?;
+            }
+          } else {
+            let message = format!("And nothing to crunch this time!");
+            let formatted_message = format!("🙃 And nothing to crunch this time 🪴 📚");
+            info!("{}", message);
+            m.send_message(&access_token, &room_id, &message, &formatted_message)
+              .await?;
           }
         }
-      };
+      } else {
+        warn!(
+          "{} * The Stash account specified does not have any Controller account!",
+          stash
+        );
+      }
+      // let message = format!("{} finished", i + 1);
+      // let formatted_message = format!("🏁 {} finished 🏁", i + 1);
+      // info!("{}", message);
+      // m.send_message(&access_token, &room_id, &message, &formatted_message)
+      //   .await?;
     }
 
-    info!("There's no flakes to take in - shelves are empty.");
+    let message = format!(
+      "Next crunch time will be in {} hours!",
+      config.interval / 3600
+    );
+    let formatted_message = format!(
+      "⏲️ Next crunch time will be in {} hours 💤",
+      config.interval / 3600
+    );
+    info!("{}", message);
+    m.send_message(&access_token, &room_id, &message, &formatted_message)
+      .await?;
     Ok(())
   }
 }
