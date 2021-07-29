@@ -47,8 +47,8 @@ fn default_interval() -> u64 {
   21600
 }
 
-/// provides default value for seed_file if CRUNCH_SEED_FILE env var is not set
-fn default_seed_file() -> String {
+/// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
+fn default_seed_path() -> String {
   ".private.seed".into()
 }
 
@@ -62,8 +62,8 @@ pub struct Config {
   #[serde(default = "default_interval")]
   pub interval: u64,
   pub substrate_ws_url: String,
-  #[serde(default = "default_seed_file")]
-  pub seed_file: String,
+  #[serde(default = "default_seed_path")]
+  pub seed_path: String,
   pub stashes: Vec<String>,
   #[serde(default = "default_maximum_payouts")]
   pub maximum_payouts: usize,
@@ -101,9 +101,9 @@ fn get_config() -> Config {
             )
       )
       .arg(
-        Arg::with_name("seed_file")
+        Arg::with_name("seed-path")
           .short("f")
-          .long("seed_file")
+          .long("seed-path")
           .takes_value(true)
           .default_value(".private.seed")
           .help(
@@ -111,9 +111,9 @@ fn get_config() -> Config {
           ),
       )
       .arg(
-        Arg::with_name("maximum_payouts")
+        Arg::with_name("maximum-payouts")
           .short("m")
-          .long("maximum_payouts")
+          .long("maximum-payouts")
           .takes_value(true)
           .default_value("4")
           .help("Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address will be 4)."))
@@ -136,18 +136,18 @@ fn get_config() -> Config {
         ),
     )
     .arg(
-      Arg::with_name("substrate_ws_url")
+      Arg::with_name("substrate-ws-url")
         .short("w")
-        .long("substrate_ws_url")
+        .long("substrate-ws-url")
         .takes_value(true)
         .help(
           "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
         ),
     )
     .arg(
-      Arg::with_name("config_file")
+      Arg::with_name("config-path")
         .short("c")
-        .long("config_file")
+        .long("config-path")
         .takes_value(true)
         .default_value(".env")
         .help(
@@ -157,9 +157,15 @@ fn get_config() -> Config {
     .get_matches();
 
   // Try to load configuration from file first
-  let config_file = matches.value_of("config_file").unwrap_or(".env");
-  if let Some(_) = dotenv::from_filename(&config_file).ok() {
-    info!("Loading configuration from {} file", &config_file);
+  let config_path = matches.value_of("config-path").unwrap_or(".env");
+  match dotenv::from_filename(&config_path).ok() {
+    Some(_) => info!("Loading configuration from {} file", &config_path),
+    None => {
+      let config_path = env::var("CRUNCH_CONFIG_FILENAME").unwrap_or(".env".to_string());
+      if let Some(_) = dotenv::from_filename(&config_path).ok() {
+        info!("Loading configuration from {} file", &config_path);
+      }
+    }
   }
 
   match matches.value_of("CHAIN") {
@@ -177,15 +183,15 @@ fn get_config() -> Config {
     }
   }
 
-  if let Some(seed_file) = matches.value_of("seed_file") {
-    env::set_var("CRUNCH_SEED_FILE", seed_file);
+  if let Some(seed_path) = matches.value_of("seed-path") {
+    env::set_var("CRUNCH_SEED_PATH", seed_path);
   }
 
   if let Some(stashes) = matches.value_of("stashes") {
     env::set_var("CRUNCH_STASHES", stashes);
   }
 
-  if let Some(substrate_ws_url) = matches.value_of("substrate_ws_url") {
+  if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
     env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
   }
 
@@ -201,17 +207,21 @@ fn get_config() -> Config {
         _ => unreachable!(),
       }
 
-      if let Some(maximum_payouts) = flakes_matches.value_of("maximum_payouts") {
+      if let Some(seed_path) = flakes_matches.value_of("seed-path") {
+        env::set_var("CRUNCH_SEED_PATH", seed_path);
+      }
+
+      if let Some(maximum_payouts) = flakes_matches.value_of("maximum-payouts") {
         env::set_var("CRUNCH_MAXIMUM_PAYOUTS", maximum_payouts);
+      }
+
+      if flakes_matches.is_present("debug") {
+        env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
       }
     }
     _ => {
-      warn!("Do not forget to specify subcommand \"flakes\" when running crunch CLI.");
+      warn!("Besides subcommand 'flakes' being the default subcommand, would be cool to have it visible, so that CLI becomes more expressive (e.g. 'crunch flakes daily')");
     }
-  }
-
-  if matches.is_present("debug") {
-    env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
   }
 
   match envy::prefixed("CRUNCH_").from_env::<Config>() {

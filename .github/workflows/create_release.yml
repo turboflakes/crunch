@@ -22,11 +22,15 @@ jobs:
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
+        env:
+          CRUNCH_CONFIG_FILENAME: .env.example
         with:
           command: test
 
       - name: Run cargo build 
         uses: actions-rs/cargo@v1
+        env:
+          CRUNCH_CONFIG_FILENAME: .env.example
         with:
           command: build
           args: --release

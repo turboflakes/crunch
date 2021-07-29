@@ -107,7 +107,7 @@ impl Crunch {
 
     // Seed account
     let seed =
-      fs::read_to_string(config.seed_file).expect("Something went wrong reading the seed file");
+      fs::read_to_string(config.seed_path).expect("Something went wrong reading the seed file");
     let seed_account: sr25519::Pair = get_from_seed(&seed, None);
     let seed_account_signer =
       PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account.clone());
