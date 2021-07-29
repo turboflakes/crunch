@@ -2,7 +2,7 @@
 
 Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains
 
-![latest release](https://github.com/turboflakes/yummies/actions/workflows/create_release.yml/badge.svg)
+![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)
 
 ## Run
 
