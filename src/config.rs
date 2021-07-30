@@ -57,15 +57,6 @@ fn default_maximum_payouts() -> usize {
   4
 }
 
-/// provides default value for only_view if CRUNCH_ONLY_VIEW env var is not set
-fn default_false() -> bool {
-  false
-}
-
-fn default_empty() -> String {
-  String::from("")
-}
-
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
   #[serde(default = "default_interval")]
@@ -76,18 +67,18 @@ pub struct Config {
   pub stashes: Vec<String>,
   #[serde(default = "default_maximum_payouts")]
   pub maximum_payouts: usize,
-  #[serde(default = "default_false")]
+  #[serde(default)]
   pub only_view: bool,
   // matrix configuration
-  #[serde(default = "default_empty")]
+  #[serde(default)]
   pub matrix_username: String,
-  #[serde(default = "default_empty")]
+  #[serde(default)]
   pub matrix_password: String,
-  #[serde(default = "default_empty")]
+  #[serde(default)]
   pub matrix_server: String,
-  #[serde(default = "default_false")]
+  #[serde(default)]
   pub matrix_disabled: bool,
-  #[serde(default = "default_false")]
+  #[serde(default)]
   pub matrix_public_room_disabled: bool,
 }
 

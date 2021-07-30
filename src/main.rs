@@ -45,5 +45,4 @@ fn main() {
         return Crunch::view();
     }
     Crunch::flakes()
-    
 }
