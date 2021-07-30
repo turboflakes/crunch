@@ -55,7 +55,7 @@ pub enum MatrixError {
     Other(String),
 }
 
-/// Convert MatrixError to Sttring
+/// Convert MatrixError to String
 impl From<MatrixError> for String {
     fn from(error: MatrixError) -> Self {
         format!("{}", error).to_string()

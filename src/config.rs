@@ -58,8 +58,12 @@ fn default_maximum_payouts() -> usize {
 }
 
 /// provides default value for only_view if CRUNCH_ONLY_VIEW env var is not set
-fn default_only_view() -> bool {
+fn default_false() -> bool {
   false
+}
+
+fn default_empty() -> String {
+  String::from("")
 }
 
 #[derive(Clone, Deserialize, Debug)]
@@ -72,12 +76,19 @@ pub struct Config {
   pub stashes: Vec<String>,
   #[serde(default = "default_maximum_payouts")]
   pub maximum_payouts: usize,
-  #[serde(default = "default_only_view")]
+  #[serde(default = "default_false")]
   pub only_view: bool,
   // matrix configuration
+  #[serde(default = "default_empty")]
   pub matrix_username: String,
+  #[serde(default = "default_empty")]
   pub matrix_password: String,
+  #[serde(default = "default_empty")]
   pub matrix_server: String,
+  #[serde(default = "default_false")]
+  pub matrix_disabled: bool,
+  #[serde(default = "default_false")]
+  pub matrix_public_room_disabled: bool,
 }
 
 /// Inject dotenv and env vars into the Config struct
@@ -126,9 +137,38 @@ fn get_config() -> Config {
           .help("Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address will be 4)."))
       .arg(
         Arg::with_name("debug")
-          .short("d")
           .long("debug")
           .help("Prints debug information verbosely."))
+      .arg(
+        Arg::with_name("matrix-username")
+          .long("matrix-username")
+          .takes_value(true)
+          .help("Username for matrix sign in."))
+      .arg(
+        Arg::with_name("matrix-password")
+          .long("matrix-password")
+          .takes_value(true)
+          .help("Password for matrix sign in."))
+      .arg(
+        Arg::with_name("matrix-server")
+          .long("matrix-server")
+          .takes_value(true)
+          .default_value("matrix.org")
+          .help("Matrix server. (https://matrix.org/)"))
+      .arg(
+        Arg::with_name("disable-matrix")
+          .long("disable-matrix")
+          .help(
+            "Disable matrix bot within 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
+          ),
+      )
+      .arg(
+        Arg::with_name("disable-public-matrix-room")
+          .long("disable-public-matrix-room")
+          .help(
+            "Disable notifications to matrix public rooms within 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
+          ),
+      )
     )
     .subcommand(SubCommand::with_name("view")
       .about("Inspect for delicious flakes (staking rewards) to crunch (claim) and display claimed and unclaimed eras.")
@@ -225,6 +265,27 @@ fn get_config() -> Config {
       if flakes_matches.is_present("debug") {
         env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
       }
+
+      if matches.is_present("disable-matrix") {
+        env::set_var("CRUNCH_MATRIX_DISABLED", "true");
+      }
+
+      if matches.is_present("disable-public-matrix-room") {
+        env::set_var("CRUNCH_MATRIX_PUBLIC_ROOM_DISABLED", "true");
+      }
+
+      if let Some(matrix_username) = flakes_matches.value_of("matrix-username") {
+        env::set_var("CRUNCH_MATRIX_USERNAME", matrix_username);
+      }
+
+      if let Some(matrix_password) = flakes_matches.value_of("matrix-password") {
+        env::set_var("CRUNCH_MATRIX_PASSWORD", matrix_password);
+      }
+
+      if let Some(matrix_server) = flakes_matches.value_of("matrix-server") {
+        env::set_var("CRUNCH_MATRIX_SERVER", matrix_server);
+      }
+
     }
     ("view", Some(_)) => {
       env::set_var("CRUNCH_ONLY_VIEW", "true");

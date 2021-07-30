@@ -117,7 +117,7 @@ impl Crunch {
       properties.ss58_format.into(),
     ));
 
-    // Seed account
+    // Load seed account
     let seed =
       fs::read_to_string(config.seed_path).expect("Something went wrong reading the seed file");
     let seed_account: sr25519::Pair = get_from_seed(&seed, None);
@@ -125,19 +125,14 @@ impl Crunch {
       PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account.clone());
     let seed_account_id: AccountId32 = seed_account.public().into();
 
-    // Matrix properties
-    let mut m: Matrix = Matrix::new().await;
+    // Matrix authentication
+    let mut m: Matrix = Matrix::new(properties.ss58_format.into()).await;
     m.login().await?;
-    let room_id = match m.get_user_private_room_id(client.chain_name()).await? {
-      Some(room_id) => room_id,
-      None => String::from(""),
-    };
 
     let message = format!("Hey, it's crunch time!");
     let formatted_message = format!("⏰ Hey, it's crunch time 🦾");
     info!("{}", message);
-    m.send_message(&room_id, &message, &formatted_message)
-      .await?;
+    m.send_message(&message, &formatted_message).await?;
 
     let message = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let formatted_message = format!(
@@ -145,16 +140,14 @@ impl Crunch {
       env!("CARGO_PKG_NAME"),
       env!("CARGO_PKG_VERSION")
     );
-    m.send_message(&room_id, &message, &formatted_message)
-      .await?;
+    m.send_message(&message, &formatted_message).await?;
 
     // log seed public account
     let message = format!("{} * Signer account", seed_account_id);
     let formatted_message = format!("✍️ Signer account 👉 <code>{}</code>", seed_account_id);
 
     info!("{}", message);
-    m.send_message(&room_id, &message, &formatted_message)
-      .await?;
+    m.send_message(&message, &formatted_message).await?;
 
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
@@ -165,15 +158,13 @@ impl Crunch {
       let formatted_message = format!("🏁 {} --> Go crunch it!", i + 1);
 
       info!("{}", message);
-      m.send_message(&room_id, &message, &formatted_message)
-        .await?;
+      m.send_message(&message, &formatted_message).await?;
 
       let message = format!("{} * Stash account", stash);
       let formatted_message = format!("💰 Stash account 👉 <code>{}</code>", stash);
 
       info!("{}", message);
-      m.send_message(&room_id, &message, &formatted_message)
-        .await?;
+      m.send_message(&message, &formatted_message).await?;
 
       let start_index = active_era.index - history_depth;
       let mut unclaimed: Vec<u32> = Vec::new();
@@ -208,8 +199,7 @@ impl Crunch {
               claimed.len()
             );
             info!("{}", message);
-            m.send_message(&room_id, &message, &formatted_message)
-              .await?;
+            m.send_message(&message, &formatted_message).await?;
           } else {
             let message = format!(
               "In the last {} eras -> There was nothing to crunch",
@@ -220,8 +210,7 @@ impl Crunch {
               history_depth
             );
             info!("{}", message);
-            m.send_message(&room_id, &message, &formatted_message)
-              .await?;
+            m.send_message(&message, &formatted_message).await?;
           }
           debug!(
             "{} * Claimed rewards {:?}",
@@ -253,8 +242,7 @@ impl Crunch {
               quantity
             );
             info!("{}", message);
-            m.send_message(&room_id, &message, &formatted_message)
-              .await?;
+            m.send_message(&message, &formatted_message).await?;
 
             debug!("{} * Unclaimed rewards {:?}", stash, unclaimed);
 
@@ -267,8 +255,7 @@ impl Crunch {
                   let message = format!("Crunch flakes in era {}", stash);
                   let formatted_message = format!("🥣 Crunch flakes in era {}", claim_era);
                   info!("{}", message);
-                  m.send_message(&room_id, &message, &formatted_message)
-                    .await?;
+                  m.send_message(&message, &formatted_message).await?;
 
                   // Call extrinsic payout stakers and wait for event
                   let result = client
@@ -306,8 +293,7 @@ impl Crunch {
                     stash_amount, stash_amount_percentage
                   );
                   info!("{}", message);
-                  m.send_message(&room_id, &message, &formatted_message)
-                    .await?;
+                  m.send_message(&message, &formatted_message).await?;
 
                   // Nominators reward amount
                   let others_amount = format!(
@@ -328,8 +314,7 @@ impl Crunch {
                     others_amount, others_amount_percentage
                   );
                   info!("{}", message);
-                  m.send_message(&room_id, &message, &formatted_message)
-                    .await?;
+                  m.send_message(&message, &formatted_message).await?;
                 }
                 maximum_payouts = Some(i - 1);
               }
@@ -351,8 +336,7 @@ impl Crunch {
                 symbols
               );
               warn!("{} * {:?}", message, unclaimed);
-              m.send_message(&room_id, &message, &formatted_message)
-                .await?;
+              m.send_message(&message, &formatted_message).await?;
             } else {
               let message = format!("Well done! Stash account {} Just run out of flakes!", stash);
               let formatted_message = format!(
@@ -360,15 +344,13 @@ impl Crunch {
                 stash
               );
               info!("{}", message);
-              m.send_message(&room_id, &message, &formatted_message)
-                .await?;
+              m.send_message(&message, &formatted_message).await?;
             }
           } else {
             let message = format!("And nothing to crunch this time!");
             let formatted_message = format!("🙃 And nothing to crunch this time 🪴 📚");
             info!("{}", message);
-            m.send_message(&room_id, &message, &formatted_message)
-              .await?;
+            m.send_message(&message, &formatted_message).await?;
           }
         }
       } else {
@@ -388,8 +370,7 @@ impl Crunch {
       config.interval / 3600
     );
     info!("{}", message);
-    m.send_message(&room_id, &message, &formatted_message)
-      .await?;
+    m.send_message(&message, &formatted_message).await?;
     m.logout().await?;
     Ok(())
   }
@@ -403,10 +384,7 @@ impl Crunch {
       properties.ss58_format.into(),
     ));
 
-    let message = format!(
-      "Inspect stashes -> {}",
-      config.stashes.join(",")
-    );
+    let message = format!("Inspect stashes -> {}", config.stashes.join(","));
     info!("{}", message);
 
     let history_depth: u32 = client.history_depth(None).await?;
@@ -465,7 +443,7 @@ fn spawn_and_restart_crunch_flakes_on_error() {
       let c: Crunch = Crunch::new().await;
       if let Err(e) = c.run().await {
         error!("{}", e);
-        thread::sleep(time::Duration::from_millis(500));
+        thread::sleep(time::Duration::from_secs(5));
         continue;
       };
       thread::sleep(time::Duration::from_secs(config.interval));
