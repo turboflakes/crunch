@@ -25,7 +25,7 @@ use async_recursion::async_recursion;
 use base64::encode;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
-use std::{result::Result, thread, time};
+use std::{collections::HashMap, result::Result, thread, time};
 use url::form_urlencoded::byte_serialize;
 
 const MATRIX_URL: &str = "https://matrix.org/_matrix/client/r0";
@@ -45,7 +45,7 @@ pub enum Chain {
 impl Chain {
   fn public_room_alias(&self) -> String {
     format!(
-      "#{}-crunch-bot-test:matrix.org",
+      "#{}-crunch-bot-test1:matrix.org",
       self.to_string().to_lowercase()
     )
   }
@@ -91,7 +91,13 @@ fn define_private_room_alias_name(
   matrix_user: &str,
   matrix_bot_user: &str,
 ) -> String {
-  encode(format!("{}/{}/{}/{}", pkg_name, chain_name, matrix_user, matrix_bot_user).as_bytes())
+  encode(
+    format!(
+      "{}/{}/{}/{}",
+      pkg_name, chain_name, matrix_user, matrix_bot_user
+    )
+    .as_bytes(),
+  )
 }
 
 impl Room {
@@ -151,13 +157,13 @@ struct SendRoomMessageRequest {
 }
 
 #[derive(Deserialize, Debug)]
-struct JoinedRoomsResponse {
-  joined_rooms: Vec<String>,
+struct SendRoomMessageResponse {
+  event_id: EventID,
 }
 
 #[derive(Deserialize, Debug)]
-struct SendRoomMessageResponse {
-  event_id: EventID,
+struct JoinedRoomsResponse {
+  joined_rooms: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -311,7 +317,47 @@ impl Matrix {
         self.chain.public_room_alias()
       );
     }
+    // Change Crunch Bot display name
+    if !config.matrix_bot_display_name_disabled {
+      self.change_bot_display_name().await?;
+    }
     Ok(())
+  }
+
+  async fn change_bot_display_name(&self) -> Result<(), MatrixError> {
+    match &self.access_token {
+      Some(access_token) => {
+        let config = CONFIG.clone();
+        let client = self.client.clone();
+        let v: Vec<&str> = config.matrix_user.split(":").collect();
+        let username = v.first().unwrap();
+        let display_name = format!("Crunch 🤖 ({})", &username[1..]);
+        let mut data = HashMap::new();
+        data.insert("displayname", &display_name);
+        let user_id_encoded: String = byte_serialize(config.matrix_bot_user.as_bytes()).collect();
+        let res = client
+          .put(format!(
+            "{}/profile/{}/displayname?access_token={}",
+            MATRIX_URL, user_id_encoded, access_token
+          ))
+          .json(&data)
+          .send()
+          .await?;
+
+        debug!("response {:?}", res);
+        match res.status() {
+          reqwest::StatusCode::OK => {
+            info!("{} * Matrix bot display name changed", &display_name);
+            Ok(())
+          }
+          _ => {
+            let response = res.json::<ErrorResponse>().await?;
+            Err(MatrixError::Other(response.error))
+          }
+        }
+      }
+      None => Err(MatrixError::Other("access_token not defined".to_string())),
+    }
   }
 
   async fn get_room_id_by_room_alias(

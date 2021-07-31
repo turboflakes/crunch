@@ -133,7 +133,7 @@ impl Crunch {
     matrix.authenticate().await?;
 
     let message = format!("Hey, it's crunch time!");
-    let formatted_message = format!("⏰ Hey, it's crunch time 🦾");
+    let formatted_message = format!("⏰ Hey, it's crunch time 👀");
     info!("{}", message);
     matrix.send_message(&message, &formatted_message).await?;
 
@@ -157,7 +157,7 @@ impl Crunch {
       let identity = self.get_identity(&stash, None).await?;
 
       let message = format!("{} -> Go crunch it!", identity);
-      let formatted_message = format!("🏁 {} --> Go crunch it!", identity);
+      let formatted_message = format!("{} --> Go crunch it 🏁", identity);
 
       info!("{}", message);
       matrix.send_message(&message, &formatted_message).await?;

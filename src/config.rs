@@ -80,6 +80,8 @@ pub struct Config {
   pub matrix_disabled: bool,
   #[serde(default)]
   pub matrix_public_room_disabled: bool,
+  #[serde(default)]
+  pub matrix_bot_display_name_disabled: bool,
 }
 
 /// Inject dotenv and env vars into the Config struct
@@ -149,16 +151,23 @@ fn get_config() -> Config {
         Arg::with_name("disable-matrix")
           .long("disable-matrix")
           .help(
-            "Disable matrix bot within 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
+            "Disable matrix bot in 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
           ),
       )
       .arg(
         Arg::with_name("disable-public-matrix-room")
           .long("disable-public-matrix-room")
           .help(
-            "Disable notifications to matrix public rooms within 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
+            "Disable notifications to matrix public rooms in 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
           ),
       )
+      .arg(
+        Arg::with_name("disable-matrix-bot-display-name")
+          .long("disable-matrix-bot-display-name")
+          .help(
+            "Disable matrix bot display name update in 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not change the matrix bot user display name)",
+          ),
+        )
     )
     .subcommand(SubCommand::with_name("view")
       .about("Inspect for delicious flakes (staking rewards) to crunch (claim) and display claimed and unclaimed eras.")
