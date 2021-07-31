@@ -88,9 +88,10 @@ struct Room {
 fn define_private_room_alias_name(
   pkg_name: &str,
   chain_name: &str,
+  matrix_user: &str,
   matrix_bot_user: &str,
 ) -> String {
-  encode(format!("{}/{}/{}", pkg_name, chain_name, matrix_bot_user).as_bytes())
+  encode(format!("{}/{}/{}/{}", pkg_name, chain_name, matrix_user, matrix_bot_user).as_bytes())
 }
 
 impl Room {
@@ -99,6 +100,7 @@ impl Room {
     let room_alias_name = define_private_room_alias_name(
       env!("CARGO_PKG_NAME"),
       &chain.to_string(),
+      &config.matrix_user,
       &config.matrix_bot_user,
     );
     let v: Vec<&str> = config.matrix_bot_user.split(":").collect();
