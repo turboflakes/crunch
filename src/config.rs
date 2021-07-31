@@ -71,11 +71,11 @@ pub struct Config {
   pub only_view: bool,
   // matrix configuration
   #[serde(default)]
-  pub matrix_username: String,
+  pub matrix_user: String,
   #[serde(default)]
-  pub matrix_password: String,
+  pub matrix_bot_user: String,
   #[serde(default)]
-  pub matrix_server: String,
+  pub matrix_bot_password: String,
   #[serde(default)]
   pub matrix_disabled: bool,
   #[serde(default)]
@@ -131,21 +131,20 @@ fn get_config() -> Config {
           .long("debug")
           .help("Prints debug information verbosely."))
       .arg(
-        Arg::with_name("matrix-username")
-          .long("matrix-username")
+        Arg::with_name("matrix-user")
+          .long("matrix-user")
           .takes_value(true)
-          .help("Username for matrix sign in."))
+          .help("Your regular matrix user. e.g. '@your-regular-matrix-account:matrix.org' this user account will receive notifications from your other 'Crunch Bot' matrix account."))
       .arg(
-        Arg::with_name("matrix-password")
-          .long("matrix-password")
-          .takes_value(true)
-          .help("Password for matrix sign in."))
+            Arg::with_name("matrix-bot-user")
+              .long("matrix-bot-user")
+              .takes_value(true)
+              .help("Your new 'Crunch Bot' matrix user. e.g. '@your-own-crunch-bot-account:matrix.org' this user account will be your 'Crunch Bot' which will be responsible to send messages/notifications to your private or public 'Crunch Bot' rooms."))
       .arg(
-        Arg::with_name("matrix-server")
-          .long("matrix-server")
+        Arg::with_name("matrix-bot-password")
+          .long("matrix-bot-password")
           .takes_value(true)
-          .default_value("matrix.org")
-          .help("Matrix server. (https://matrix.org/)"))
+          .help("Password for the 'Crunch Bot' matrix user sign in."))
       .arg(
         Arg::with_name("disable-matrix")
           .long("disable-matrix")
@@ -265,18 +264,17 @@ fn get_config() -> Config {
         env::set_var("CRUNCH_MATRIX_PUBLIC_ROOM_DISABLED", "true");
       }
 
-      if let Some(matrix_username) = flakes_matches.value_of("matrix-username") {
-        env::set_var("CRUNCH_MATRIX_USERNAME", matrix_username);
+      if let Some(matrix_user) = flakes_matches.value_of("matrix-user") {
+        env::set_var("CRUNCH_MATRIX_ACCOUNT", matrix_user);
       }
 
-      if let Some(matrix_password) = flakes_matches.value_of("matrix-password") {
-        env::set_var("CRUNCH_MATRIX_PASSWORD", matrix_password);
+      if let Some(matrix_bot_user) = flakes_matches.value_of("matrix-bot-user") {
+        env::set_var("CRUNCH_MATRIX_BOT_USER", matrix_bot_user);
       }
 
-      if let Some(matrix_server) = flakes_matches.value_of("matrix-server") {
-        env::set_var("CRUNCH_MATRIX_SERVER", matrix_server);
+      if let Some(matrix_bot_password) = flakes_matches.value_of("matrix-bot-password") {
+        env::set_var("CRUNCH_MATRIX_BOT_PASSWORD", matrix_bot_password);
       }
-
     }
     ("view", Some(_)) => {
       env::set_var("CRUNCH_ONLY_VIEW", "true");

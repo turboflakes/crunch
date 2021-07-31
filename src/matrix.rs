@@ -88,10 +88,9 @@ struct Room {
 fn define_private_room_alias_name(
   pkg_name: &str,
   chain_name: &str,
-  username: &str,
-  server: &str,
+  matrix_bot_user: &str,
 ) -> String {
-  encode(format!("{}/{}/{}/{}", pkg_name, chain_name, username, server).as_bytes())
+  encode(format!("{}/{}/{}", pkg_name, chain_name, matrix_bot_user).as_bytes())
 }
 
 impl Room {
@@ -100,12 +99,12 @@ impl Room {
     let room_alias_name = define_private_room_alias_name(
       env!("CARGO_PKG_NAME"),
       &chain.to_string(),
-      &config.matrix_username,
-      &config.matrix_server,
+      &config.matrix_bot_user,
     );
+    let v: Vec<&str> = config.matrix_bot_user.split(":").collect();
     Room {
       room_alias_name: room_alias_name.to_string(),
-      room_alias: format!("#{}:{}", room_alias_name.to_string(), config.matrix_server),
+      room_alias: format!("#{}:{}", room_alias_name.to_string(), v.last().unwrap()),
       ..Default::default()
     }
   }
@@ -137,6 +136,7 @@ struct CreateRoomRequest {
   room_alias_name: String,
   topic: String,
   preset: String,
+  invite: Vec<String>,
   is_direct: bool,
 }
 
@@ -200,13 +200,15 @@ impl Matrix {
     if self.disabled {
       return Ok(());
     }
-    let client = self.client.clone();
     let config = CONFIG.clone();
-
+    if let None = config.matrix_bot_user.find(":") {
+      return Err(MatrixError::Other(format!("matrix bot user '{}' does specifed the matrix server e.g. '@your-own-crunch-bot-account:matrix.org'", config.matrix_bot_user)));
+    }
+    let client = self.client.clone();
     let req = LoginRequest {
-      r#type: "m.login.password".into(),
-      user: format!("@{}:{}", config.matrix_username, config.matrix_server),
-      password: config.matrix_password.into(),
+      r#type: "m.login.password".to_string(),
+      user: config.matrix_bot_user.to_string(),
+      password: config.matrix_bot_password.to_string(),
     };
 
     let res = client
@@ -221,8 +223,8 @@ impl Matrix {
         let response = res.json::<LoginResponse>().await?;
         self.access_token = Some(response.access_token);
         info!(
-          "The user {} has been authenticated <> {} * Matrix Server",
-          config.matrix_username, config.matrix_server
+          "The 'Crunch Bot' user {} has been authenticated <> Homeserver {}",
+          response.user_id, response.home_server
         );
         Ok(())
       }
@@ -259,7 +261,7 @@ impl Matrix {
           }
         }
       }
-      None => Err(MatrixError::Other("access_token not defined".into())),
+      None => Err(MatrixError::Other("access_token not defined".to_string())),
     }
   }
 
@@ -341,13 +343,15 @@ impl Matrix {
   async fn create_private_room(&self) -> Result<Option<Room>, MatrixError> {
     match &self.access_token {
       Some(access_token) => {
+        let config = CONFIG.clone();
         let client = self.client.clone();
         let room: Room = Room::new_private(self.chain);
         let req = CreateRoomRequest {
           name: format!("{} Crunch Bot (Private)", self.chain),
           room_alias_name: room.room_alias_name.to_string(),
-          topic: "Crunch Bot <> Automate staking rewards (flakes) every X hours".into(),
-          preset: "trusted_private_chat".into(),
+          topic: "Crunch Bot <> Automate staking rewards (flakes) every X hours".to_string(),
+          preset: "trusted_private_chat".to_string(),
+          invite: vec![config.matrix_user],
           is_direct: true,
         };
         let res = client
@@ -374,7 +378,7 @@ impl Matrix {
           }
         }
       }
-      None => Err(MatrixError::Other("access_token not defined".into())),
+      None => Err(MatrixError::Other("access_token not defined".to_string())),
     }
   }
 
@@ -390,7 +394,7 @@ impl Matrix {
           None => Ok(self.create_private_room().await?),
         }
       }
-      None => Err(MatrixError::Other("access_token not defined".into())),
+      None => Err(MatrixError::Other("access_token not defined".to_string())),
     }
   }
 
@@ -417,7 +421,7 @@ impl Matrix {
           }
         }
       }
-      None => Err(MatrixError::Other("access_token not defined".into())),
+      None => Err(MatrixError::Other("access_token not defined".to_string())),
     }
   }
 
@@ -453,7 +457,7 @@ impl Matrix {
           }
         }
       }
-      None => Err(MatrixError::Other("access_token not defined".into())),
+      None => Err(MatrixError::Other("access_token not defined".to_string())),
     }
   }
 
@@ -494,9 +498,9 @@ impl Matrix {
       Some(access_token) => {
         let client = self.client.clone();
         let req = SendRoomMessageRequest {
-          msgtype: "m.text".into(),
+          msgtype: "m.text".to_string(),
           body: message.to_string(),
-          format: "org.matrix.custom.html".into(),
+          format: "org.matrix.custom.html".to_string(),
           formatted_body: formatted_message.to_string(),
         };
 
@@ -530,7 +534,7 @@ impl Matrix {
           }
         }
       }
-      None => Err(MatrixError::Other("access_token not defined".into())),
+      None => Err(MatrixError::Other("access_token not defined".to_string())),
     }
   }
 }
