@@ -21,7 +21,7 @@
 
 use codec;
 use reqwest;
-use std::string::String;
+use std::{string::String, str::Utf8Error};
 use thiserror::Error;
 
 /// Crunch specific error messages
@@ -31,6 +31,8 @@ pub enum CrunchError {
     SubxtError(#[from] substrate_subxt::Error),
     #[error("Codec error: {0}")]
     CodecError(#[from] codec::Error),
+    #[error("Utf8 error: {0}")]
+    Utf8Error(#[from] Utf8Error),
     #[error("Matrix error: {0}")]
     MatrixError(String),
     #[error("Other error: {0}")]

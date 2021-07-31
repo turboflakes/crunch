@@ -25,8 +25,7 @@ use async_recursion::async_recursion;
 use base64::encode;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
-use std::result::Result;
-use std::{thread, time};
+use std::{result::Result, thread, time};
 use url::form_urlencoded::byte_serialize;
 
 const MATRIX_URL: &str = "https://matrix.org/_matrix/client/r0";

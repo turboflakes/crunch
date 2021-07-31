@@ -22,12 +22,15 @@
 use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
+use async_recursion::async_recursion;
 use async_std::task;
+use codec::Encode;
 use log::{debug, error, info, warn};
-use std::fs;
-use std::{result::Result, str::FromStr};
-use std::{thread, time};
+use percent_encoding::percent_decode;
+use regex::Regex;
+use std::{fs, result::Result, str::FromStr, thread, time};
 use substrate_subxt::{
+  identity::{IdentityOfStoreExt, SuperOfStoreExt},
   sp_core::{crypto, sr25519, Pair as PairT},
   sp_runtime::AccountId32,
   staking::{
@@ -144,24 +147,17 @@ impl Crunch {
 
     // log seed public account
     let message = format!("{} * Signer account", seed_account_id);
-    let formatted_message = format!("✍️ Signer account 👉 <code>{}</code>", seed_account_id);
-
     info!("{}", message);
-    matrix.send_message(&message, &formatted_message).await?;
-
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
-    for (i, stash_str) in config.stashes.iter().enumerate() {
+    for stash_str in config.stashes.iter() {
       let stash = AccountId32::from_str(stash_str)?;
 
-      let message = format!("Task {} -> Go crunch it!", i + 1);
-      let formatted_message = format!("🏁 {} --> Go crunch it!", i + 1);
+      // Get identity
+      let identity = self.get_identity(&stash, None).await?;
 
-      info!("{}", message);
-      matrix.send_message(&message, &formatted_message).await?;
-
-      let message = format!("{} * Stash account", stash);
-      let formatted_message = format!("💰 Stash account 👉 <code>{}</code>", stash);
+      let message = format!("{} -> Go crunch it!", identity);
+      let formatted_message = format!("🏁 {} --> Go crunch it!", identity);
 
       info!("{}", message);
       matrix.send_message(&message, &formatted_message).await?;
@@ -172,6 +168,11 @@ impl Crunch {
       let mut maximum_payouts = Some(config.maximum_payouts);
 
       if let Some(controller) = client.bonded(stash.clone(), None).await? {
+        let message = format!("{} * Stash account", stash);
+        let formatted_message = format!("💰 <code>{}</code>", stash);
+
+        info!("{}", message);
+        matrix.send_message(&message, &formatted_message).await?;
         if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
           // Find unclaimed eras in previous 84 eras
           for era_index in start_index..active_era.index {
@@ -348,16 +349,23 @@ impl Crunch {
             }
           } else {
             let message = format!("And nothing to crunch this time!");
-            let formatted_message = format!("🥱 And nothing to crunch this time --> 🪴 📚");
+            let formatted_message =
+              format!("🤔 And nothing to crunch this time 💭 🪴 📚 🧠 💡 👨‍💻");
             info!("{}", message);
             matrix.send_message(&message, &formatted_message).await?;
           }
         }
       } else {
-        warn!(
-          "{} * The Stash account specified does not have any Controller account!",
+        let message = format!(
+          "{} * Stash account does not have a Controller account!",
           stash
         );
+        let formatted_message = format!(
+          "💰 <code>{}</code> ⚠️ Stash account does not have a Controller account ⚠️",
+          stash
+        );
+        warn!("{}", message);
+        matrix.send_message(&message, &formatted_message).await?;
       }
     }
 
@@ -433,6 +441,43 @@ impl Crunch {
     let message = format!("Job done!");
     info!("{}", message);
     Ok(())
+  }
+
+  #[async_recursion]
+  async fn get_identity(
+    &self,
+    stash: &AccountId32,
+    sub_account_name: Option<String>,
+  ) -> Result<String, CrunchError> {
+    let client = self.client.clone();
+    // Use regex to remove control characters
+    let re = Regex::new(r"[\x00-\x1F]").unwrap();
+    match client.identity_of(stash.clone(), None).await? {
+      Some(registration) => {
+        let encoded = registration.info.display.encode();
+        let decoded = percent_decode(&encoded).decode_utf8()?;
+        let parent = re.replace_all(&decoded.to_string(), "").trim().to_string();
+
+        let name = match sub_account_name {
+          Some(child) => format!("{}/{}", parent, child),
+          None => parent,
+        };
+        Ok(name)
+      }
+      None => {
+        if let Some((parent_account, data)) = client.super_of(stash.clone(), None).await? {
+          let encoded = data.encode();
+          let decoded = percent_decode(&encoded).decode_utf8()?;
+          let sub_account_name = re.replace_all(&decoded.to_string(), "").trim().to_string();
+          return self
+            .get_identity(&parent_account, Some(sub_account_name))
+            .await;
+        } else {
+          let s = &stash.to_string();
+          Ok(format!("{}...{}", &s[..6], &s[s.len() - 6..]))
+        }
+      }
+    }
   }
 }
 
