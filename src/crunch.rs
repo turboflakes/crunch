@@ -90,13 +90,42 @@ fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
 
 pub struct Crunch {
   pub client: substrate_subxt::Client<DefaultNodeRuntime>,
+  matrix: Matrix,
 }
 
 impl Crunch {
   async fn new() -> Crunch {
-    Crunch {
-      client: create_or_await_substrate_node_client(CONFIG.clone()).await,
-    }
+    let client = create_or_await_substrate_node_client(CONFIG.clone()).await;
+    let properties = client.properties();
+    // Display SS58 addresses based on the connected chain
+    crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
+      properties.ss58_format.into(),
+    ));
+
+    // Initialize matrix client
+    let mut matrix: Matrix = Matrix::new();
+    matrix
+      .authenticate(properties.ss58_format.into())
+      .await
+      .unwrap_or_else(|e| {
+        error!("{}", e);
+        Default::default()
+      });
+    Crunch { client, matrix }
+  }
+
+  /// Returns the matrix configuration
+  pub fn matrix(&self) -> &Matrix {
+    &self.matrix
+  }
+
+  async fn send_message(&self, message: &str, formatted_message: &str) -> Result<(), CrunchError> {
+    info!("{}", message);
+    self
+      .matrix()
+      .send_message(message, formatted_message)
+      .await?;
+    Ok(())
   }
 
   /// Spawn and restart crunch flakes task on error
@@ -113,12 +142,7 @@ impl Crunch {
   async fn run(&self) -> Result<(), CrunchError> {
     let client = self.client.clone();
     let config = CONFIG.clone();
-
     let properties = client.properties();
-    // Display SS58 addresses based on the connected chain
-    crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
-      properties.ss58_format.into(),
-    ));
 
     // Load seed account
     let seed =
@@ -128,14 +152,9 @@ impl Crunch {
       PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account.clone());
     let seed_account_id: AccountId32 = seed_account.public().into();
 
-    // Matrix authentication
-    let mut matrix: Matrix = Matrix::new(properties.ss58_format.into()).await;
-    matrix.authenticate().await?;
-
     let message = format!("Hey, it's crunch time!");
     let formatted_message = format!("⏰ Hey, it's crunch time 👀");
-    info!("{}", message);
-    matrix.send_message(&message, &formatted_message).await?;
+    self.send_message(&message, &formatted_message).await?;
 
     let message = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let formatted_message = format!(
@@ -143,24 +162,25 @@ impl Crunch {
       env!("CARGO_PKG_NAME"),
       env!("CARGO_PKG_VERSION")
     );
-    matrix.send_message(&message, &formatted_message).await?;
+    self.send_message(&message, &formatted_message).await?;
 
-    // log seed public account
-    let message = format!("{} * Signer account", seed_account_id);
-    info!("{}", message);
+    // Get signer identity and log it
+    let identity = self.get_identity(&seed_account_id, None).await?;
+    let message = format!("{} * Signer account", identity);
+    let formatted_message = format!("✍️ Signer account 👉 <code>{}</code>", identity);
+    self.send_message(&message, &formatted_message).await?;
+
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
     for stash_str in config.stashes.iter() {
       let stash = AccountId32::from_str(stash_str)?;
 
-      // Get identity
+      // Get stash identity
       let identity = self.get_identity(&stash, None).await?;
 
       let message = format!("{} -> Go crunch it!", identity);
-      let formatted_message = format!("{} --> Go crunch it 🏁", identity);
-
-      info!("{}", message);
-      matrix.send_message(&message, &formatted_message).await?;
+      let formatted_message = format!("🧑‍🚀 {} --> Go crunch it 🏁", identity);
+      self.send_message(&message, &formatted_message).await?;
 
       let start_index = active_era.index - history_depth;
       let mut unclaimed: Vec<u32> = Vec::new();
@@ -169,10 +189,8 @@ impl Crunch {
 
       if let Some(controller) = client.bonded(stash.clone(), None).await? {
         let message = format!("{} * Stash account", stash);
-        let formatted_message = format!("💰 <code>{}</code>", stash);
-
-        info!("{}", message);
-        matrix.send_message(&message, &formatted_message).await?;
+        let formatted_message = format!("💰 Stash account 👉 <code>{}</code>", stash);
+        self.send_message(&message, &formatted_message).await?;
         if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
           // Find unclaimed eras in previous 84 eras
           for era_index in start_index..active_era.index {
@@ -199,8 +217,7 @@ impl Crunch {
               history_depth,
               claimed.len()
             );
-            info!("{}", message);
-            matrix.send_message(&message, &formatted_message).await?;
+            self.send_message(&message, &formatted_message).await?;
           } else {
             let message = format!(
               "In the last {} eras -> There was nothing to crunch",
@@ -210,8 +227,7 @@ impl Crunch {
               "📒 In the last {} eras --> There was nothing to crunch 😞",
               history_depth
             );
-            info!("{}", message);
-            matrix.send_message(&message, &formatted_message).await?;
+            self.send_message(&message, &formatted_message).await?;
           }
           debug!(
             "{} * Claimed rewards {:?}",
@@ -242,8 +258,7 @@ impl Crunch {
               symbols,
               quantity
             );
-            info!("{}", message);
-            matrix.send_message(&message, &formatted_message).await?;
+            self.send_message(&message, &formatted_message).await?;
 
             debug!("{} * Unclaimed rewards {:?}", stash, unclaimed);
 
@@ -253,26 +268,27 @@ impl Crunch {
                 maximum_payouts = None;
               } else {
                 if let Some(claim_era) = unclaimed.pop() {
-                  let message = format!("Crunch flakes in era {}", stash);
-                  let formatted_message = format!("🥣 Crunch flakes in era {}", claim_era);
-                  info!("{}", message);
-                  matrix.send_message(&message, &formatted_message).await?;
+                  let message = format!("Crunching flakes for era {}", stash);
+                  let formatted_message = format!("🥣 Crunching flakes for era {}", claim_era);
+                  self.send_message(&message, &formatted_message).await?;
 
                   // Call extrinsic payout stakers and wait for event
                   let result = client
                     .payout_stakers_and_watch(&seed_account_signer, stash.clone(), claim_era)
                     .await?;
 
-                  debug!("{} * Result {:?}", stash, result);
+                  info!("{} * Result {:?}", stash, result);
 
                   // Calculate validator and nominators reward amounts
                   let mut stash_amount_value: u128 = 0;
                   let mut others_amount_value: u128 = 0;
+                  let mut others_quantity: u32 = 0;
                   for reward in result.find_events::<RewardEvent<_>>()? {
                     if reward.stash == stash {
                       stash_amount_value = reward.amount;
                     } else {
                       others_amount_value += reward.amount;
+                      others_quantity += 1;
                     }
                   }
 
@@ -286,15 +302,14 @@ impl Crunch {
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
                   let message = format!(
-                    "Validator crunched tasty flakes worth of {} ({:.2}%)",
-                    stash_amount, stash_amount_percentage,
+                    "{} -> crunched tasty flakes worth of {} ({:.2}%)",
+                    identity, stash_amount, stash_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🧑‍🚀 Validator crunched tasty flakes worth of {} ({:.2}%)",
-                    stash_amount, stash_amount_percentage
+                    "🧑‍🚀 {} --> crunched tasty flakes worth of {} ({:.2}%)",
+                    identity, stash_amount, stash_amount_percentage
                   );
-                  info!("{}", message);
-                  matrix.send_message(&message, &formatted_message).await?;
+                  self.send_message(&message, &formatted_message).await?;
 
                   // Nominators reward amount
                   let others_amount = format!(
@@ -307,15 +322,14 @@ impl Crunch {
                     * 100.0;
 
                   let message = format!(
-                    "Nominators crunched tasty flakes worth of {} ({:.2}%)",
-                    others_amount, others_amount_percentage,
+                    "nominators ({}) -> crunched tasty flakes worth of {} ({:.2}%)",
+                    others_quantity, others_amount, others_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🦸 Nominators crunched tasty flakes worth of {} ({:.2}%)",
-                    others_amount, others_amount_percentage
+                    "🦸 nominators ({}) --> crunched tasty flakes worth of {} ({:.2}%)",
+                    others_quantity, others_amount, others_amount_percentage
                   );
-                  info!("{}", message);
-                  matrix.send_message(&message, &formatted_message).await?;
+                  self.send_message(&message, &formatted_message).await?;
                 }
                 maximum_payouts = Some(i - 1);
               }
@@ -324,35 +338,30 @@ impl Crunch {
             if unclaimed.len() > 0 {
               let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
               let message = format!(
-                "{} There are still some left -> {} eras with delicious flakes to crunch {}",
+                "{} But there are still some left -> {} eras with delicious flakes to crunch {}",
                 symbols,
                 unclaimed.len(),
                 symbols
               );
-              let symbols = number_to_symbols(unclaimed.len(), "⚠️", history_depth as usize);
+              let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
               let formatted_message = format!(
-                "{} There are still some left --> {} eras with delicious flakes to crunch {}",
+                "{} But there are still some left --> {} eras with delicious flakes to crunch {}",
                 symbols,
                 unclaimed.len(),
                 symbols
               );
-              warn!("{} * {:?}", message, unclaimed);
-              matrix.send_message(&message, &formatted_message).await?;
+              self.send_message(&message, &formatted_message).await?;
             } else {
-              let message = format!("Well done! Stash account {} Just run out of flakes!", stash);
-              let formatted_message = format!(
-                "✌️ Well done! Stash account 👉 <code>{}</code> Just run out of flakes ✨💙",
-                stash
-              );
-              info!("{}", message);
-              matrix.send_message(&message, &formatted_message).await?;
+              let message = format!("Well done! {} Just run out of flakes!", stash);
+              let formatted_message =
+                format!("✌️ Well done! {} Just run out of flakes ✨💙", identity);
+              self.send_message(&message, &formatted_message).await?;
             }
           } else {
             let message = format!("And nothing to crunch this time!");
             let formatted_message =
-              format!("🤔 And nothing to crunch this time 💭 🪴 📚 🧠 💡 👨‍💻");
-            info!("{}", message);
-            matrix.send_message(&message, &formatted_message).await?;
+              format!("🙃 And nothing to crunch this time 🤔 💭 🪴 📚 🧠 💡 👨‍💻");
+            self.send_message(&message, &formatted_message).await?;
           }
         }
       } else {
@@ -364,8 +373,7 @@ impl Crunch {
           "💰 <code>{}</code> ⚠️ Stash account does not have a Controller account ⚠️",
           stash
         );
-        warn!("{}", message);
-        matrix.send_message(&message, &formatted_message).await?;
+        self.send_message(&message, &formatted_message).await?;
       }
     }
 
@@ -377,20 +385,12 @@ impl Crunch {
       "⏲️ Next crunch time will be in {} hours 💤",
       config.interval / 3600
     );
-    info!("{}", message);
-    matrix.send_message(&message, &formatted_message).await?;
-    matrix.logout().await?;
+    self.send_message(&message, &formatted_message).await?;
     Ok(())
   }
   async fn inspect(&self) -> Result<(), CrunchError> {
     let client = self.client.clone();
     let config = CONFIG.clone();
-
-    let properties = client.properties();
-    // Display SS58 addresses based on the connected chain
-    crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
-      properties.ss58_format.into(),
-    ));
 
     let message = format!("Inspect stashes -> {}", config.stashes.join(","));
     info!("{}", message);
@@ -488,7 +488,15 @@ fn spawn_and_restart_crunch_flakes_on_error() {
       let c: Crunch = Crunch::new().await;
       if let Err(e) = c.run().await {
         error!("{}", e);
-        thread::sleep(time::Duration::from_secs(5));
+        match e {
+          CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
+          _ => {
+            let message = format!("On hold for 30 min!");
+            let formatted_message = format!("🚨 An error was raised. Crunch 🤖 stays on hold for 30 min --> Rescue is on the way 🚁 🚒 🚑 🚓",);
+            c.send_message(&message, &formatted_message).await.unwrap();
+          }
+        }
+        thread::sleep(time::Duration::from_secs(60*30));
         continue;
       };
       thread::sleep(time::Duration::from_secs(config.interval));

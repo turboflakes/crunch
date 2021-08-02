@@ -172,6 +172,7 @@ struct ErrorResponse {
   error: String,
 }
 
+#[derive(Clone, Debug)]
 pub struct Matrix {
   pub client: reqwest::Client,
   access_token: Option<String>,
@@ -195,16 +196,15 @@ impl Default for Matrix {
 }
 
 impl Matrix {
-  pub async fn new(chain: Chain) -> Matrix {
+  pub fn new() -> Matrix {
     let config = CONFIG.clone();
     Matrix {
-      chain: chain,
       disabled: config.matrix_disabled,
       ..Default::default()
     }
   }
 
-  async fn login(&mut self) -> Result<(), MatrixError> {
+  pub async fn login(&mut self) -> Result<(), MatrixError> {
     if self.disabled {
       return Ok(());
     }
@@ -243,6 +243,7 @@ impl Matrix {
     }
   }
 
+  #[allow(dead_code)]
   pub async fn logout(&mut self) -> Result<(), MatrixError> {
     if self.disabled {
       return Ok(());
@@ -274,12 +275,14 @@ impl Matrix {
   }
 
   // Login user, get or create private room and join public room
-  pub async fn authenticate(&mut self) -> Result<(), MatrixError> {
+  pub async fn authenticate(&mut self, chain: Chain) -> Result<(), MatrixError> {
     if self.disabled {
       return Ok(());
     }
     let config = CONFIG.clone();
-    // Login user
+    // Set chain
+    self.chain = chain;
+    // Login
     self.login().await?;
     // Get or create user private room
     if let Some(private_room) = self.get_or_create_private_room().await? {
