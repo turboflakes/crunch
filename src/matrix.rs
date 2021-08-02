@@ -45,7 +45,7 @@ pub enum Chain {
 impl Chain {
   fn public_room_alias(&self) -> String {
     format!(
-      "#{}-crunch-bot-test1:matrix.org",
+      "#{}-crunch-bot:matrix.org",
       self.to_string().to_lowercase()
     )
   }
