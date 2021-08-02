@@ -265,11 +265,11 @@ fn get_config() -> Config {
         env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
       }
 
-      if matches.is_present("disable-matrix") {
+      if flakes_matches.is_present("disable-matrix") {
         env::set_var("CRUNCH_MATRIX_DISABLED", "true");
       }
 
-      if matches.is_present("disable-public-matrix-room") {
+      if flakes_matches.is_present("disable-public-matrix-room") {
         env::set_var("CRUNCH_MATRIX_PUBLIC_ROOM_DISABLED", "true");
       }
 
