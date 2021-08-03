@@ -69,6 +69,8 @@ pub struct Config {
   pub maximum_payouts: usize,
   #[serde(default)]
   pub only_view: bool,
+  #[serde(default)]
+  pub is_boring: bool,
   // matrix configuration
   #[serde(default)]
   pub matrix_user: String,
@@ -97,18 +99,18 @@ fn get_config() -> Config {
           .possible_values(&["westend", "kusama", "polkadot"])
           .default_value("westend")
           .help(
-            "Choose the substrate-based chain for which 'crunch' will try to connect",
+            "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
     )
     .subcommand(SubCommand::with_name("flakes")
-      .about("Crunch delicious flakes daily or in turbo mode -> 4x faster (Claim staking rewards for unclaimed eras once a day or four times a day) [default subcommand]")
+      .about("Crunch awesome flakes (rewards) daily or in turbo mode -> 4x faster [default subcommand]")
       .arg(
         Arg::with_name("MODE")
             .index(1)
             .possible_values(&["daily", "turbo"])
             .default_value("turbo")
             .help(
-              "Choose how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. with the option 'daily' means 'crunch' task will be repeated every 24 hours; option 'turbo' means 'crunch' task will be repeated every 6 hours)",
+              "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
             )
       )
       .arg(
@@ -116,9 +118,10 @@ fn get_config() -> Config {
           .short("f")
           .long("seed-path")
           .takes_value(true)
+          .value_name("FILE")
           .default_value(".private.seed")
           .help(
-            "File path containing the private seed phrase to Sign the extrinsic payout call.",
+            "Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout call.",
           ),
       )
       .arg(
@@ -151,26 +154,96 @@ fn get_config() -> Config {
         Arg::with_name("disable-matrix")
           .long("disable-matrix")
           .help(
-            "Disable matrix bot in 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
+            "Disable matrix bot for 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
           ),
       )
       .arg(
         Arg::with_name("disable-public-matrix-room")
           .long("disable-public-matrix-room")
           .help(
-            "Disable notifications to matrix public rooms in 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
+            "Disable notifications to matrix public rooms for 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
           ),
       )
       .arg(
         Arg::with_name("disable-matrix-bot-display-name")
           .long("disable-matrix-bot-display-name")
           .help(
-            "Disable matrix bot display name update in 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not change the matrix bot user display name)",
+            "Disable matrix bot display name update for 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not change the matrix bot user display name)",
+          ),
+        )
+    )
+    .subcommand(SubCommand::with_name("rewards")
+      .about("Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]")
+      .arg(
+        Arg::with_name("MODE")
+            .index(1)
+            .possible_values(&["daily", "turbo"])
+            .default_value("turbo")
+            .help(
+              "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
+            )
+      )
+      .arg(
+        Arg::with_name("seed-path")
+          .short("f")
+          .long("seed-path")
+          .takes_value(true)
+          .value_name("FILE")
+          .default_value(".private.seed")
+          .help(
+            "Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout call.",
+          ),
+      )
+      .arg(
+        Arg::with_name("maximum-payouts")
+          .short("m")
+          .long("maximum-payouts")
+          .takes_value(true)
+          .default_value("4")
+          .help("Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address will be 4)."))
+      .arg(
+        Arg::with_name("debug")
+          .long("debug")
+          .help("Prints debug information verbosely."))
+      .arg(
+        Arg::with_name("matrix-user")
+          .long("matrix-user")
+          .takes_value(true)
+          .help("Your regular matrix user. e.g. '@your-regular-matrix-account:matrix.org' this user account will receive notifications from your other 'Crunch Bot' matrix account."))
+      .arg(
+            Arg::with_name("matrix-bot-user")
+              .long("matrix-bot-user")
+              .takes_value(true)
+              .help("Your new 'Crunch Bot' matrix user. e.g. '@your-own-crunch-bot-account:matrix.org' this user account will be your 'Crunch Bot' which will be responsible to send messages/notifications to your private or public 'Crunch Bot' rooms."))
+      .arg(
+        Arg::with_name("matrix-bot-password")
+          .long("matrix-bot-password")
+          .takes_value(true)
+          .help("Password for the 'Crunch Bot' matrix user sign in."))
+      .arg(
+        Arg::with_name("disable-matrix")
+          .long("disable-matrix")
+          .help(
+            "Disable matrix bot for 'crunch rewards'. (e.g. with this flag active 'crunch rewards' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
+          ),
+      )
+      .arg(
+        Arg::with_name("disable-public-matrix-room")
+          .long("disable-public-matrix-room")
+          .help(
+            "Disable notifications to matrix public rooms for 'crunch rewards'. (e.g. with this flag active 'crunch rewards' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
+          ),
+      )
+      .arg(
+        Arg::with_name("disable-matrix-bot-display-name")
+          .long("disable-matrix-bot-display-name")
+          .help(
+            "Disable matrix bot display name update for 'crunch rewards'. (e.g. with this flag active 'crunch rewards' will not change the matrix bot user display name)",
           ),
         )
     )
     .subcommand(SubCommand::with_name("view")
-      .about("Inspect for delicious flakes (staking rewards) to crunch (claim) and display claimed and unclaimed eras.")
+      .about("Inspect staking rewards for the given stashes and display claimed and unclaimed eras.")
     )
     .arg(
       Arg::with_name("stashes")
@@ -178,7 +251,7 @@ fn get_config() -> Config {
         .long("stashes")
         .takes_value(true)
         .help(
-          "Validator stash addresses for which 'crunch view' and 'crunch flakes' will be applied. If needed specify more than one (e.g. stash_1,stash_2,stash_3).",
+          "Validator stash addresses for which 'crunch view', 'crunch flakes' or 'crunch rewards' will be applied. If needed specify more than one (e.g. stash_1,stash_2,stash_3).",
         ),
     )
     .arg(
@@ -195,9 +268,10 @@ fn get_config() -> Config {
         .short("c")
         .long("config-path")
         .takes_value(true)
+        .value_name("FILE")
         .default_value(".env")
         .help(
-          "File path containing 'crunch' configuration variables.",
+          "Sets a custom config file path. The config file contains 'crunch' configuration variables.",
         ),
     )
     .get_matches();
@@ -242,7 +316,7 @@ fn get_config() -> Config {
   }
 
   match matches.subcommand() {
-    ("flakes", Some(flakes_matches)) => {
+    ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
       match flakes_matches.value_of("MODE").unwrap() {
         "daily" => {
           env::set_var("CRUNCH_INTERVAL", "86400");
@@ -291,6 +365,10 @@ fn get_config() -> Config {
     _ => {
       warn!("Besides subcommand 'flakes' being the default subcommand, would be cool to have it visible, so that CLI becomes more expressive (e.g. 'crunch flakes daily')");
     }
+  }
+
+  if matches.is_present("rewards") {
+    env::set_var("CRUNCH_IS_BORING", "true");
   }
 
   match envy::prefixed("CRUNCH_").from_env::<Config>() {

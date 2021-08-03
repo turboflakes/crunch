@@ -102,6 +102,14 @@ fn fun() -> String {
   words[rng.gen_range(0..words.len() - 1)].to_string()
 }
 
+fn context() -> String {
+  let config = CONFIG.clone();
+  if config.is_boring {
+    return String::from("rewards");
+  }
+  format!("{} flakes", fun())
+}
+
 fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
   let cap: usize = match n {
     n if n < (max / 4) as usize => 1,
@@ -269,19 +277,19 @@ impl Crunch {
 
             let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
             let message = format!(
-              "{} And {} eras still have {} flakes to crunch {} So, let's go ahead and crunch {}!",
+              "{} And {} eras still have {} to be crunched {} So, let's go ahead and crunch {}!",
               symbols,
               unclaimed.len(),
-              fun(),
+              context(),
               symbols,
               quantity
             );
             let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
             let formatted_message = format!(
-              "{} And {} eras still have {} flakes to crunch {} So, let's go ahead and crunch {} 😋",
+              "{} And {} eras still have {} to be crunched {} So, let's go ahead and crunch {} 😋",
               symbols,
               unclaimed.len(),
-              fun(),
+              context(),
               symbols,
               quantity
             );
@@ -295,8 +303,8 @@ impl Crunch {
                 maximum_payouts = None;
               } else {
                 if let Some(claim_era) = unclaimed.pop() {
-                  let message = format!("Crunching flakes for era {}", stash);
-                  let formatted_message = format!("🥣 Crunching flakes for era {} ⏳", claim_era);
+                  let message = format!("Crunching {} for era {}", context(), claim_era);
+                  let formatted_message = format!("🥣 Crunching {} for era {} ⏳", context(), claim_era);
                   self.send_message(&message, &formatted_message).await?;
 
                   // Call extrinsic payout stakers and wait for event
@@ -329,16 +337,16 @@ impl Crunch {
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
                   let message = format!(
-                    "{} -> crunched {} flakes worth of {} ({:.2}%)",
+                    "{} -> crunched {} worth of {} ({:.2}%)",
                     identity,
-                    fun(),
+                    context(),
                     stash_amount,
                     stash_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🧑‍🚀 {} --> crunched {} flakes worth of <b>{}</b> ({:.2}%)",
+                    "🧑‍🚀 {} --> crunched {} worth of <b>{}</b> ({:.2}%)",
                     identity,
-                    fun(),
+                    context(),
                     stash_amount,
                     stash_amount_percentage
                   );
@@ -355,16 +363,16 @@ impl Crunch {
                     * 100.0;
 
                   let message = format!(
-                    "Nominators ({}) -> crunched {} flakes worth of {} ({:.2}%)",
+                    "Nominators ({}) -> crunched {} worth of {} ({:.2}%)",
                     others_quantity,
-                    fun(),
+                    context(),
                     others_amount,
                     others_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🦸 Nominators ({}) --> crunched {} flakes worth of {} ({:.2}%)",
+                    "🦸 Nominators ({}) --> crunched {} worth of {} ({:.2}%)",
                     others_quantity,
-                    fun(),
+                    context(),
                     others_amount,
                     others_amount_percentage
                   );
@@ -390,25 +398,25 @@ impl Crunch {
             if unclaimed.len() > 0 {
               let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
               let message = format!(
-                "{} All good! But there are still {} eras left with {} flakes to crunch {}",
+                "{} All good! But there are still {} eras left with {} to crunch {}",
                 symbols,
                 unclaimed.len(),
-                fun(),
+                context(),
                 symbols,
               );
               let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
               let formatted_message = format!(
-                "{} All good! But there are still {} eras left with {} flakes to crunch {}",
+                "{} All good! But there are still {} eras left with {} to crunch {}",
                 symbols,
                 unclaimed.len(),
-                fun(),
+                context(),
                 symbols
               );
               self.send_message(&message, &formatted_message).await?;
             } else {
-              let message = format!("Well done! {} Just run out of flakes!", stash);
+              let message = format!("Well done! {} Just run out of {}!", identity, context());
               let formatted_message =
-                format!("✌️ Well done! {} Just run out of flakes ✨💙", identity);
+                format!("✌️ Well done! {} Just run out of {} ✨💙", identity, context());
               self.send_message(&message, &formatted_message).await?;
             }
           } else {
