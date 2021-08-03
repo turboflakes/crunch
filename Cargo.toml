@@ -27,4 +27,5 @@ url = "2.2.2"
 base64 = "0.13.0"
 percent-encoding = "2.1.0"
 hex-literal = "0.3.3"
+rand = "0.8.4"
 substrate-subxt = { git = "https://github.com/turboflakes/substrate-subxt", branch = "develop" }

@@ -26,6 +26,7 @@ use async_std::task;
 use codec::Encode;
 use log::{debug, error, info, warn};
 use percent_encoding::percent_decode;
+use rand::Rng;
 use regex::Regex;
 use std::{fs, result::Result, str::FromStr, thread, time};
 use substrate_subxt::{
@@ -74,6 +75,31 @@ pub async fn create_or_await_substrate_node_client(config: Config) -> Client<Def
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
   sr25519::Pair::from_string(seed, pass).expect("constructed from known-good static value; qed")
+}
+
+fn fun() -> String {
+  let words = vec![
+    "delicious",
+    "tasty",
+    "mental",
+    "psycho",
+    "fruity",
+    "crazy",
+    "spicy",
+    "yummy",
+    "supernatural",
+    "juicy",
+    "super",
+    "mellow",
+    "sweet",
+    "nutty",
+    "insane",
+    "fantastic",
+    "unbelievable",
+    "incredible",
+  ];
+  let mut rng = rand::thread_rng();
+  words[rng.gen_range(0..words.len() - 1)].to_string()
 }
 
 fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
@@ -243,17 +269,19 @@ impl Crunch {
 
             let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
             let message = format!(
-              "{} And {} eras still have delicious flakes to crunch {} So, let's go ahead and crunch {}!",
+              "{} And {} eras still have {} flakes to crunch {} So, let's go ahead and crunch {}!",
               symbols,
               unclaimed.len(),
+              fun(),
               symbols,
               quantity
             );
             let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
             let formatted_message = format!(
-              "{} And {} eras still have delicious flakes to crunch {} So, let's go ahead and crunch {} 😋",
+              "{} And {} eras still have {} flakes to crunch {} So, let's go ahead and crunch {} 😋",
               symbols,
               unclaimed.len(),
+              fun(),
               symbols,
               quantity
             );
@@ -293,7 +321,7 @@ impl Crunch {
 
                   // Validator reward amount
                   let stash_amount = format!(
-                    "{} {}",
+                    "{:.4} {}",
                     stash_amount_value as f64 / 10f64.powi(properties.token_decimals.into()),
                     properties.token_symbol
                   );
@@ -301,18 +329,24 @@ impl Crunch {
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
                   let message = format!(
-                    "{} -> crunched tasty flakes worth of {} ({:.2}%)",
-                    identity, stash_amount, stash_amount_percentage,
+                    "{} -> crunched {} flakes worth of {} ({:.2}%)",
+                    identity,
+                    fun(),
+                    stash_amount,
+                    stash_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🧑‍🚀 {} --> crunched tasty flakes worth of <b>{}</b> ({:.2}%)",
-                    identity, stash_amount, stash_amount_percentage
+                    "🧑‍🚀 {} --> crunched {} flakes worth of <b>{}</b> ({:.2}%)",
+                    identity,
+                    fun(),
+                    stash_amount,
+                    stash_amount_percentage
                   );
                   self.send_message(&message, &formatted_message).await?;
 
                   // Nominators reward amount
                   let others_amount = format!(
-                    "{} {}",
+                    "{:.4} {}",
                     others_amount_value as f64 / 10f64.powi(properties.token_decimals.into()),
                     properties.token_symbol
                   );
@@ -321,12 +355,18 @@ impl Crunch {
                     * 100.0;
 
                   let message = format!(
-                    "Nominators ({}) -> crunched tasty flakes worth of {} ({:.2}%)",
-                    others_quantity, others_amount, others_amount_percentage,
+                    "Nominators ({}) -> crunched {} flakes worth of {} ({:.2}%)",
+                    others_quantity,
+                    fun(),
+                    others_amount,
+                    others_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🦸 Nominators ({}) --> crunched tasty flakes worth of {} ({:.2}%)",
-                    others_quantity, others_amount, others_amount_percentage
+                    "🦸 Nominators ({}) --> crunched {} flakes worth of {} ({:.2}%)",
+                    others_quantity,
+                    fun(),
+                    others_amount,
+                    others_amount_percentage
                   );
                   self.send_message(&message, &formatted_message).await?;
 
@@ -350,16 +390,18 @@ impl Crunch {
             if unclaimed.len() > 0 {
               let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
               let message = format!(
-                "{} All good! But there are still {} eras left with delicious flakes to crunch {}",
+                "{} All good! But there are still {} eras left with {} flakes to crunch {}",
                 symbols,
                 unclaimed.len(),
+                fun(),
                 symbols,
               );
               let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
               let formatted_message = format!(
-                "{} All good! But there are still {} eras left with delicious flakes to crunch {}",
+                "{} All good! But there are still {} eras left with {} flakes to crunch {}",
                 symbols,
                 unclaimed.len(),
+                fun(),
                 symbols
               );
               self.send_message(&message, &formatted_message).await?;
