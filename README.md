@@ -93,7 +93,6 @@ You can join the crew now and read the messages history of all the **Crunch Bots
 - [Polkadot Crunch Bot (Public)](https://matrix.to/#/%23polkadot-crunch-bot:matrix.org)
 
 ![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png?raw=true)
-https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png
 
 ## Usage
 
