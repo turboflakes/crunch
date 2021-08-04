@@ -89,9 +89,28 @@ To enable CRUNCH BOT you will need to create a specific account on Element or si
 
 You can join the crew now and read the messages history of all the **CRUNCH BOTS** that send messages to the following Public Rooms:
 
-- [Westend Crunch Bot (Public)](https://matrix.to/#/%23westend-crunch-bot:matrix.org)
-- [Kusama Crunch Bot (Public)](https://matrix.to/#/%23kusama-crunch-bot:matrix.org)
-- [Polkadot Crunch Bot (Public)](https://matrix.to/#/%23polkadot-crunch-bot:matrix.org)
+<table style="width:100%;">
+  <tr>
+    <td style="width: 100px;">
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room.png?raw=true" style="max-width: 80px;">
+    </td>
+    <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Westend Crunch Bot (Public)</a></td>
+  </tr>
+  <tr>
+    <td style="width: 100px;">
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room.png?raw=true" style="max-width: 80px;">
+    </td>
+    <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Kusama Crunch Bot (Public)</a></td>
+  </tr>
+  <tr>
+    <td style="width: 100px;">
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room.png?raw=true" style="max-width: 80px;">
+    </td>
+    <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Polkadot Crunch Bot (Public)</a></td>
+  </tr>
+</table>
+
+### Messages
 
 ![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png?raw=true)
 
@@ -109,7 +128,7 @@ $ cd ~/crunch-bot
 
 Enjoy **CRUNCH BOT** while `crunch flakes` :)
 
-If you prefer you can always just rename the subcommand `flakes` by `rewards` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
+If you prefer you can always just rename the sub command `flakes` by `rewards` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
 ```bash
 #!/bin/bash
@@ -159,85 +178,16 @@ Note: You can run `crunch` inside a tmux session and leave it, or using somethin
 
 ### SubCommands, Options and Flags
 
-```bash
-#!/bin/bash
-$ ./target/debug/crunch -h
-
-USAGE:
-    crunch [OPTIONS] [CHAIN] [SUBCOMMAND]
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-OPTIONS:
-    -c, --config-path <FILE>
-            Sets a custom config file path. The config file contains 'crunch' configuration variables. [default: .env]
-
-    -s, --stashes <stashes>
-            Validator stash addresses for which 'crunch view', 'crunch flakes' or 'crunch rewards' will be applied. If
-            needed specify more than one (e.g. stash_1,stash_2,stash_3).
-    -w, --substrate-ws-url <substrate-ws-url>
-            Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io)
-            (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
-
-ARGS:
-    <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [default: westend]  [possible
-               values: westend, kusama, polkadot]
-
-SUBCOMMANDS:
-    flakes     Crunch awesome flakes (rewards) daily or in turbo mode -> 4x faster [default subcommand]
-    help       Prints this message or the help of the given subcommand(s)
-    rewards    Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]
-    view       Inspect staking rewards for the given stashes and display claimed and unclaimed eras.
-```
-
-Sub commands `crunch flakes` or `crunch rewards` are identical in terms of task execution. But logs, messages/notifications differ.
+To get all the information on `crunch` flags and options type `help`
 
 ```bash
 #!/bin/bash
-$ ./target/debug/crunch flakes -h
-
-USAGE:
-    crunch flakes [FLAGS] [OPTIONS] [MODE]
-
-FLAGS:
-        --debug                              Prints debug information verbosely.
-        --disable-matrix                     Disable matrix bot for 'crunch flakes'. (e.g. with this flag active 'crunch
-                                             flakes' will not send messages/notifications about claimed or unclaimed
-                                             staking rewards to your private or public 'Crunch Bot' rooms)
-                                             (https://matrix.org/)
-        --disable-matrix-bot-display-name    Disable matrix bot display name update for 'crunch flakes'. (e.g. with this
-                                             flag active 'crunch flakes' will not change the matrix bot user display
-                                             name)
-        --disable-public-matrix-room         Disable notifications to matrix public rooms for 'crunch flakes'. (e.g.
-                                             with this flag active 'crunch flakes' will not send messages/notifications
-                                             about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)
-    -h, --help                               Prints help information
-    -V, --version                            Prints version information
-
-OPTIONS:
-        --matrix-bot-password <matrix-bot-password>    Password for the 'Crunch Bot' matrix user sign in.
-        --matrix-bot-user <matrix-bot-user>
-            Your new 'Crunch Bot' matrix user. e.g. '@your-own-crunch-bot-account:matrix.org' this user account will be
-            your 'Crunch Bot' which will be responsible to send messages/notifications to your private or public 'Crunch
-            Bot' rooms.
-        --matrix-user <matrix-user>
-            Your regular matrix user. e.g. '@your-regular-matrix-account:matrix.org' this user account will receive
-            notifications from your other 'Crunch Bot' matrix account.
-    -m, --maximum-payouts <maximum-payouts>
-            Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means
-            that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address
-            will be 4). [default: 4]
-    -f, --seed-path <FILE>
-            Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout
-            call. [default: .private.seed]
-
-ARGS:
-    <MODE>    Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the
-              option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to
-              be repeated every 6 hours) [default: turbo]  [possible values: daily, turbo]
+$ ./target/debug/crunch help
+$ ./target/debug/crunch flakes --help
+$ ./target/debug/crunch rewards --help
 ```
+
+Sub command `crunch flakes` and sub command `crunch rewards` are identical in terms of job execution. But logs, messages/notifications differ.
 
 ## Development
 
