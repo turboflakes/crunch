@@ -152,6 +152,8 @@ $ crunch flakes --help
 
 If you need more customization run help to check all sub commands, flags and options.
 
+Note: All flags and options are also available through environment variables if defined in `.env` configuration file. You can choose which way you want to configure `crunch`. But take in consideration that if the same variable is defined on both sides e.g. defined in `.env` and through CLI flag/option, the value `crunch` will take in consideration will be de one defined by CLI.
+
 ```bash
 #!/bin/bash
 # if you need a custom crunch check all the options and flags available
