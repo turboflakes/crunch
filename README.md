@@ -89,22 +89,22 @@ To enable CRUNCH BOT you will need to create a specific account on Element or si
 
 You can join the crew now and read the messages history of all the **CRUNCH BOTS** that send messages to the following Public Rooms:
 
-<table style="width:100%;">
+<table style="width:100%;" cellspacing="0" cellpadding="0">
   <tr>
     <td style="width: 100px;">
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room.png?raw=true" style="max-width: 80px;">
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room.png?raw=true" style="width: 80px;">
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Westend Crunch Bot (Public)</a></td>
   </tr>
   <tr>
     <td style="width: 100px;">
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room.png?raw=true" style="max-width: 80px;">
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room.png?raw=true" style="width: 80px;">
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Kusama Crunch Bot (Public)</a></td>
   </tr>
   <tr>
     <td style="width: 100px;">
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room.png?raw=true" style="max-width: 80px;">
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room.png?raw=true" style="width: 80px;">
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Polkadot Crunch Bot (Public)</a></td>
   </tr>
