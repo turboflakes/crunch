@@ -334,7 +334,7 @@ impl Matrix {
         let client = self.client.clone();
         let v: Vec<&str> = config.matrix_user.split(":").collect();
         let username = v.first().unwrap();
-        let display_name = format!("Crunch 🤖 ({})", &username[1..]);
+        let display_name = format!("Crunch Bot ({})", &username[1..]);
         let mut data = HashMap::new();
         data.insert("displayname", &display_name);
         let user_id_encoded: String = byte_serialize(config.matrix_bot_user.as_bytes()).collect();
