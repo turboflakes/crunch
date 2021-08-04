@@ -273,7 +273,7 @@ Similar projects that had influence in crunch design.
 
 ## Collaboration
 
-Have an idea for a new feature, a fix or you find a bug, please open an [issue](https://github.com/turboflakes/crunch/issues) or submit a [pull request](https://github.com/turboflakes/crunch/pulls).
+Have an idea for a new feature, a fix or you found a bug, please open an [issue](https://github.com/turboflakes/crunch/issues) or submit a [pull request](https://github.com/turboflakes/crunch/pulls).
 
 Any feedback is welcome.
 
