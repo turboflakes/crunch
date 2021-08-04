@@ -116,7 +116,7 @@ You can join the crew now and read the messages history of all the **CRUNCH BOTS
 
 ## Usage
 
-By default and simple just call `crunch` when `crunch-bot` folder is your current working directory.
+If you have been doing `crunch` configuration as described in previous steps (assuming `.env` and `.private.seed` defined inside `~/crunch-bot` folder), by default execute `crunch` when `crunch-bot` folder is your current working directory. Otherwise you will have to specify `.env` and `.private.seed` custom paths.
 
 ```bash
 #!/bin/bash
@@ -128,7 +128,7 @@ $ cd ~/crunch-bot
 
 Enjoy **CRUNCH BOT** while `crunch flakes` :)
 
-If you prefer you can always just rename the sub command `flakes` by `rewards` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
+If you prefer you can choose the sub command `rewards` rather than `flakes` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
 ```bash
 #!/bin/bash
@@ -150,7 +150,7 @@ $ crunch help
 $ crunch flakes --help
 ```
 
-Previous examples assume `.env` and `.private.seed` to be defined by default as described on previous Config step. But if you need more customization run help to check all flags and options.
+If you need more customization run help to check all sub commands, flags and options.
 
 ```bash
 #!/bin/bash
@@ -175,19 +175,6 @@ $ crunch polkadot view
 ```
 
 Note: You can run `crunch` inside a tmux session and leave it, or using something like `systemd` to auto start on server restarts for example. By default crunch will wake up every X hours to claim rewards if any to claim.
-
-### SubCommands, Options and Flags
-
-To get all the information on `crunch` flags and options type `help`
-
-```bash
-#!/bin/bash
-$ ./target/debug/crunch help
-$ ./target/debug/crunch flakes --help
-$ ./target/debug/crunch rewards --help
-```
-
-Sub command `crunch flakes` and sub command `crunch rewards` are identical in terms of job execution. But logs, messages/notifications differ.
 
 ## Development
 
