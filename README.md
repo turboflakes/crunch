@@ -14,7 +14,7 @@ Simply inspect about any unclaimed eras
 
 Promote your Validator/s by Publicly publish your automated staking rewards
 
-## Install
+## Installation
 
 ```bash
 #!/bin/bash
@@ -26,7 +26,7 @@ $ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v
 chmod +x ~/crunch-bot/crunch
 ```
 
-## Config
+## Configuration
 
 Create a configuration file `.env` inside `crunch-bot` folder and copy the default variables from [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example) (Note: `.env` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch --config-path ~/crunch-bot/config_kusama.env` )
 
@@ -77,6 +77,23 @@ Create a seed private file `.private.seed` inside `crunch-bot` folder and write 
 $ vi ~/crunch-bot/.private.seed
 # when ready write and quit (:wq!)
 ```
+
+### Crunch Bot ([Matrix](https://matrix.org/))
+
+If you set `crunch` on your server 👉 you get your own **Crunch Bot** 🤖
+
+To enable Crunch Bot you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that `crunch bot` could create a private room and send in messages. By default `crunch bot` will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
+
+### Public Rooms available
+
+You can join the crew now and read the messages history of all the **Crunch Bots** that send messages to the following Public Rooms:
+
+- [Westend Crunch Bot (Public)](https://matrix.to/#/%23westend-crunch-bot:matrix.org)
+- [Kusama Crunch Bot (Public)](https://matrix.to/#/%23kusama-crunch-bot:matrix.org)
+- [Polkadot Crunch Bot (Public)](https://matrix.to/#/%23polkadot-crunch-bot:matrix.org)
+
+![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png?raw=true)
+https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png
 
 ## Usage
 
@@ -138,21 +155,8 @@ $ crunch kusama view
 $ crunch polkadot view
 ```
 
-## Crunch Bot ([Matrix](https://matrix.org/))
+### SubCommands, Options and Flags
 
-If you set `crunch` on your server 👉 you get your own **Crunch Bot** 🤖
-
-To enable Crunch Bot you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that `crunch bot` could create a private room and send in messages. By default `crunch bot` will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
-
-### Public Rooms available
-
-You can join the crew now and read the messages history of all the **Crunch Bots** that send messages to the following Public Rooms:
-
-- [Westend Crunch Bot (Public)](https://matrix.to/#/%23westend-crunch-bot:matrix.org)
-- [Kusama Crunch Bot (Public)](https://matrix.to/#/%23kusama-crunch-bot:matrix.org)
-- [Polkadot Crunch Bot (Public)](https://matrix.to/#/%23polkadot-crunch-bot:matrix.org)
-
-## Crunch [CLI] - SubCommands, Options and Flags
 
 ```bash
 #!/bin/bash
@@ -279,7 +283,7 @@ Any feedback is welcome.
 
 ## About
 
-Crunch was made by <a href="https://turboflakes.com" target="_blank">TurboFlakes</a>.
+`crunch` was made by <a href="https://turboflakes.com" target="_blank">TurboFlakes</a>.
 
 TurboFlakes is also an independent validator in the Kusama Network and eligible in the Kusama's Thousand Validators Programme, aka <a href="https://thousand-validators.kusama.network/#/leaderboard/FZsMKYHoQG1dAVhXBMyC7aYFYpASoBrrMYsAn1gJJUAueZX" target="_blank" rel="noreferrer">1KV</a>.
 
@@ -290,7 +294,11 @@ If you like this project ✌️ Share our work and support us with your nominati
 
 You could also Star the Github project :)
 
-## Finish
+### License
+
+`crunch` is [MIT licensed](./LICENSE).
+
+### Finish
 
 > "Study hard what interests you the most in the most undisciplined, irreverent and original manner possible."
 ― Richard Feynmann
