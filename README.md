@@ -8,13 +8,15 @@
 
 ## Why use `crunch`
 
-To automate payout of staking rewards for just one or list of Validators every X hours.
+To automate payout of staking rewards for just one or a list of Validators every X hours.
 
-To get notified about the amount and fraction of the Total Rewards each Validator and their Nominators received.
+To get notified about the amount and rate of the total staking rewards each Validator and their Nominators got.
 
-To easily inspect about any unclaimed eras.
+To easily inspect about any unclaimed eras for a given Validator stash
 
-To promote Validator/s by publicly publish their automated staking rewards
+To promote Validators by publicly publish their automated staking rewards
+
+To notify Nominators privately or publicly about their chosen Validators staking rewards performance
 
 ## Installation
 
@@ -79,11 +81,11 @@ $ vi ~/crunch-bot/.private.seed
 # when ready write and quit (:wq!)
 ```
 
-### CRUNCH BOT ([Matrix](https://matrix.org/))
+### Crunch Bot ([Matrix](https://matrix.org/))
 
-If you set up `crunch` on your server with a matrix user 👉  you get your own CRUNCH BOT.
+If you set up `crunch` on your server with a matrix user 👉  you get your own **crunch bot**.
 
-To enable CRUNCH BOT you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that `crunch` bot could create a private room and send in messages. By default `crunch` bot will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
+To enable **crunch bot** you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that **crunch bot** could create a private room and send in messages. By default **crunch bot** will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
 
 ### Public Rooms available
 
@@ -239,9 +241,11 @@ You could also Star the Github project :)
 
 `crunch` is [MIT licensed](./LICENSE).
 
-### Finish
+### Quote
 
 > "Study hard what interests you the most in the most undisciplined, irreverent and original manner possible."
 ― Richard Feynmann
 
-Enjoy `crunch`
+__
+
+Enjoy `crunch`.
