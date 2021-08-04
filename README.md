@@ -1,18 +1,22 @@
-# crunch
+# crunch &middot; ![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)
 
-Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains.
+<p align="center">
+  <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-github-header.png?raw=true">
+</p>
 
-![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)
+`crunch` is a command-line interface (CLI) to claim staking rewards every X hours for Substrate-based chains.
 
-### Why use `crunch`
+## Why use `crunch`
 
-Automate the payout of staking rewards for a list of validators every X hours
+To automate the payout of staking rewards for a list of Validators every X hours.
 
-Get notified about the value and percentage of staking rewards from a list of Validator/s and respective Nominators
+To get notified about the amount and fraction of the Total Rewards each Validator and their Nominators received.
 
-Simply inspect about any unclaimed eras
+To easily inspect about any unclaimed eras.
 
-Promote your Validator/s by Publicly publish your automated staking rewards
+To promote Validator/s by publicly publish their automated staking rewards
+
+## Moto
 
 ## Installation
 
@@ -69,7 +73,6 @@ CRUNCH_MATRIX_BOT_PASSWORD=anotthateasypassword
 
 Create a seed private file `.private.seed` inside `crunch-bot` folder and write the private seed phrase of the account responsible to sign the extrinsic payout call as in [`.private.seed.example`](https://github.com/turboflakes/crunch/blob/main/.private.seed.example) (Note: `.private.seed` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch flakes --seed-path ~/crunch-bot/.kusama.private.seed` )
 
-
 ```bash
 #!/bin/bash
 # create a file with a file editor (Vim in this case) and write the private seed phrase 
@@ -97,8 +100,6 @@ You can join the crew now and read the messages history of all the **Crunch Bots
 ## Usage
 
 By default and simple just call `crunch` when `crunch-bot` folder is your current working directory.
-
-Note: You run `crunch` inside a tmux session
 
 ```bash
 #!/bin/bash
@@ -154,8 +155,9 @@ $ crunch kusama view
 $ crunch polkadot view
 ```
 
-### SubCommands, Options and Flags
+Note: You can run `crunch` inside a tmux session and leave it, or using something like `systemd` to auto start on server restarts for example. By default crunch will wake up every X hours to claim rewards if any to claim.
 
+### SubCommands, Options and Flags
 
 ```bash
 #!/bin/bash
@@ -273,6 +275,7 @@ Similar projects that had influence in crunch design.
 
 - <a href="https://github.com/canontech/staking-payouts" target="_blank">staking-payouts</a> - CLI to make staking payout transactions for Substrate FRAME-based chains.
 - <a href="https://github.com/stakelink/substrate-payctl" target="_blank">substrate-payctl</a> - Simple command line application to control the payouts of Substrate validators (Polkadot and Kusama among others).
+- <a href="https://github.com/stakelink/substrate-payctl" target="_blank">Jetpacks and Rollerskates</a> - illustration work heavily inspired **Crunch Bot** logo.
 
 ## Collaboration
 
