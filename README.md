@@ -2,40 +2,39 @@
 
 Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains.
 
-If you leave `crunch` set up and running on your server 👉 you get your own **Crunch Bot**
-
 ![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)
 
-## Install and run Crunch Bot
+### Why use `crunch`
 
-Create a `crunch-bot` directory
+Automate the payout of staking rewards for a list of validators every X hours
+
+Get notified about the value and percentage of staking rewards from a list of Validator/s and respective Nominators
+
+Simply inspect about any unclaimed eras
+
+Promote your Validator/s by Publicly publish your automated staking rewards
+
+## Install
+
 ```bash
 #!/bin/bash
+# create `crunch-bot` directory
 $ mkdir ~/crunch-bot
-```
-
-Download `crunch` latest version 
-```bash
-#!/bin/bash
+# download `crunch` latest version
 $ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.7/crunch
+# make `crunch` binary file executable
+chmod +x ~/crunch-bot/crunch
 ```
 
-Make `crunch` binary file executable
-```bash
-#!/bin/bash
-$ chmod +x ~/crunch-bot/crunch
-```
+## Config
 
-Create a configuration file `.env` inside `crunch-bot` folder and copy the default variables from [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example) (Note: `.env` is the default name and hidden file, if you want something different you can adjust it with the option `--config-path ~/crunch-bot/config_kusama.env` )
+Create a configuration file `.env` inside `crunch-bot` folder and copy the default variables from [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example) (Note: `.env` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch --config-path ~/crunch-bot/config_kusama.env` )
 
 ```bash
 #!/bin/bash
-# create configuration file .env inside crunch-bot folder
-$ touch ~/crunch-bot/.env
-# open file and edit configuration variables to adjust your personal values
+# create/open a file with a file editor (Vim in this case) and add/change the configuration variables with your own personal values
 $ vi ~/crunch-bot/.env
-# once in vim change configuration variables, and than write and quit
-$ :wq!
+# when ready write and quit (:wq!)
 ```
 
 Configuration file example: [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example)
@@ -43,78 +42,117 @@ Configuration file example: [`.env.example`](https://github.com/turboflakes/crun
 ```bash
 # crunch CLI configuration variables 
 #
-# [CRUNCH_STASHES] Validator stash addresses for which 'crunch flakes', 'crunch rewards' or 'crunch view' will be applied. 
+# [CRUNCH_STASHES] Validator stash addresses for which 'crunch flakes', 'crunch rewards'
+# or 'crunch view' will be applied. 
 # If needed specify more than one (e.g. stash_1,stash_2,stash_3).
-CRUNCH_STASHES=5E7QrLDGHVU3uP4RjnKsryecZXcWQ7oJwWFypRAoHCL1nAnG
+CRUNCH_STASHES=5GTD7ZeD823BjpmZBCSzBQp7cvHR1Gunq7oDkurZr9zUev2n
 #
-# [CRUNCH_SUBSTRATE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to connect. 
-# (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
+# [CRUNCH_SUBSTRATE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to
+# connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence
+# than <CHAIN> argument) 
 #CRUNCH_SUBSTRATE_WS_URL=wss://westend-rpc.polkadot.io
 #
-# [CRUNCH_MAXIMUM_PAYOUTS] Maximum number of unclaimed eras for which an extrinsic payout will be submitted. 
-# (e.g. a value of 4 means that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls 
-# for each stash address will be 4). [default: 4]
+# [CRUNCH_MAXIMUM_PAYOUTS] Maximum number of unclaimed eras for which an extrinsic payout
+# will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last
+# 84 the maximum unclaimed payout calls for each stash address will be 4). [default: 4]
 CRUNCH_MAXIMUM_PAYOUTS=4
 #
-# [CRUNCH_SEED_PATH] File path containing the private seed phrase to Sign the extrinsic payout call. [default: .private.seed]
+# [CRUNCH_SEED_PATH] File path containing the private seed phrase to Sign the extrinsic 
+# payout call. [default: .private.seed]
 #CRUNCH_SEED_PATH=.private.seed.example
 #
-# Matrix configuration variables
+# Crunch Bot (matrix) configuration variables
 CRUNCH_MATRIX_USER=@your-regular-matrix-account:matrix.org
 CRUNCH_MATRIX_BOT_USER=@your-own-crunch-bot-account:matrix.org
 CRUNCH_MATRIX_BOT_PASSWORD=anotthateasypassword
-# 
-# Default log
-RUST_LOG="crunch=info"
 ```
 
-Create a seed private file `.private.seed` inside `crunch-bot` folder and write the private seed phrase of the account responsible to Sign the extrinsic payout call [`.private.seed.example`](https://github.com/turboflakes/crunch/blob/main/.private.seed.example) (Note: `.private.seed` is the default name and hidden file, if you want something different you can adjust it with the option `--seed-path ~/crunch-bot/.kusama.private.seed` )
+Create a seed private file `.private.seed` inside `crunch-bot` folder and write the private seed phrase of the account responsible to sign the extrinsic payout call as in [`.private.seed.example`](https://github.com/turboflakes/crunch/blob/main/.private.seed.example) (Note: `.private.seed` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch flakes --seed-path ~/crunch-bot/.kusama.private.seed` )
 
-Note: vim adds a new line at the end by default, to prevent it use flag `vi -b file` and once in vim `:set noeol`
-alternatively you can follow the steps [here](https://stackoverflow.com/questions/1050640/how-to-stop-vim-from-adding-a-newline-at-end-of-file)
 
 ```bash
 #!/bin/bash
-# create configuration file .env inside crunch-bot folder
-$ touch ~/crunch-bot/.private.seed
-# open file and write the private seed phrase of the account responsible to Sign the extrinsic payout call
-$ vi -b ~/crunch-bot/.private.seed
-# and than set no end line, write and quit
-:set noeol
-:wq!
+# create a file with a file editor (Vim in this case) and write the private seed phrase 
+# of the account responsible to sign the extrinsic payout call
+$ vi ~/crunch-bot/.private.seed
+# when ready write and quit (:wq!)
 ```
 
-By default just Run `crunch` inside `crunch-bot` folder
+## Usage
+
+By default and simple just call `crunch` when `crunch-bot` folder is your current working directory.
+
+Note: You run `crunch` inside a tmux session
 
 ```bash
 #!/bin/bash
 # set ~/crunch-bot your current working directory
 $ cd ~/crunch-bot
-# simple run crunch with the generic options for Westend network
-$ crunch westend flakes daily
 ```
+
+If you prefer you can always just rename the subcommand `flakes` by `rewards` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
+
+The moto is enjoy **Crunch Bot** while `crunch flakes` :)
 
 ```bash
 #!/bin/bash
-# or for the Kusama network claiming rewards every 6 hours
+# and than simple run crunch with default options for Westend network
+$ crunch westend flakes
+# or for Kusama network and claiming rewards every 6 hours
 $ crunch kusama flakes turbo
-# or for the Polkadot network claiming rewards once a day
-$ crunch kusama flakes daily
+# or for Polkadot network and claiming rewards once a day
+$ crunch polkadot flakes daily
+# or run crunch a bit more boring for Westend network
+$ crunch westend rewards turbo
+# or for Kusama network and claiming rewards once a day
+$ crunch kusama rewards daily
+# or for Polkadot network and claiming rewards once a day
+$ crunch polkadot rewards daily
+# if you need a custom crunch check all the options and flags available
+$ crunch help
+# or help for any subcommand like
+$ crunch flakes --help
 ```
 
-## 🤖 Crunch Bot ([Matrix](https://matrix.org/))
+Previous examples assume `.env` and `.private.seed` to be defined by default as described on previous Config step. But if you need more customization run help to check all flags and options.
 
-To enable the matrix bot you will need to create an account on Element or similar and  adjust the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` as specified in here [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that `crunch bot` could create a private room and send the messages in. By default `crunch bot` will automatically invite your regular matrix user to a private room and to a public room specific to the network which is connected to.
+```bash
+#!/bin/bash
+# if you need a custom crunch check all the options and flags available
+$ crunch help
+# or help for any subcommand like
+$ crunch flakes --help
+```
 
-### Public rooms available
+Also if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`
 
-You can join the crew now and read messages history of all the **Crunch Bots** that send messages in to the following Public Rooms:
+Note: This option only logs information on the terminal
+
+```bash
+#!/bin/bash
+# run crunch for Westend network and claiming rewards every 6 hours
+$ crunch westend view
+# or for Kusama network
+$ crunch kusama view
+# or for Polkadot network
+$ crunch polkadot view
+```
+
+## Crunch Bot ([Matrix](https://matrix.org/))
+
+If you set `crunch` on your server 👉 you get your own **Crunch Bot** 🤖
+
+To enable Crunch Bot you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that `crunch bot` could create a private room and send in messages. By default `crunch bot` will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
+
+### Public Rooms available
+
+You can join the crew now and read the messages history of all the **Crunch Bots** that send messages to the following Public Rooms:
 
 - [Westend Crunch Bot (Public)](https://matrix.to/#/%23westend-crunch-bot:matrix.org)
 - [Kusama Crunch Bot (Public)](https://matrix.to/#/%23kusama-crunch-bot:matrix.org)
 - [Polkadot Crunch Bot (Public)](https://matrix.to/#/%23polkadot-crunch-bot:matrix.org)
 
-## Crunch [CLI] - Options
+## Crunch [CLI] - SubCommands, Options and Flags
 
 ```bash
 #!/bin/bash
@@ -149,7 +187,8 @@ SUBCOMMANDS:
     view       Inspect staking rewards for the given stashes and display claimed and unclaimed eras.
 ```
 
-Sub commands `crunch flakes` or `crunch rewards` are identical in terms of task execution. But logs, messages/notifications may differ, making **Crunch Bot** with `crunch flakes` a bit more fun!
+Sub commands `crunch flakes` or `crunch rewards` are identical in terms of task execution. But logs, messages/notifications differ.
+
 ```bash
 #!/bin/bash
 $ ./target/debug/crunch flakes -h
@@ -232,6 +271,12 @@ Similar projects that had influence in crunch design.
 - <a href="https://github.com/canontech/staking-payouts" target="_blank">staking-payouts</a> - CLI to make staking payout transactions for Substrate FRAME-based chains.
 - <a href="https://github.com/stakelink/substrate-payctl" target="_blank">substrate-payctl</a> - Simple command line application to control the payouts of Substrate validators (Polkadot and Kusama among others).
 
+## Collaboration
+
+Have an idea for a new feature, a fix or you find a bug, please open an [issue](https://github.com/turboflakes/crunch/issues) or submit a [pull request](https://github.com/turboflakes/crunch/pulls).
+
+Any feedback is welcome.
+
 ## About
 
 Crunch was made by <a href="https://turboflakes.com" target="_blank">TurboFlakes</a>.
@@ -243,6 +288,11 @@ If you like this project ✌️ Share our work and support us with your nominati
 - **Polkadot**: 12gPFmRqnsDhc9C5DuXyXBFA23io5fSGtKTSAimQtAWgueD2
 - **Kusama**: FZsMKYHoQG1dAVhXBMyC7aYFYpASoBrrMYsAn1gJJUAueZX
 
-You could also Star the Github project or make a pull request for a new feature. 
+You could also Star the Github project :)
 
-In case you find a bug, please open a Github issue [here](https://github.com/turboflakes/crunch/issues).
+## Finish
+
+> "Study hard what interests you the most in the most undisciplined, irreverent and original manner possible."
+― Richard Feynmann
+
+Enjoy `crunch`.
