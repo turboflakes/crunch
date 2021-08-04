@@ -214,7 +214,7 @@ Similar projects that had influence in crunch design.
 
 - <a href="https://github.com/canontech/staking-payouts" target="_blank">staking-payouts</a> - CLI to make staking payout transactions for Substrate FRAME-based chains.
 - <a href="https://github.com/stakelink/substrate-payctl" target="_blank">substrate-payctl</a> - Simple command line application to control the payouts of Substrate validators (Polkadot and Kusama among others).
-- <a href="https://github.com/stakelink/substrate-payctl" target="_blank">Jetpacks and Rollerskates</a> - illustration work heavily inspired **CRUNCH BOTrunch Bot** logo.
+- <a href="https://github.com/stakelink/substrate-payctl" target="_blank">Jetpacks and Rollerskates</a> - Illustration work heavily inspired **CRUNCH BOT** logo.
 
 ## Collaboration
 
