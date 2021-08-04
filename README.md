@@ -8,15 +8,13 @@
 
 ## Why use `crunch`
 
-To automate the payout of staking rewards for a list of Validators every X hours.
+To automate payout of staking rewards for just one or list of Validators every X hours.
 
 To get notified about the amount and fraction of the Total Rewards each Validator and their Nominators received.
 
 To easily inspect about any unclaimed eras.
 
 To promote Validator/s by publicly publish their automated staking rewards
-
-## Moto
 
 ## Installation
 
@@ -81,15 +79,15 @@ $ vi ~/crunch-bot/.private.seed
 # when ready write and quit (:wq!)
 ```
 
-### Crunch Bot ([Matrix](https://matrix.org/))
+### CRUNCH BOT ([Matrix](https://matrix.org/))
 
-If you set `crunch` on your server 👉 you get your own **Crunch Bot** 🤖
+If you set up `crunch` on your server with a matrix user 👉  you get your own CRUNCH BOT.
 
-To enable Crunch Bot you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that `crunch bot` could create a private room and send in messages. By default `crunch bot` will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
+To enable CRUNCH BOT you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that `crunch` bot could create a private room and send in messages. By default `crunch` bot will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
 
 ### Public Rooms available
 
-You can join the crew now and read the messages history of all the **Crunch Bots** that send messages to the following Public Rooms:
+You can join the crew now and read the messages history of all the **CRUNCH BOTS** that send messages to the following Public Rooms:
 
 - [Westend Crunch Bot (Public)](https://matrix.to/#/%23westend-crunch-bot:matrix.org)
 - [Kusama Crunch Bot (Public)](https://matrix.to/#/%23kusama-crunch-bot:matrix.org)
@@ -107,9 +105,11 @@ By default and simple just call `crunch` when `crunch-bot` folder is your curren
 $ cd ~/crunch-bot
 ```
 
-If you prefer you can always just rename the subcommand `flakes` by `rewards` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
+### Moto
 
-The moto is enjoy **Crunch Bot** while `crunch flakes` :)
+Enjoy **CRUNCH BOT** while `crunch flakes` :)
+
+If you prefer you can always just rename the subcommand `flakes` by `rewards` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
 ```bash
 #!/bin/bash
@@ -275,7 +275,7 @@ Similar projects that had influence in crunch design.
 
 - <a href="https://github.com/canontech/staking-payouts" target="_blank">staking-payouts</a> - CLI to make staking payout transactions for Substrate FRAME-based chains.
 - <a href="https://github.com/stakelink/substrate-payctl" target="_blank">substrate-payctl</a> - Simple command line application to control the payouts of Substrate validators (Polkadot and Kusama among others).
-- <a href="https://github.com/stakelink/substrate-payctl" target="_blank">Jetpacks and Rollerskates</a> - illustration work heavily inspired **Crunch Bot** logo.
+- <a href="https://github.com/stakelink/substrate-payctl" target="_blank">Jetpacks and Rollerskates</a> - illustration work heavily inspired **CRUNCH BOTrunch Bot** logo.
 
 ## Collaboration
 
@@ -305,4 +305,4 @@ You could also Star the Github project :)
 > "Study hard what interests you the most in the most undisciplined, irreverent and original manner possible."
 ― Richard Feynmann
 
-Enjoy `crunch`.
+Enjoy `crunch`
