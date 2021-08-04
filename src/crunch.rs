@@ -74,7 +74,11 @@ pub async fn create_or_await_substrate_node_client(config: Config) -> Client<Def
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
-  sr25519::Pair::from_string(seed, pass).expect("constructed from known-good static value; qed")
+  // Use regex to remove control characters
+  let re = Regex::new(r"[\x00-\x1F]").unwrap();
+  let clean_seed = re.replace_all(&seed.trim(), "");
+  sr25519::Pair::from_string(&clean_seed, pass)
+    .expect("constructed from known-good static value; qed")
 }
 
 fn fun() -> String {
@@ -304,7 +308,8 @@ impl Crunch {
               } else {
                 if let Some(claim_era) = unclaimed.pop() {
                   let message = format!("Crunching {} for era {}", context(), claim_era);
-                  let formatted_message = format!("🥣 Crunching {} for era {} ⏳", context(), claim_era);
+                  let formatted_message =
+                    format!("🥣 Crunching {} for era {} ⏳", context(), claim_era);
                   self.send_message(&message, &formatted_message).await?;
 
                   // Call extrinsic payout stakers and wait for event
@@ -415,8 +420,11 @@ impl Crunch {
               self.send_message(&message, &formatted_message).await?;
             } else {
               let message = format!("Well done! {} Just run out of {}!", identity, context());
-              let formatted_message =
-                format!("✌️ Well done! {} Just run out of {} ✨💙", identity, context());
+              let formatted_message = format!(
+                "✌️ Well done! {} Just run out of {} ✨💙",
+                identity,
+                context()
+              );
               self.send_message(&message, &formatted_message).await?;
             }
           } else {
@@ -530,9 +538,9 @@ impl Crunch {
         if let Some((parent_account, data)) = client.super_of(stash.clone(), None).await? {
           let encoded = data.encode();
           let decoded = percent_decode(&encoded).decode_utf8()?;
-          let sub_account_name = re.replace_all(&decoded.to_string(), "").trim().to_string();
+          let sub_account_name = re.replace_all(&decoded.trim(), "");
           return self
-            .get_identity(&parent_account, Some(sub_account_name))
+            .get_identity(&parent_account, Some(sub_account_name.to_string()))
             .await;
         } else {
           let s = &stash.to_string();
