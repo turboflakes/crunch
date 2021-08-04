@@ -112,7 +112,7 @@ You can join the crew now and read the messages history of all the **CRUNCH BOTS
   </tr>
 </table>
 
-### Crunch Bot Messages
+### Crunch Bot messages
 
 ![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png?raw=true)
 
