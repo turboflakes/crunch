@@ -91,26 +91,26 @@ You can join the crew now and read the messages history of all the **CRUNCH BOTS
 
 <table style="width:100%;" cellspacing="0" cellpadding="0">
   <tr>
-    <td style="width: 100px;">
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room.png?raw=true" style="width: 80px;">
+    <td>
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room-128.png?raw=true">
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Westend Crunch Bot (Public)</a></td>
   </tr>
   <tr>
-    <td style="width: 100px;">
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room.png?raw=true" style="width: 80px;">
+    <td>
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room-128.png?raw=true">
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Kusama Crunch Bot (Public)</a></td>
   </tr>
   <tr>
-    <td style="width: 100px;">
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room.png?raw=true" style="width: 80px;">
+    <td>
+        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room-128.png?raw=true">
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Polkadot Crunch Bot (Public)</a></td>
   </tr>
 </table>
 
-### Messages
+### Crunch Bot Messages
 
 ![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png?raw=true)
 
