@@ -137,6 +137,8 @@ If all as been set as previously described `crunch` should be ready with just th
 ```bash
 #!/bin/bash
 # and than simple run crunch with default options for Westend network
+$ crunch flakes
+# or specify directly which network crunch will try to connect
 $ crunch westend flakes
 # or for Kusama network and claiming rewards every 6 hours
 $ crunch kusama flakes turbo
@@ -165,10 +167,10 @@ $ crunch help
 ```bash
 #!/bin/bash
 # or help for any subcommand like
-$ crunch flakes --help
+$ crunch rewards --help
 ```
 
-![crunch flakes --help [CLI]](https://github.com/turboflakes/crunch/blob/assets/crunch-flakes-help.png?raw=true)
+![crunch flakes --help [CLI]](https://github.com/turboflakes/crunch/blob/assets/crunch-rewards-help.png?raw=true)
 
 Also if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`
 
