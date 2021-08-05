@@ -16,7 +16,7 @@ To easily inspect about any unclaimed eras for a given Validator stash
 
 To promote Validators by publicly publish their automated staking rewards
 
-To notify Nominators privately or publicly about their chosen Validators staking rewards performance
+For Nominators in private or public rooms check their chosen Validators rewards performance
 
 ## Installation
 
