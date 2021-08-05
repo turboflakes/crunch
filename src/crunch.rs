@@ -216,7 +216,7 @@ impl Crunch {
       let identity = self.get_identity(&stash, None).await?;
 
       let message = format!("{} -> Go crunch it!", identity);
-      let formatted_message = format!("🧑‍🚀 {} --> Go crunch it 🏁", identity);
+      let formatted_message = format!("🧑‍🚀 <b>{}</b> --> Go crunch it 🏁", identity);
       self.send_message(&message, &formatted_message).await?;
 
       let start_index = active_era.index - history_depth;
@@ -349,7 +349,7 @@ impl Crunch {
                     stash_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🧑‍🚀 {} --> crunched {} worth of <b>{}</b> ({:.2}%)",
+                    "🧑‍🚀 <b>{}</b> --> crunched {} worth of <b>{}</b> ({:.2}%)",
                     identity,
                     context(),
                     stash_amount,
@@ -421,7 +421,7 @@ impl Crunch {
             } else {
               let message = format!("Well done! {} Just run out of {}!", identity, context());
               let formatted_message = format!(
-                "✌️ Well done! {} Just run out of {} ✨💙",
+                "✌️ Well done! <b>{}</b<> Just run out of {} ✨💙",
                 identity,
                 context()
               );
