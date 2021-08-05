@@ -83,13 +83,13 @@ $ vi ~/crunch-bot/.private.seed
 
 ### Crunch Bot ([Matrix](https://matrix.org/))
 
-If you set up `crunch` on your server with a matrix user 👉  you get your own **crunch bot**.
+If you set up `crunch` on your server with a matrix user 👉  you get your own **Crunch Bot**.
 
-To enable **crunch bot** you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that **crunch bot** could create a private room and send in messages. By default **crunch bot** will automatically invite your regular matrix user to a private room. Also by default **crunch bot** will send a copy of the messages to the respective network public room for which is connected to.
+To enable **Crunch Bot** you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that **Crunch Bot** could create a private room and send in messages. By default **Crunch Bot** will automatically invite your regular matrix user to a private room. Also by default **Crunch Bot** will send a copy of the messages to the respective network public room for which is connected to.
 
 ### Public Rooms available
 
-Join and read the messages history of all the Public Rooms for which **CRUNCH BOTS** are sending messages:
+Join and read the messages history of all the Public Rooms for which **Crunch Bots** are sending messages:
 
 <table style="width:100%;" cellspacing="0" cellpadding="0">
   <tr>
@@ -118,7 +118,7 @@ Join and read the messages history of all the Public Rooms for which **CRUNCH BO
 
 ## Usage
 
-If you have been doing `crunch` configuration as described in previous steps (assuming `.env` and `.private.seed` defined inside `~/crunch-bot` folder), run `crunch` when `crunch-bot` folder is your current working directory. Otherwise you will have to specify `.env` and `.private.seed` custom paths.
+If you have been doing `crunch` configuration as described in previous steps (assuming `.env` and `.private.seed` defined inside `~/crunch-bot` folder), run `crunch` when `~/crunch-bot` folder is your current working directory. Otherwise you will have to specify `.env` and `.private.seed` custom paths.
 
 ```bash
 #!/bin/bash
@@ -130,7 +130,7 @@ By default `crunch` tries to connect to the Westend network at `wss://westend-rp
 
 `crunch` default subcommand is `flakes`, there are fun messages if you stick with it, or you can choose the regular sub command `rewards` rather than `flakes`. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
-Essential `crunch` motto is enjoy **CRUNCH BOT** while `crunch flakes` :)
+Essential `crunch` motto is enjoy **Crunch Bot** while `crunch flakes` :)
 
 If all as been set as previously described `crunch` should be ready with just the following options:
 
@@ -224,7 +224,7 @@ Similar projects that had influence in crunch design.
 
 - <a href="https://github.com/canontech/staking-payouts" target="_blank">staking-payouts</a> - CLI to make staking payout transactions for Substrate FRAME-based chains.
 - <a href="https://github.com/stakelink/substrate-payctl" target="_blank">substrate-payctl</a> - Simple command line application to control the payouts of Substrate validators (Polkadot and Kusama among others).
-- <a href="https://github.com/stakelink/substrate-payctl" target="_blank">Jetpacks and Rollerskates</a> - Illustration work heavily inspired **CRUNCH BOT** logo.
+- <a href="https://github.com/stakelink/substrate-payctl" target="_blank">Jetpacks and Rollerskates</a> - Illustration work heavily inspired **Crunch Bot** logo.
 
 ## Collaboration
 
