@@ -14,7 +14,7 @@ To get notified about the amount and rate of the total staking rewards each Vali
 
 To easily inspect about any unclaimed eras for a given Validator stash
 
-To promote Validators by publicly publish their automated staking rewards
+To promote Validators by publicly publish their automated staking rewards to a public **Crunch Bot** room
 
 For Nominators in private or public rooms check their chosen Validators rewards performance
 
@@ -131,7 +131,7 @@ By default `crunch` tries to connect to the Westend network at `wss://westend-rp
 
 `crunch` default subcommand is `flakes`, there are fun messages if you stick with it, or you can choose the regular sub command `rewards` rather than `flakes`. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
-Essential `crunch` motto is enjoy **Crunch Bot** while `crunch flakes` :)
+Essentially `crunch` motto is enjoy **Crunch Bot** while `crunch flakes` :)
 
 If all as been set as previously described `crunch` should be ready with just the following options:
 
