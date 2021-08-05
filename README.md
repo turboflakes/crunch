@@ -85,11 +85,11 @@ $ vi ~/crunch-bot/.private.seed
 
 If you set up `crunch` on your server with a matrix user 👉  you get your own **crunch bot**.
 
-To enable **crunch bot** you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that **crunch bot** could create a private room and send in messages. By default **crunch bot** will automatically invite your regular matrix user to a private room and send the same messages to a public room specific to the network which is connected to.
+To enable **crunch bot** you will need to create a specific account on Element or similar and  copy the values to the respective environment variables `CRUNCH_MATRIX_BOT_USER` and `CRUNCH_MATRIX_BOT_PASSWORD` like in the configuration example file [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example). You may also want to set your regular matrix user to the environment variable `CRUNCH_MATRIX_USER`. So that **crunch bot** could create a private room and send in messages. By default **crunch bot** will automatically invite your regular matrix user to a private room. Also by default **crunch bot** will send a copy of the messages to the respective network public room for which is connected to.
 
 ### Public Rooms available
 
-You can join the crew now and read the messages history of all the **CRUNCH BOTS** that send messages to the following Public Rooms:
+Join and read the messages history of all the Public Rooms for which **CRUNCH BOTS** are sending messages:
 
 <table style="width:100%;" cellspacing="0" cellpadding="0">
   <tr>
@@ -118,7 +118,7 @@ You can join the crew now and read the messages history of all the **CRUNCH BOTS
 
 ## Usage
 
-If you have been doing `crunch` configuration as described in previous steps (assuming `.env` and `.private.seed` defined inside `~/crunch-bot` folder), by default execute `crunch` when `crunch-bot` folder is your current working directory. Otherwise you will have to specify `.env` and `.private.seed` custom paths.
+If you have been doing `crunch` configuration as described in previous steps (assuming `.env` and `.private.seed` defined inside `~/crunch-bot` folder), run `crunch` when `crunch-bot` folder is your current working directory. Otherwise you will have to specify `.env` and `.private.seed` custom paths.
 
 ```bash
 #!/bin/bash
@@ -126,11 +126,13 @@ If you have been doing `crunch` configuration as described in previous steps (as
 $ cd ~/crunch-bot
 ```
 
-### Moto
+By default `crunch` tries to connect to the Westend network at `wss://westend-rpc.polkadot.io`, this can be changed by choosing a different CHAIN or by changing the substrate websocket endpoint with the option `--substrate-ws-url`.
 
-Enjoy **CRUNCH BOT** while `crunch flakes` :)
+`crunch` default subcommand is `flakes`, there are fun messages if you stick with it, or you can choose the regular sub command `rewards` rather than `flakes`. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
-If you prefer you can choose the sub command `rewards` rather than `flakes` or vice versa. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
+Essential `crunch` motto is enjoy **CRUNCH BOT** while `crunch flakes` :)
+
+If all as been set as previously described `crunch` should be ready with just the following options:
 
 ```bash
 #!/bin/bash
@@ -146,23 +148,27 @@ $ crunch westend rewards turbo
 $ crunch kusama rewards daily
 # or for Polkadot network and claiming rewards once a day
 $ crunch polkadot rewards daily
-# if you need a custom crunch check all the options and flags available
-$ crunch help
-# or help for any subcommand like
-$ crunch flakes --help
 ```
 
 If you need more customization run help to check all sub commands, flags and options.
 
-Note: All flags and options are also available through environment variables if defined in `.env` configuration file. You can choose which way you want to configure `crunch`. But take in consideration that if the same variable is defined on both sides e.g. defined in `.env` and through CLI flag/option, the value `crunch` will take in consideration will be de one defined by CLI.
+Note: All flags and options are also available through environment variables if defined in `.env` configuration file. You can choose which way you want to configure `crunch`. Take in consideration that if the same variable is defined on both sides e.g. defined in `.env` and through CLI flag/option, `crunch` will take the value defined by CLI.
 
 ```bash
 #!/bin/bash
 # if you need a custom crunch check all the options and flags available
 $ crunch help
+```
+
+![crunch help [CLI]](https://github.com/turboflakes/crunch/blob/assets/crunch-help.png?raw=true)
+
+```bash
+#!/bin/bash
 # or help for any subcommand like
 $ crunch flakes --help
 ```
+
+![crunch flakes --help [CLI]](https://github.com/turboflakes/crunch/blob/assets/crunch-flakes-help.png?raw=true)
 
 Also if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`
 
@@ -178,7 +184,7 @@ $ crunch kusama view
 $ crunch polkadot view
 ```
 
-Note: You can run `crunch` inside a tmux session and leave it, or using something like `systemd` to auto start on server restarts for example. By default crunch will wake up every X hours to claim rewards if any to claim.
+Note: You can run `crunch` inside a tmux session and leave it, or using something like `systemd` to run `crunch` on server restarts for example. By default `crunch` will wake up every X hours to claim rewards if there are any to claim.
 
 ## Development
 
@@ -248,4 +254,4 @@ You could also Star the Github project :)
 
 __
 
-Enjoy `crunch`.
+Enjoy `crunch`
