@@ -25,7 +25,7 @@ To notify Nominators privately or publicly about their chosen Validators staking
 # create `crunch-bot` directory
 $ mkdir ~/crunch-bot
 # download `crunch` latest version
-$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.7/crunch
+$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.8/crunch
 # make `crunch` binary file executable
 chmod +x ~/crunch-bot/crunch
 ```
@@ -36,7 +36,8 @@ Create a configuration file `.env` inside `crunch-bot` folder and copy the defau
 
 ```bash
 #!/bin/bash
-# create/open a file with a file editor (Vim in this case) and add/change the configuration variables with your own personal values
+# create/open a file with a file editor (Vim in this case) and add/change the configuration
+# variables with your own personal values
 $ vi ~/crunch-bot/.env
 # when ready write and quit (:wq!)
 ```
