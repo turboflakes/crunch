@@ -127,7 +127,7 @@ If you have been doing `crunch` configuration as described in previous steps (as
 $ cd ~/crunch-bot
 ```
 
-By default `crunch` tries to connect to the Westend network at `wss://westend-rpc.polkadot.io`, this can be changed by choosing a different CHAIN or by changing the substrate websocket endpoint with the option `--substrate-ws-url`.
+By default `crunch` tries to connect to your local substrate node, through the default websocket port `ws://127.0.0.1:9944`. This can be changed by typing one of polkadot main chains - westend, kusama or polkadot. Or by changing the substrate websocket url with the option `--substrate-ws-url`.
 
 `crunch` default subcommand is `flakes`, there are fun messages if you stick with it, or you can choose the regular sub command `rewards` rather than `flakes`. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
@@ -137,7 +137,7 @@ If all as been set as previously described `crunch` should be ready with just th
 
 ```bash
 #!/bin/bash
-# and than simple run crunch with default options for Westend network
+# and than simple run crunch with default options to connect to your local node
 $ crunch flakes
 # or specify directly which network crunch will try to connect
 $ crunch westend flakes

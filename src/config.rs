@@ -97,7 +97,6 @@ fn get_config() -> Config {
       Arg::with_name("CHAIN")
           .index(1)
           .possible_values(&["westend", "kusama", "polkadot"])
-          .default_value("westend")
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -299,7 +298,7 @@ fn get_config() -> Config {
       env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io");
     }
     _ => {
-      env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://westend-rpc.polkadot.io");
+      env::set_var("CRUNCH_SUBSTRATE_WS_URL", "ws://127.0.0.1:9944");
     }
   }
 
