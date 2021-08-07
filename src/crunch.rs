@@ -31,6 +31,7 @@ use regex::Regex;
 use std::{fs, result::Result, str::FromStr, thread, time};
 use substrate_subxt::{
   identity::{IdentityOfStoreExt, SuperOfStoreExt},
+  session::ValidatorsStoreExt,
   sp_core::{crypto, sr25519, Pair as PairT},
   sp_runtime::AccountId32,
   staking::{
@@ -209,14 +210,19 @@ impl Crunch {
 
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
-    for stash_str in config.stashes.iter() {
+    // get active validators
+    let active_validators = client.validators(None).await?;
+    for (_i, stash_str) in config.stashes.iter().enumerate() {
       let stash = AccountId32::from_str(stash_str)?;
 
       // Get stash identity
       let identity = self.get_identity(&stash, None).await?;
 
-      let message = format!("{} -> Go crunch it!", identity);
-      let formatted_message = format!("🧑‍🚀 <b>{}</b> --> Go crunch it 🏁", identity);
+      let message = format!("{} {} -> crunch it!", identity, stash);
+      let formatted_message = format!(
+        "🧑‍🚀 <b>{}</b> 💰 <code>{}</code> --> Go <code>crunch</code> it 🏁",
+        identity, stash
+      );
       self.send_message(&message, &formatted_message).await?;
 
       let start_index = active_era.index - history_depth;
@@ -225,9 +231,9 @@ impl Crunch {
       let mut maximum_payouts = Some(config.maximum_payouts);
 
       if let Some(controller) = client.bonded(stash.clone(), None).await? {
-        let message = format!("{} * Stash account", stash);
-        let formatted_message = format!("💰 Stash account <code>{}</code>", stash);
-        self.send_message(&message, &formatted_message).await?;
+        // let message = format!("{} * Stash account", stash);
+        // let formatted_message = format!("💰 Stash account <code>{}</code>", stash);
+        // self.send_message(&message, &formatted_message).await?;
         if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
           // Find unclaimed eras in previous 84 eras
           for era_index in start_index..active_era.index {
@@ -250,7 +256,7 @@ impl Crunch {
               claimed
             );
             let formatted_message = format!(
-              "📒 In the last {} eras --> {} have already been crunched ✨",
+              "&middot; 📒 In the last {} eras --> {} have already been crunched ✨",
               history_depth,
               claimed.len()
             );
@@ -261,7 +267,7 @@ impl Crunch {
               history_depth
             );
             let formatted_message = format!(
-              "📒 In the last {} eras --> There was nothing to crunch 😞",
+              "&middot; 📒 In the last {} eras --> There was nothing to crunch 😞",
               history_depth
             );
             self.send_message(&message, &formatted_message).await?;
@@ -290,7 +296,7 @@ impl Crunch {
             );
             let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
             let formatted_message = format!(
-              "{} And {} eras still have {} to be crunched {} So, let's go ahead and crunch {} 😋",
+              "&middot; {} And {} eras still have {} to be crunched {} So, let's go ahead and crunch {} 😋",
               symbols,
               unclaimed.len(),
               context(),
@@ -309,7 +315,7 @@ impl Crunch {
                 if let Some(claim_era) = unclaimed.pop() {
                   let message = format!("Crunching {} for era {}", context(), claim_era);
                   let formatted_message =
-                    format!("🥣 Crunching {} for era {} ⏳", context(), claim_era);
+                    format!("&middot; 🥣 Crunching {} for era {} ⏳", context(), claim_era);
                   self.send_message(&message, &formatted_message).await?;
 
                   // Call extrinsic payout stakers and wait for event
@@ -349,7 +355,7 @@ impl Crunch {
                     stash_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🧑‍🚀 <b>{}</b> --> crunched {} worth of <b>{}</b> ({:.2}%)",
+                    "&middot; 🧑‍🚀 <b>{}</b> --> crunched {} worth of <b>{}</b> ({:.2}%)",
                     identity,
                     context(),
                     stash_amount,
@@ -375,7 +381,7 @@ impl Crunch {
                     others_amount_percentage,
                   );
                   let formatted_message = format!(
-                    "🦸 Nominators ({}) --> crunched {} worth of {} ({:.2}%)",
+                    "&middot; 🦸 Nominators ({}) --> crunched {} worth of {} ({:.2}%)",
                     others_quantity,
                     context(),
                     others_amount,
@@ -390,7 +396,7 @@ impl Crunch {
                       header.number, extrinsic.block.to_string(), config.substrate_ws_url, extrinsic.block
                     );
                     let formatted_message = format!(
-                      "💯 Crunch finalized at block #{} (<a href=\"https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}\">{}</a>) ✨",
+                      "&middot; 💯 Crunch finalized at block #{} (<a href=\"https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}\">{}</a>) ✨",
                       header.number, config.substrate_ws_url, extrinsic.block, extrinsic.block.to_string()
                     );
                     self.send_message(&message, &formatted_message).await?;
@@ -411,7 +417,7 @@ impl Crunch {
               );
               let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
               let formatted_message = format!(
-                "{} All good! But there are still {} eras left with {} to crunch {}",
+                "&middot; {} All good! But there are still {} eras left with {} to crunch {}",
                 symbols,
                 unclaimed.len(),
                 context(),
@@ -421,7 +427,7 @@ impl Crunch {
             } else {
               let message = format!("Well done! {} Just run out of {}!", identity, context());
               let formatted_message = format!(
-                "✌️ Well done! <b>{}</b<> Just run out of {} ✨💙",
+                "&middot; ✌️ Well done! <b>{}</b> Just run out of {} ✨💙",
                 identity,
                 context()
               );
@@ -430,7 +436,20 @@ impl Crunch {
           } else {
             let message = format!("And nothing to crunch this time!");
             let formatted_message =
-              format!("🙃 And nothing to crunch this time 🤔 💭 🪴 📚 🧠 💡 👨‍💻");
+              format!("&middot; 🙃 And nothing to crunch this time 🤔 💭 🪴 📚 🧠 💡 👨‍💻");
+            self.send_message(&message, &formatted_message).await?;
+          }
+          // Active set
+          if active_validators.contains(&stash) {
+            let message = format!("{} -> is currently LIVE on active set!", identity);
+            let formatted_message = format!(
+              "&middot; 🧑‍🚀 <b>{}</b> --> is currently <b>LIVE</b> on active set ✌️",
+              identity
+            );
+            self.send_message(&message, &formatted_message).await?;
+          } else {
+            let message = format!("{} not in active set this round", identity);
+            let formatted_message = format!("&middot; 🧑‍🚀 <b>{}</b> is currently looking out for some Nominators 🦸👋", identity);
             self.send_message(&message, &formatted_message).await?;
           }
         }
@@ -440,7 +459,7 @@ impl Crunch {
           stash
         );
         let formatted_message = format!(
-          "💰 <code>{}</code> ⚠️ Stash account does not have a Controller account ⚠️",
+          "&middot; 💰 <code>{}</code> ⚠️ Stash account does not have a Controller account ⚠️",
           stash
         );
         self.send_message(&message, &formatted_message).await?;

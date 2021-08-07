@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add changelog (this file)
-
-### Changed
-
-- Highlight validator name in logs
-- By default connect to local substrate node if no chain is specified
-
 ## [0.1.8] - 2021-08-05
 
 ### Added
@@ -26,3 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Easily connect to westend, kusama or polkadot Parity public nodes
 - Set optional matrix bot
 - Set `flakes` as default subcommand and optional `rewards` for a more regular logging/messages
+
+## [0.1.9] - 2021-08-07
+
+### Added
+
+- Add changelog (this file)
+- Check if stash is currently in active set
+- Improve messages readability
+
+### Changed
+
+- Highlight validator name in logs
+- By default connect to local substrate node if no chain is specified
