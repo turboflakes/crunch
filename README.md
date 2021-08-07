@@ -133,7 +133,7 @@ By default `crunch` tries to connect to your local substrate node, through the d
 
 Essentially `crunch` motto is enjoy **Crunch Bot** while `crunch flakes` :)
 
-If all as been set as previously described `crunch` should be ready with just the following options:
+If all has been set as previously described `crunch` should be ready with just the following options:
 
 ```bash
 #!/bin/bash
