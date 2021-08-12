@@ -190,24 +190,26 @@ impl Crunch {
       PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account.clone());
     let seed_account_id: AccountId32 = seed_account.public().into();
 
-    let message = format!("Hey, it's crunch time!");
-    let formatted_message = format!("⏰ Hey, it's crunch time 👀");
-    self.send_message(&message, &formatted_message).await?;
+    let mut message: Vec<String> = vec![];
+    let mut formatted_message: Vec<String> = vec![];
 
-    let message = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    let formatted_message = format!(
+    // message.push("Hey, it's crunch time!".to_owned());
+    // formatted_message.push("⏰ Hey, it's crunch time 👀".to_owned());
+
+    message.push(format!(
+      "H{} v{}",
+      env!("CARGO_PKG_NAME"),
+      env!("CARGO_PKG_VERSION")
+    ));
+    formatted_message.push(format!(
       "🤖 <code>{} v{}</code>",
       env!("CARGO_PKG_NAME"),
       env!("CARGO_PKG_VERSION")
-    );
-    self.send_message(&message, &formatted_message).await?;
-
+    ));
     // Get signer identity and log it
     let identity = self.get_identity(&seed_account_id, None).await?;
-    let message = format!("{} * Signer account", identity);
-    let formatted_message = format!("✍️ Signer account <code>{}</code>", identity);
-    self.send_message(&message, &formatted_message).await?;
-
+    message.push(format!("{} * Signer account", identity));
+    formatted_message.push(format!("✍️ Signer account <code>{}</code>", identity));
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
     // get active validators
@@ -218,12 +220,11 @@ impl Crunch {
       // Get stash identity
       let identity = self.get_identity(&stash, None).await?;
 
-      let message = format!("{} {} -> crunch it!", identity, stash);
-      let formatted_message = format!(
-        "🧑‍🚀 <b>{}</b> 💰 <code>{}</code> --> Go <code>crunch</code> it 🏁",
-        identity, stash
-      );
-      self.send_message(&message, &formatted_message).await?;
+      message.push(format!("{} -> crunch time!", identity));
+      formatted_message.push(format!(
+        "<br>🧑‍🚀 <b>{}</b> -> <code>crunch</code> time 🏁",
+        identity
+      ));
 
       let start_index = active_era.index - history_depth;
       let mut unclaimed: Vec<u32> = Vec::new();
@@ -231,9 +232,9 @@ impl Crunch {
       let mut maximum_payouts = Some(config.maximum_payouts);
 
       if let Some(controller) = client.bonded(stash.clone(), None).await? {
-        // let message = format!("{} * Stash account", stash);
-        // let formatted_message = format!("💰 Stash account <code>{}</code>", stash);
-        // self.send_message(&message, &formatted_message).await?;
+        message.push(format!("{} * Stash account", stash));
+        formatted_message.push(format!("&middot; 💰 <code>{}</code>", stash));
+        //
         if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
           // Find unclaimed eras in previous 84 eras
           for era_index in start_index..active_era.index {
@@ -248,62 +249,91 @@ impl Crunch {
               unclaimed.push(era_index)
             }
           }
-          if claimed.len() > 0 {
-            let message = format!(
-              "In the last {} eras -> {} have already been crunched * {:?}",
-              history_depth,
-              claimed.len(),
-              claimed
-            );
-            let formatted_message = format!(
-              "&middot; 📒 In the last {} eras --> {} have already been crunched ✨",
-              history_depth,
-              claimed.len()
-            );
-            self.send_message(&message, &formatted_message).await?;
-          } else {
-            let message = format!(
-              "In the last {} eras -> There was nothing to crunch",
-              history_depth
-            );
-            let formatted_message = format!(
-              "&middot; 📒 In the last {} eras --> There was nothing to crunch 😞",
-              history_depth
-            );
-            self.send_message(&message, &formatted_message).await?;
-          }
+          // if claimed.len() > 0 {
+          //   message.push(format!(
+          //     "In the last {} eras -> {} have already been crunched * {:?}",
+          //     history_depth,
+          //     claimed.len(),
+          //     claimed
+          //   ));
+          //   formatted_message.push(format!(
+          //     "&middot; 📒 In the last {} eras -> {} have already been crunched ✨",
+          //     history_depth,
+          //     claimed.len()
+          //   ));
+          // } else {
+          //   message.push(format!(
+          //     "In the last {} eras -> There was nothing to crunch",
+          //     history_depth
+          //   ));
+          //   formatted_message.push(format!(
+          //     "&middot; 📒 In the last {} eras -> There was nothing to crunch 😞",
+          //     history_depth
+          //   ));
+          // }
           debug!(
             "{} * Claimed rewards {:?}",
             stash, ledger_response.claimed_rewards
           );
 
+          let inclusion_percentage =
+            ((claimed.len() + unclaimed.len()) as f32 / history_depth as f32) * 100.0;
+
+          message.push(format!(
+            "Inclusion {}/{} ({:.2}%)",
+            claimed.len() + unclaimed.len(),
+            history_depth,
+            inclusion_percentage
+          ));
+          formatted_message.push(format!(
+            "&middot; 📒 Inclusion {}/{} ({:.2}%)",
+            claimed.len() + unclaimed.len(),
+            history_depth,
+            inclusion_percentage
+          ));
+
+          let claimed_percentage =
+            (claimed.len() as f32 / (claimed.len() + unclaimed.len()) as f32) * 100.0;
+
+          if claimed.len() > 0 {
+            message.push(format!(
+              "Crunched {}/{} ({:.2}%)",
+              claimed.len(),
+              claimed.len() + unclaimed.len(),
+              claimed_percentage
+            ));
+            formatted_message.push(format!(
+              "&middot; 😋 Crunched {}/{} ({:.2}%)",
+              claimed.len(),
+              claimed.len() + unclaimed.len(),
+              claimed_percentage
+            ));
+          }
+
           if unclaimed.len() > 0 {
             // Get how many eras will be claimed based on maximum_payouts
-            let quantity = if unclaimed.len() >= config.maximum_payouts.into() {
-              config.maximum_payouts
-            } else {
-              unclaimed.len()
-            };
+            // let quantity = if unclaimed.len() >= config.maximum_payouts.into() {
+            //   config.maximum_payouts
+            // } else {
+            //   unclaimed.len()
+            // };
 
             let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
-            let message = format!(
-              "{} And {} eras still have {} to be crunched {} So, let's go ahead and crunch {}!",
+            message.push(format!(
+              "{} And {} eras with {} to crunch {}",
               symbols,
               unclaimed.len(),
               context(),
               symbols,
-              quantity
-            );
+            ));
             let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
-            let formatted_message = format!(
-              "&middot; {} And {} eras still have {} to be crunched {} So, let's go ahead and crunch {} 😋",
+            formatted_message.push(format!(
+              "&middot; {} And {} eras with {} to crunch {}",
               symbols,
               unclaimed.len(),
               context(),
               symbols,
-              quantity
-            );
-            self.send_message(&message, &formatted_message).await?;
+            ));
 
             debug!("{} * Unclaimed rewards {:?}", stash, unclaimed);
 
@@ -313,10 +343,12 @@ impl Crunch {
                 maximum_payouts = None;
               } else {
                 if let Some(claim_era) = unclaimed.pop() {
-                  let message = format!("Crunching {} for era {}", context(), claim_era);
-                  let formatted_message =
-                    format!("&middot; 🥣 Crunching {} for era {} ⏳", context(), claim_era);
-                  self.send_message(&message, &formatted_message).await?;
+                  message.push(format!("Crunching {} for era {}", context(), claim_era));
+                  formatted_message.push(format!(
+                    "&middot; 🥣 Crunching {} for era {} ⏳",
+                    context(),
+                    claim_era
+                  ));
 
                   // Call extrinsic payout stakers and wait for event
                   let extrinsic = client
@@ -347,21 +379,20 @@ impl Crunch {
                   let stash_amount_percentage = (stash_amount_value as f64
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
-                  let message = format!(
-                    "{} -> crunched {} worth of {} ({:.2}%)",
+                  message.push(format!(
+                    "{} -> crunched {} = {} ({:.2}%)",
                     identity,
                     context(),
                     stash_amount,
                     stash_amount_percentage,
-                  );
-                  let formatted_message = format!(
-                    "&middot; 🧑‍🚀 <b>{}</b> --> crunched {} worth of <b>{}</b> ({:.2}%)",
+                  ));
+                  formatted_message.push(format!(
+                    "&middot; &middot; 🧑‍🚀 <b>{}</b> -> crunched {} <b>{}</b> ({:.2}%)",
                     identity,
                     context(),
                     stash_amount,
                     stash_amount_percentage
-                  );
-                  self.send_message(&message, &formatted_message).await?;
+                  ));
 
                   // Nominators reward amount
                   let others_amount = format!(
@@ -373,33 +404,31 @@ impl Crunch {
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
 
-                  let message = format!(
-                    "Nominators ({}) -> crunched {} worth of {} ({:.2}%)",
+                  message.push(format!(
+                    "Nominators ({}) -> crunched {} = {} ({:.2}%)",
                     others_quantity,
                     context(),
                     others_amount,
                     others_amount_percentage,
-                  );
-                  let formatted_message = format!(
-                    "&middot; 🦸 Nominators ({}) --> crunched {} worth of {} ({:.2}%)",
+                  ));
+                  formatted_message.push(format!(
+                    "&middot; &middot; 🦸 Nominators ({}) -> crunched {} {} ({:.2}%)",
                     others_quantity,
                     context(),
                     others_amount,
                     others_amount_percentage
-                  );
-                  self.send_message(&message, &formatted_message).await?;
+                  ));
 
                   // Log block number
                   if let Some(header) = client.header(Some(extrinsic.block)).await? {
-                    let message = format!(
+                    message.push(format!(
                       "Crunch finalized at block #{} ({}) https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}",
                       header.number, extrinsic.block.to_string(), config.substrate_ws_url, extrinsic.block
-                    );
-                    let formatted_message = format!(
-                      "&middot; 💯 Crunch finalized at block #{} (<a href=\"https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}\">{}</a>) ✨",
+                    ));
+                    formatted_message.push( format!(
+                      "&middot; &middot; 💯 Crunch finalized at block #{} (<a href=\"https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}\">{}</a>) ✨",
                       header.number, config.substrate_ws_url, extrinsic.block, extrinsic.block.to_string()
-                    );
-                    self.send_message(&message, &formatted_message).await?;
+                    ));
                   }
                 }
                 maximum_payouts = Some(i - 1);
@@ -408,88 +437,90 @@ impl Crunch {
             // Check if there are still eras left to claim
             if unclaimed.len() > 0 {
               let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
-              let message = format!(
+              message.push(format!(
                 "{} All good! But there are still {} eras left with {} to crunch {}",
                 symbols,
                 unclaimed.len(),
                 context(),
                 symbols,
-              );
+              ));
               let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
-              let formatted_message = format!(
+              formatted_message.push(format!(
                 "&middot; {} All good! But there are still {} eras left with {} to crunch {}",
                 symbols,
                 unclaimed.len(),
                 context(),
                 symbols
-              );
-              self.send_message(&message, &formatted_message).await?;
+              ));
             } else {
-              let message = format!("Well done! {} Just run out of {}!", identity, context());
-              let formatted_message = format!(
+              message.push(format!(
+                "Well done! {} Just run out of {}!",
+                identity,
+                context()
+              ));
+              formatted_message.push(format!(
                 "&middot; ✌️ Well done! <b>{}</b> Just run out of {} ✨💙",
                 identity,
                 context()
-              );
-              self.send_message(&message, &formatted_message).await?;
+              ));
             }
           } else {
-            let message = format!("And nothing to crunch this time!");
-            let formatted_message =
-              format!("&middot; 🙃 And nothing to crunch this time 🤔 💭 🪴 📚 🧠 💡 👨‍💻");
-            self.send_message(&message, &formatted_message).await?;
+            message.push(format!("And nothing to crunch this time!"));
+            formatted_message.push(format!(
+              "&middot; 🤔 And nothing to crunch this time 💭 🪴 📚 🧠 💡 👨‍💻"
+            ));
           }
           // Active set
           if active_validators.contains(&stash) {
-            let message = format!("{} -> is currently LIVE on active set!", identity);
-            let formatted_message = format!(
-              "&middot; 🧑‍🚀 <b>{}</b> --> is currently <b>LIVE</b> on active set ✌️",
-              identity
-            );
-            self.send_message(&message, &formatted_message).await?;
+            message.push(format!("{} -> ACTIVE", identity));
+            formatted_message.push(format!(
+              "&middot; 🟢 <b>Active</b> -> 🌱 {} are on the way ✌️",
+              context()
+            ));
           } else {
-            let message = format!("{} not in active set this round", identity);
-            let formatted_message = format!("&middot; 🧑‍🚀 <b>{}</b> is currently looking out for some Nominators 🦸👋", identity);
-            self.send_message(&message, &formatted_message).await?;
+            message.push(format!("{} INACTIVE", identity));
+            formatted_message.push(format!(
+              "&middot; 🔴 <b>Inactive</b> -> 🔎 looking out for Nominators 🦸🗳️"
+            ));
           }
         }
       } else {
-        let message = format!(
+        message.push(format!(
           "{} * Stash account does not have a Controller account!",
           stash
-        );
-        let formatted_message = format!(
+        ));
+        formatted_message.push(format!(
           "&middot; 💰 <code>{}</code> ⚠️ Stash account does not have a Controller account ⚠️",
           stash
-        );
-        self.send_message(&message, &formatted_message).await?;
+        ));
       }
     }
 
-    let message = format!(
+    message.push(format!(
       "Job done -> next crunch time will be in {} hours!",
       config.interval / 3600
-    );
-    let formatted_message = format!(
-      "💨 Job done --> next crunch time will be in {} hours ⏱️ 💤",
+    ));
+    formatted_message.push(format!(
+      "<br>💨 Job done -> next crunch time will be in {} hours ⏱️ 💤",
       config.interval / 3600
-    );
-    self.send_message(&message, &formatted_message).await?;
+    ));
+    self
+      .send_message(&message.join("\n"), &formatted_message.join("<br>"))
+      .await?;
     Ok(())
   }
+
+  //
   async fn inspect(&self) -> Result<(), CrunchError> {
     let client = self.client.clone();
     let config = CONFIG.clone();
 
-    let message = format!("Inspect stashes -> {}", config.stashes.join(","));
-    info!("{}", message);
-
+    info!("Inspect stashes -> {}", config.stashes.join(","));
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
     for stash_str in config.stashes.iter() {
       let stash = AccountId32::from_str(stash_str)?;
-      let message = format!("{} * Stash account", stash);
-      info!("{}", message);
+      info!("{} * Stash account", stash);
 
       let start_index = active_era.index - history_depth;
       let mut unclaimed: Vec<u32> = Vec::new();
@@ -512,23 +543,20 @@ impl Crunch {
           }
         }
       }
-      let message = format!(
+      info!(
         "{} claimed eras in the last {} -> {:?}",
         claimed.len(),
         history_depth,
         claimed
       );
-      info!("{}", message);
-      let message = format!(
+      info!(
         "{} unclaimed eras in the last {} -> {:?}",
         unclaimed.len(),
         history_depth,
         unclaimed
       );
-      info!("{}", message);
     }
-    let message = format!("Job done!");
-    info!("{}", message);
+    info!("Job done!");
     Ok(())
   }
 
@@ -581,7 +609,7 @@ fn spawn_and_restart_crunch_flakes_on_error() {
           CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
           _ => {
             let message = format!("On hold for 30 min!");
-            let formatted_message = format!("🚨 An error was raised. Crunch 🤖 stays on hold for 30 min --> Rescue is on the way 🚁 🚒 🚑 🚓",);
+            let formatted_message = format!("🚨 An error was raised. Crunch 🤖 stays on hold for 30 min -> Rescue is on the way 🚁 🚒 🚑 🚓");
             c.send_message(&message, &formatted_message).await.unwrap();
           }
         }
