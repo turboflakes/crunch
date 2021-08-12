@@ -609,7 +609,7 @@ fn spawn_and_restart_crunch_flakes_on_error() {
           CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
           _ => {
             let message = format!("On hold for 30 min!");
-            let formatted_message = format!("🚨 An error was raised. Crunch 🤖 stays on hold for 30 min -> Rescue is on the way 🚁 🚒 🚑 🚓");
+            let formatted_message = format!("🚨 An error was raised -> <code>crunch</code> on hold for 30 min while rescue is on the way 🚁 🚒 🚑 🚓");
             c.send_message(&message, &formatted_message).await.unwrap();
           }
         }
