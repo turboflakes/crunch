@@ -197,7 +197,7 @@ impl Crunch {
     // formatted_message.push("⏰ Hey, it's crunch time 👀".to_owned());
 
     message.push(format!(
-      "H{} v{}",
+      "{} v{}",
       env!("CARGO_PKG_NAME"),
       env!("CARGO_PKG_VERSION")
     ));
