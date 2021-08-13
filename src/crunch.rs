@@ -378,9 +378,9 @@ impl Crunch {
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
                   message.push(format!(
-                    "{} -> crunched {} = {} ({:.2}%)",
+                    "{} -> crunched {} ({:.2}%)",
                     identity,
-                    context(),
+                    // context(),
                     stash_amount,
                     stash_amount_percentage,
                   ));
@@ -404,9 +404,9 @@ impl Crunch {
                     * 100.0;
 
                   message.push(format!(
-                    "Nominators ({}) -> crunched {} = {} ({:.2}%)",
+                    "Nominators ({}) -> crunched {} ({:.2}%)",
                     others_quantity,
-                    context(),
+                    // context(),
                     others_amount,
                     others_amount_percentage,
                   ));
