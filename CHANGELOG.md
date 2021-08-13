@@ -30,3 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Highlight validator name in logs
 - By default connect to local substrate node if no chain is specified
+
+## [0.1.11] - 2021-08-13
+
+### Changed
+
+- Improve message readability
+- Only send one matrix message per run
