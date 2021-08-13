@@ -21,6 +21,7 @@
 use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
+use crate::stats;
 use async_recursion::async_recursion;
 use async_std::task;
 use codec::Encode;
@@ -144,6 +145,14 @@ fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
   };
   let v = vec![""; cap + 1];
   v.join(symbol)
+}
+
+fn trend(a: f64, b: f64) -> String {
+  if a > b {
+    String::from("↑")
+  } else {
+    String::from("↓")
+  }
 }
 
 pub struct Crunch {
@@ -355,6 +364,39 @@ impl Crunch {
 
                   debug!("{} * Result {:?}", stash, event);
 
+                  // Log Points
+                  let era_reward_points = client.eras_reward_points(claim_era, None).await?;
+                  let stash_points = match era_reward_points
+                    .individual
+                    .iter()
+                    .find(|(s, _)| *s == &stash)
+                  {
+                    Some((_, p)) => *p,
+                    None => 0,
+                  };
+
+                  // Calculate average points
+                  let points: Vec<u32> = era_reward_points
+                    .individual
+                    .into_iter()
+                    .map(|(_, points)| points)
+                    .collect();
+                  let avg = stats::mean(&points);
+
+                  message.push(format!(
+                    "Points {} {} Average {:.0}",
+                    stash_points,
+                    trend(stash_points.into(), avg),
+                    avg
+                  ));
+                  formatted_message.push(format!(
+                    "🎲 Points {} {} Average {:.0}",
+                    stash_points,
+                    trend(stash_points.into(), avg),
+                    avg
+                  ));
+                  message.log();
+
                   // Calculate validator and nominators reward amounts
                   let mut stash_amount_value: u128 = 0;
                   let mut others_amount_value: u128 = 0;
@@ -418,16 +460,6 @@ impl Crunch {
                     others_amount_percentage
                   ));
                   message.log();
-
-                  // TODO Points
-                  let era_reward_points = client.eras_reward_points(claim_era, None).await?;
-                  if let Some((_, points)) = era_reward_points
-                    .individual
-                    .iter()
-                    .find(|(s, _)| *s == &stash)
-                  {
-                    info!("{}", *points);
-                  }
 
                   // Log block number
                   if let Some(header) = client.header(Some(event.block)).await? {
