@@ -37,3 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improve message readability
 - Only send one matrix message per run
+
+## [0.1.12] - 2021-08-13
+
+### Add
+
+- Show validator era points and average
