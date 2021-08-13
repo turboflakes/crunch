@@ -19,31 +19,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-mod config;
-mod crunch;
-mod errors;
-mod matrix;
-mod stats;
+pub fn mean(list: &Vec<u32>) -> f64 {
+  if list.len() == 0 {
+    return 0.0;
+  }
+  let sum: u32 = list.iter().sum();
+  f64::from(sum) / (list.len() as f64)
+}
 
-use crate::config::CONFIG;
-use crate::crunch::Crunch;
-use log::info;
-use std::env;
+#[cfg(test)]
+mod tests {
+  use super::*;
 
-fn main() {
-    env::set_var("RUST_LOG", "crunch=info");
-    env_logger::try_init().unwrap_or_default();
-
-    info!(
-        "{} v{} * {}",
-        env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION"),
-        env!("CARGO_PKG_DESCRIPTION")
-    );
-
-    let config = CONFIG.clone();
-    if config.only_view {
-        return Crunch::view();
-    }
-    Crunch::flakes()
+  #[test]
+  fn calculate_mean() {
+    let v = vec![1, 2, 3, 4, 5, 4, 2, 6];
+    assert_eq!(mean(&v), 3.375);
+  }
 }
