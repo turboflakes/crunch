@@ -35,8 +35,8 @@ use substrate_subxt::{
   sp_core::{crypto, sr25519, Pair as PairT},
   sp_runtime::AccountId32,
   staking::{
-    ActiveEraStoreExt, BondedStoreExt, ErasStakersStoreExt, HistoryDepthStoreExt, LedgerStoreExt,
-    PayoutStakersCallExt, RewardEvent,
+    ActiveEraStoreExt, BondedStoreExt, ErasRewardPointsStoreExt, ErasStakersStoreExt,
+    HistoryDepthStoreExt, LedgerStoreExt, PayoutStakersCallExt, RewardEvent,
   },
   Client, ClientBuilder, DefaultNodeRuntime, PairSigner,
 };
@@ -418,6 +418,16 @@ impl Crunch {
                     others_amount_percentage
                   ));
                   message.log();
+
+                  // TODO Points
+                  let era_reward_points = client.eras_reward_points(claim_era, None).await?;
+                  if let Some((_, points)) = era_reward_points
+                    .individual
+                    .iter()
+                    .find(|(s, _)| *s == &stash)
+                  {
+                    info!("{}", *points);
+                  }
 
                   // Log block number
                   if let Some(header) = client.header(Some(event.block)).await? {
