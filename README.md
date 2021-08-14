@@ -10,7 +10,9 @@
 
 To automate payout of staking rewards for just one or a list of Validators every X hours.
 
-To get notified about the amount and rate of the total staking rewards each Validator and their Nominators got.
+To get notified about the amount and rate of the total staking rewards each Validator and their Nominators got
+
+To be informed about era stats for each Validator, e.g. inclusion rate, claimed rewards rate, era points trend, active for current era
 
 To easily inspect about any unclaimed eras for a given Validator stash
 
@@ -94,20 +96,20 @@ Join and read the messages history of all the Public Rooms for which **Crunch Bo
 
 <table style="width:100%;" cellspacing="0" cellpadding="0">
   <tr>
-    <td>
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room-128.png?raw=true">
+    <td style="width: 100px;">
+        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room-128.png?raw=true">
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Westend Crunch Bot (Public)</a></td>
   </tr>
   <tr>
-    <td>
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room-128.png?raw=true">
+    <td style="width: 100px;">
+        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room-128.png?raw=true">
     </td>
     <td><a href="https://matrix.to/#/%23kusama-crunch-bot:matrix.org" target="_blank">Kusama Crunch Bot (Public)</a></td>
   </tr>
   <tr>
-    <td>
-        <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room-128.png?raw=true">
+    <td style="width: 100px;">
+        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room-128.png?raw=true">
     </td>
     <td><a href="https://matrix.to/#/%23polkadot-crunch-bot:matrix.org" target="_blank">Polkadot Crunch Bot (Public)</a></td>
   </tr>
@@ -129,7 +131,7 @@ $ cd ~/crunch-bot
 
 By default `crunch` tries to connect to your local substrate node on the default websocket port `ws://127.0.0.1:9944`. This can be changed by typing one of polkadot main chains - westend, kusama or polkadot. Or by changing the substrate websocket url with the option `--substrate-ws-url`.
 
-`crunch` default subcommand is `flakes`, there are fun messages if you stick with it, or you can choose the regular sub command `rewards` rather than `flakes`. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
+`crunch` default sub command is `flakes`, there are fun messages if you stick with it, or you can choose the regular sub command `rewards` rather than `flakes`. As you prefer. Both sub commands are identical in terms of job execution. But logs, messages/notifications differ.
 
 Essentially `crunch` motto is enjoy **Crunch Bot** while `crunch flakes` :)
 
@@ -163,15 +165,51 @@ Note: All flags and options are also available through environment variables if 
 $ crunch help
 ```
 
-![crunch help [CLI]](https://github.com/turboflakes/crunch/blob/assets/crunch-help.png?raw=true)
-
 ```bash
 #!/bin/bash
 # or help for any subcommand like
 $ crunch rewards --help
-```
 
-![crunch flakes --help [CLI]](https://github.com/turboflakes/crunch/blob/assets/crunch-rewards-help.png?raw=true)
+USAGE:
+    crunch rewards [FLAGS] [OPTIONS] [MODE]
+
+FLAGS:
+        --debug                              Prints debug information verbosely.
+        --disable-matrix                     Disable matrix bot for 'crunch rewards'. (e.g. with this flag active
+                                             'crunch rewards' will not send messages/notifications about claimed or
+                                             unclaimed staking rewards to your private or public 'Crunch Bot' rooms)
+                                             (https://matrix.org/)
+        --disable-matrix-bot-display-name    Disable matrix bot display name update for 'crunch rewards'. (e.g. with
+                                             this flag active 'crunch rewards' will not change the matrix bot user
+                                             display name)
+        --disable-public-matrix-room         Disable notifications to matrix public rooms for 'crunch rewards'. (e.g.
+                                             with this flag active 'crunch rewards' will not send messages/notifications
+                                             about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)
+    -h, --help                               Prints help information
+    -V, --version                            Prints version information
+
+OPTIONS:
+        --matrix-bot-password <matrix-bot-password>    Password for the 'Crunch Bot' matrix user sign in.
+        --matrix-bot-user <matrix-bot-user>
+            Your new 'Crunch Bot' matrix user. e.g. '@your-own-crunch-bot-account:matrix.org' this user account will be
+            your 'Crunch Bot' which will be responsible to send messages/notifications to your private or public 'Crunch
+            Bot' rooms.
+        --matrix-user <matrix-user>
+            Your regular matrix user. e.g. '@your-regular-matrix-account:matrix.org' this user account will receive
+            notifications from your other 'Crunch Bot' matrix account.
+    -m, --maximum-payouts <maximum-payouts>
+            Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means
+            that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address
+            will be 4). [default: 4]
+    -f, --seed-path <FILE>
+            Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout
+            call. [default: .private.seed]
+
+ARGS:
+    <MODE>    Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'daily' sets
+              'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6
+              hours) [default: turbo]  [possible values: daily, turbo]
+```
 
 Also if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`
 
