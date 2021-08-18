@@ -43,3 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Add
 
 - Show validator era points and average
+
+## [0.1.13] - 2021-08-19
+
+### Change
+
+- Update dependencies
