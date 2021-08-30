@@ -37,7 +37,7 @@ use substrate_subxt::{
   sp_runtime::AccountId32,
   staking::{
     ActiveEraStoreExt, BondedStoreExt, ErasRewardPointsStoreExt, ErasStakersStoreExt,
-    HistoryDepthStoreExt, LedgerStoreExt, PayoutStakersCallExt, RewardEvent,
+    HistoryDepthStoreExt, LedgerStoreExt, PayoutStakersCallExt, RewardedEvent,
   },
   Client, ClientBuilder, DefaultNodeRuntime, PairSigner,
 };
@@ -401,7 +401,7 @@ impl Crunch {
                   let mut stash_amount_value: u128 = 0;
                   let mut others_amount_value: u128 = 0;
                   let mut others_quantity: u32 = 0;
-                  for reward in event.find_events::<RewardEvent<_>>()? {
+                  for reward in event.find_events::<RewardedEvent<_>>()? {
                     if reward.stash == stash {
                       stash_amount_value = reward.amount;
                     } else {

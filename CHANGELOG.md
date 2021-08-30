@@ -49,3 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Change
 
 - Update dependencies
+
+## [0.1.14] - 2021-08-30
+
+### Change
+
+- fix rewarded event dependency
