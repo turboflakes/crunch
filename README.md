@@ -227,16 +227,40 @@ $ crunch polkadot view
 
 Note: You can run `crunch` inside a tmux session and leave it, or using something like `systemd` to run `crunch` on server restarts for example. By default `crunch` will wake up every X hours to claim rewards if there are any to claim.
 
-## Development
+## Development / Build from Source
 
-Clone the repository and compile the package with Cargo
+If you'd like to build from source, first install Rust.
+
+```bash
+curl https://sh.rustup.rs -sSf | sh
+```
+
+If Rust is already installed run
+
+```bash
+rustup update
+```
+
+Verify Rust installation by running
+
+```bash
+rustc --version
+```
+
+Once done, finish installing the support software
+
+```bash
+sudo apt install build-essential git clang libclang-dev pkg-config libssl-dev
+```
+
+Build `crunch` by cloning this repository
 
 ```bash
 #!/bin/bash
 $ git clone http://github.com/turboflakes/crunch
 ```
 
-Compile the crunch binary
+Compile `crunch` package with Cargo
 
 ```bash
 #!/bin/bash
