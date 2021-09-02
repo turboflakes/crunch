@@ -69,7 +69,7 @@ pub async fn create_or_await_substrate_node_client(config: Config) -> Client<Def
     match create_substrate_node_client(config.clone()).await {
       Ok(client) => {
         info!(
-          "Connected to {} network <> {} * Substrate node <> {} v{}",
+          "Connected to {} network using {} * Substrate node {} v{}",
           client.chain_name(),
           config.substrate_ws_url,
           client.node_name(),
@@ -79,7 +79,7 @@ pub async fn create_or_await_substrate_node_client(config: Config) -> Client<Def
       }
       Err(e) => {
         error!("{}", e);
-        info!("Awaiting for connection <> {}", config.substrate_ws_url);
+        info!("Awaiting for connection using {}", config.substrate_ws_url);
         thread::sleep(time::Duration::from_secs(6));
       }
     }
