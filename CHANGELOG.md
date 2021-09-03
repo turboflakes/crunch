@@ -54,4 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Change
 
-- fix rewarded event dependency
+- Fix event 'Rewarded' active on chains runnimg Runtime 9090
+
+## [0.1.15] - 2021-09-03
+
+### Add
+
+- Optional flag --short to display only essencial information
+
+### Change
+
+- Small adjustments on overal notifications
