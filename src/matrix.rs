@@ -231,7 +231,7 @@ impl Matrix {
         let response = res.json::<LoginResponse>().await?;
         self.access_token = Some(response.access_token);
         info!(
-          "The 'Crunch Bot' user {} has been authenticated <> Homeserver {}",
+          "The 'Crunch Bot' user {} has been authenticated at {}",
           response.user_id, response.home_server
         );
         Ok(())

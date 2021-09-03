@@ -71,6 +71,8 @@ pub struct Config {
   pub only_view: bool,
   #[serde(default)]
   pub is_boring: bool,
+  #[serde(default)]
+  pub is_short: bool,
   // matrix configuration
   #[serde(default)]
   pub matrix_user: String,
@@ -170,6 +172,10 @@ fn get_config() -> Config {
             "Disable matrix bot display name update for 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not change the matrix bot user display name)",
           ),
         )
+      .arg(
+        Arg::with_name("short")
+          .long("short")
+          .help("Display minimum payout information."))
     )
     .subcommand(SubCommand::with_name("rewards")
       .about("Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]")
@@ -240,6 +246,10 @@ fn get_config() -> Config {
             "Disable matrix bot display name update for 'crunch rewards'. (e.g. with this flag active 'crunch rewards' will not change the matrix bot user display name)",
           ),
         )
+      .arg(
+        Arg::with_name("short")
+          .long("short")
+          .help("Display minimum payout information."))
     )
     .subcommand(SubCommand::with_name("view")
       .about("Inspect staking rewards for the given stashes and display claimed and unclaimed eras.")
@@ -336,6 +346,10 @@ fn get_config() -> Config {
 
       if flakes_matches.is_present("debug") {
         env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
+      }
+
+      if flakes_matches.is_present("short") {
+        env::set_var("CRUNCH_is_short", "true");
       }
 
       if flakes_matches.is_present("disable-matrix") {

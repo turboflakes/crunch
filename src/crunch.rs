@@ -44,13 +44,28 @@ use substrate_subxt::{
 
 type Message = Vec<String>;
 
-trait Log {
+trait MessageTrait {
   fn log(&self);
+  fn show_or_hide(&mut self, value: String, hidden: bool);
+  fn show_or_hide_and_log(&mut self, value: String, hidden: bool);
 }
 
-impl Log for Message {
+impl MessageTrait for Message {
   fn log(&self) {
     info!("{}", &self[self.len() - 1]);
+  }
+
+  fn show_or_hide(&mut self, value: String, hidden: bool) {
+    if !hidden {
+      self.push(value);
+    }
+  }
+
+  fn show_or_hide_and_log(&mut self, value: String, hidden: bool) {
+    if !hidden {
+      self.push(value);
+      self.log();
+    }
   }
 }
 
@@ -221,34 +236,47 @@ impl Crunch {
     let mut message: Message = vec![];
     let mut formatted_message: Message = vec![];
 
-    message.push("Hey, it's crunch time!".to_owned());
-    formatted_message.push("⏰ Hey, it's crunch time 👀".to_owned());
-    message.log();
+    message.show_or_hide_and_log("Hey, it's crunch time!".to_owned(), false);
+    formatted_message.show_or_hide("⏰ Hey, it's <code>crunch</code> time 👀".to_owned(), false);
 
-    message.push(format!(
-      "{} v{}",
-      env!("CARGO_PKG_NAME"),
-      env!("CARGO_PKG_VERSION")
-    ));
-    formatted_message.push(format!(
-      "🤖 <code>{} v{}</code>",
-      env!("CARGO_PKG_NAME"),
-      env!("CARGO_PKG_VERSION")
-    ));
-    message.log();
+    message.show_or_hide_and_log(
+      format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
+      config.is_short,
+    );
+    formatted_message.show_or_hide(
+      format!(
+        "🤖 <code>{} v{}</code>",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+      ),
+      config.is_short,
+    );
 
     // Get signer identity and log it
     let identity = self.get_identity(&seed_account_id, None).await?;
-    message.push(format!("{} * Signer account", identity));
-    formatted_message.push(format!(
-      "✍️ Signer account &middot; <code>{}</code>",
-      identity
-    ));
-    message.log();
+    message.show_or_hide_and_log(format!("{} * Signer account", identity), config.is_short);
+    formatted_message.show_or_hide(
+      format!("✍️ Signer account &middot; <code>{}</code>", identity),
+      config.is_short,
+    );
 
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
-    // get active validators
+
+    message.show_or_hide_and_log(
+      format!("{} active era {}", client.chain_name(), active_era.index),
+      false,
+    );
+    formatted_message.show_or_hide(
+      format!(
+        "<br>💙 <b>{}</b> -> playing era {} 🎶 🎹",
+        client.chain_name(),
+        active_era.index
+      ),
+      false,
+    );
+
+    // Get active validators
     let active_validators = client.validators(None).await?;
     for (_i, stash_str) in config.stashes.iter().enumerate() {
       let stash = AccountId32::from_str(stash_str)?;
@@ -256,13 +284,30 @@ impl Crunch {
       // Get stash identity
       let identity = self.get_identity(&stash, None).await?;
 
-      message.push(format!("{} -> crunch {}", identity, subcommand()));
-      formatted_message.push(format!(
-        "<br>🧑‍🚀 <b>{}</b> -> <code>crunch {}</code>",
-        identity,
-        subcommand()
-      ));
-      message.log();
+      // Check if in active set
+      let is_active = if active_validators.contains(&stash) {
+        true
+      } else {
+        false
+      };
+      if is_active {
+        message.show_or_hide_and_log(format!("{} -> ACTIVE", identity), false);
+        formatted_message.show_or_hide(format!("<br>🧑‍🚀 <b>{}</b> -> 🟢 Active", identity), false);
+      } else {
+        message.show_or_hide_and_log(format!("{} INACTIVE", identity), false);
+        formatted_message.show_or_hide(
+          format!("<br>🧑‍🚀 <b>{}</b> -> 🔴 Inactive", identity),
+          false,
+        );
+      }
+
+      // message.show_or_hide_and_log(format!("{} -> crunch {}", identity, subcommand()), config.is_short);
+      // formatted_message.show_or_hide(format!(
+      //   "<br>🧑‍🚀 <b>{}</b> -> <code>crunch {}</code>",
+      //   identity,
+      //   subcommand()
+      // ), config.is_short);
+      //
 
       let start_index = active_era.index - history_depth;
       let mut unclaimed: Vec<u32> = Vec::new();
@@ -270,9 +315,11 @@ impl Crunch {
       let mut maximum_payouts = Some(config.maximum_payouts);
 
       if let Some(controller) = client.bonded(stash.clone(), None).await? {
-        message.push(format!("{} * Stash account", stash));
-        formatted_message.push(format!("💰 Stash account &middot; <code>{}</code>", stash));
-        message.log();
+        message.show_or_hide_and_log(format!("{} * Stash account", stash), config.is_short);
+        formatted_message.show_or_hide(
+          format!("💰 Stash account &middot; <code>{}</code>", stash),
+          config.is_short,
+        );
         //
         if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
           // Find unclaimed eras in previous 84 eras
@@ -289,23 +336,23 @@ impl Crunch {
             }
           }
           // if claimed.len() > 0 {
-          //   message.push(format!(
+          //   message.show_or_hide_and_log(format!(
           //     "In the last {} eras -> {} have already been crunched * {:?}",
           //     history_depth,
           //     claimed.len(),
           //     claimed
           //   ));
-          //   formatted_message.push(format!(
+          //   formatted_message.show_or_hide(format!(
           //     "📒 In the last {} eras -> {} have already been crunched ✨",
           //     history_depth,
           //     claimed.len()
           //   ));
           // } else {
-          //   message.push(format!(
+          //   message.show_or_hide_and_log(format!(
           //     "In the last {} eras -> There was nothing to crunch",
           //     history_depth
           //   ));
-          //   formatted_message.push(format!(
+          //   formatted_message.show_or_hide(format!(
           //     "📒 In the last {} eras -> There was nothing to crunch 😞",
           //     history_depth
           //   ));
@@ -324,7 +371,7 @@ impl Crunch {
             // };
 
             // let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
-            // message.push(format!(
+            // message.show_or_hide_and_log(format!(
             //   "{} And {} eras with {} to crunch {}",
             //   symbols,
             //   unclaimed.len(),
@@ -332,14 +379,14 @@ impl Crunch {
             //   symbols,
             // ));
             // let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
-            // formatted_message.push(format!(
+            // formatted_message.show_or_hide(format!(
             //   "{} And {} eras with {} to crunch {}",
             //   symbols,
             //   unclaimed.len(),
             //   context(),
             //   symbols,
             // ));
-            // message.log();
+            //
 
             debug!("{} * Unclaimed rewards {:?}", stash, unclaimed);
 
@@ -349,13 +396,13 @@ impl Crunch {
                 maximum_payouts = None;
               } else {
                 if let Some(claim_era) = unclaimed.pop() {
-                  // message.push(format!("Crunch {} for era {}", context(), claim_era));
-                  // formatted_message.push(format!(
+                  // message.show_or_hide_and_log(format!("Crunch {} for era {}", context(), claim_era));
+                  // formatted_message.show_or_hide(format!(
                   //   "🥣 <code>crunch</code> {} for era {} ⏳",
                   //   context(),
                   //   claim_era
                   // ));
-                  // message.log();
+                  //
 
                   // Call extrinsic payout stakers and wait for event
                   let event = client
@@ -383,19 +430,24 @@ impl Crunch {
                     .collect();
                   let avg = stats::mean(&points);
 
-                  message.push(format!(
-                    "Points {} {} Average {:.0}",
-                    stash_points,
-                    trend(stash_points.into(), avg),
-                    avg
-                  ));
-                  formatted_message.push(format!(
-                    "🎲 Points {} {} Average {:.0}",
-                    stash_points,
-                    trend(stash_points.into(), avg),
-                    avg
-                  ));
-                  message.log();
+                  message.show_or_hide_and_log(
+                    format!(
+                      "Points {} {} Average {:.0}",
+                      stash_points,
+                      trend(stash_points.into(), avg),
+                      avg
+                    ),
+                    config.is_short,
+                  );
+                  formatted_message.show_or_hide(
+                    format!(
+                      "🎲 Points {} {} Average {:.0}",
+                      stash_points,
+                      trend(stash_points.into(), avg),
+                      avg
+                    ),
+                    config.is_short,
+                  );
 
                   // Calculate validator and nominators reward amounts
                   let mut stash_amount_value: u128 = 0;
@@ -419,21 +471,26 @@ impl Crunch {
                   let stash_amount_percentage = (stash_amount_value as f64
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
-                  message.push(format!(
-                    "{} -> crunched {} ({:.2}%)",
-                    identity,
-                    // context(),
-                    stash_amount,
-                    stash_amount_percentage,
-                  ));
-                  formatted_message.push(format!(
-                    "🧑‍🚀 {} -> <b>{}</b> ({:.2}%)",
-                    identity,
-                    // context(),
-                    stash_amount,
-                    stash_amount_percentage
-                  ));
-                  message.log();
+                  message.show_or_hide_and_log(
+                    format!(
+                      "{} -> crunched {} ({:.2}%)",
+                      identity,
+                      // context(),
+                      stash_amount,
+                      stash_amount_percentage,
+                    ),
+                    config.is_short,
+                  );
+                  formatted_message.show_or_hide(
+                    format!(
+                      "🧑‍🚀 {} -> <b>{}</b> ({:.2}%)",
+                      identity,
+                      // context(),
+                      stash_amount,
+                      stash_amount_percentage
+                    ),
+                    config.is_short,
+                  );
 
                   // Nominators reward amount
                   let others_amount = format!(
@@ -445,33 +502,37 @@ impl Crunch {
                     / (stash_amount_value + others_amount_value) as f64)
                     * 100.0;
 
-                  message.push(format!(
-                    "Nominators ({}) -> crunched {} ({:.2}%)",
-                    others_quantity,
-                    // context(),
-                    others_amount,
-                    others_amount_percentage,
-                  ));
-                  formatted_message.push(format!(
-                    "🦸 Nominators ({}) -> {} ({:.2}%)",
-                    others_quantity,
-                    // context(),
-                    others_amount,
-                    others_amount_percentage
-                  ));
-                  message.log();
+                  message.show_or_hide_and_log(
+                    format!(
+                      "Nominators ({}) -> crunched {} ({:.2}%)",
+                      others_quantity,
+                      // context(),
+                      others_amount,
+                      others_amount_percentage,
+                    ),
+                    config.is_short,
+                  );
+                  formatted_message.show_or_hide(
+                    format!(
+                      "🦸 Nominators ({}) -> {} ({:.2}%)",
+                      others_quantity,
+                      // context(),
+                      others_amount,
+                      others_amount_percentage
+                    ),
+                    config.is_short,
+                  );
 
                   // Log block number
                   if let Some(header) = client.header(Some(event.block)).await? {
-                    message.push(format!(
+                    message.show_or_hide_and_log(format!(
                       "Crunch era {} finalized at block #{} ({}) https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}",
                       claim_era, header.number, event.block.to_string(), config.substrate_ws_url, event.block
-                    ));
-                    formatted_message.push( format!(
-                      "💯 <code>crunch</code> era {} finalized at block #{} (<a href=\"https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}\">{}</a>) ✨",
+                    ), false);
+                    formatted_message.show_or_hide( format!(
+                      "💯 <code>crunch</code> era <del>{}</del> finalized at block #{} (<a href=\"https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}\">{}</a>) ✨",
                       claim_era, header.number, config.substrate_ws_url, event.block, event.block.to_string()
-                    ));
-                    message.log();
+                    ), false);
                     // push era to claimed vec
                     claimed.push(claim_era);
                   }
@@ -482,112 +543,126 @@ impl Crunch {
             // Check if there are still eras left to claim
             if unclaimed.len() > 0 {
               let symbols = number_to_symbols(unclaimed.len(), "!", history_depth as usize);
-              message.push(format!(
-                "{} And there are still {} eras left with {} to crunch {}",
-                symbols,
-                unclaimed.len(),
-                context(),
-                symbols,
-              ));
+              message.show_or_hide_and_log(
+                format!(
+                  "{} And there are still {} eras left with {} to crunch {}",
+                  symbols,
+                  unclaimed.len(),
+                  context(),
+                  symbols,
+                ),
+                config.is_short,
+              );
               let symbols = number_to_symbols(unclaimed.len(), "⚡", history_depth as usize);
-              formatted_message.push(format!(
-                "{} And there are still {} eras left with {} to crunch {}",
-                symbols,
-                unclaimed.len(),
-                context(),
-                symbols
-              ));
-              message.log();
+              formatted_message.show_or_hide(
+                format!(
+                  "{} And there are still {} eras left with {} to crunch {}",
+                  symbols,
+                  unclaimed.len(),
+                  context(),
+                  symbols
+                ),
+                config.is_short,
+              );
             } else {
-              message.push(format!(
-                "Well done! {} Just run out of {}!",
-                identity,
-                context()
-              ));
-              formatted_message.push(format!(
-                "✌️ <b>{}</b> just run out of {} 💫 💙",
-                identity,
-                context()
-              ));
-              message.log();
+              message.show_or_hide_and_log(
+                format!("Well done! {} Just run out of {}!", identity, context()),
+                config.is_short,
+              );
+              formatted_message.show_or_hide(
+                format!("✌️ <b>{}</b> just run out of {} 💫 💙", identity, context()),
+                config.is_short,
+              );
             }
           } else {
-            // message.push(format!("And nothing to crunch this time!"));
-            // formatted_message.push(format!(
-            //   "🤔 And nothing to crunch this time 💭 🪴 📚 🧠 💡 👨‍💻"
-            // ));
+            let m = if is_active { "😊 🌱 ☀️ 🏄" } else { "🤔 💭 📚 💡 🦸 🗳️" };
+            message.show_or_hide_and_log(format!("Nothing to crunch this time!"), false);
+            formatted_message.show_or_hide(
+              format!("🥣 Nothing to <code>crunch</code> this time -> {}", m),
+              false,
+            );
           }
           // General stats
           // Inclusion
           let inclusion_percentage =
             ((claimed.len() + unclaimed.len()) as f32 / history_depth as f32) * 100.0;
 
-          message.push(format!(
-            "Inclusion {}/{} ({:.2}%)",
-            claimed.len() + unclaimed.len(),
-            history_depth,
-            inclusion_percentage
-          ));
-          formatted_message.push(format!(
-            "📒 Inclusion {}/{} ({:.2}%)",
-            claimed.len() + unclaimed.len(),
-            history_depth,
-            inclusion_percentage
-          ));
-          message.log();
+          message.show_or_hide_and_log(
+            format!(
+              "Inclusion {}/{} ({:.2}%)",
+              claimed.len() + unclaimed.len(),
+              history_depth,
+              inclusion_percentage
+            ),
+            config.is_short,
+          );
+          formatted_message.show_or_hide(
+            format!(
+              "📒 Inclusion {}/{} ({:.2}%)",
+              claimed.len() + unclaimed.len(),
+              history_depth,
+              inclusion_percentage
+            ),
+            config.is_short,
+          );
 
           // Claimed
           let claimed_percentage =
             (claimed.len() as f32 / (claimed.len() + unclaimed.len()) as f32) * 100.0;
 
           if claimed.len() > 0 {
-            message.push(format!(
-              "Crunched {}/{} ({:.2}%)",
-              claimed.len(),
-              claimed.len() + unclaimed.len(),
-              claimed_percentage
-            ));
-            formatted_message.push(format!(
-              "😋 Crunched {}/{} ({:.2}%)",
-              claimed.len(),
-              claimed.len() + unclaimed.len(),
-              claimed_percentage
-            ));
-            message.log();
-          }
-          // Active set
-          if active_validators.contains(&stash) {
-            message.push(format!("{} -> ACTIVE", identity));
-            formatted_message.push(format!("🟢 <b>Active</b> -> 😊 🌱 ☀️ 🏄"));
-            message.log();
-          } else {
-            message.push(format!("{} INACTIVE", identity));
-            formatted_message.push(format!("🔴 <b>Inactive</b> -> 🤔 💭 📚 💡 🦸 🗳️"));
-            message.log();
+            message.show_or_hide_and_log(
+              format!(
+                "Crunched {}/{} ({:.2}%)",
+                claimed.len(),
+                claimed.len() + unclaimed.len(),
+                claimed_percentage
+              ),
+              config.is_short,
+            );
+            formatted_message.show_or_hide(
+              format!(
+                "😋 Crunched {}/{} ({:.2}%)",
+                claimed.len(),
+                claimed.len() + unclaimed.len(),
+                claimed_percentage
+              ),
+              config.is_short,
+            );
           }
         }
       } else {
-        message.push(format!(
-          "{} * Stash account does not have a Controller account!",
-          stash
-        ));
-        formatted_message.push(format!(
-          "💰 <code>{}</code> ⚠️ Stash account does not have a Controller account ⚠️",
-          stash
-        ));
-        message.log();
+        message.show_or_hide_and_log(
+          format!(
+            "{} * Stash account does not have a Controller account!",
+            stash
+          ),
+          false,
+        );
+        formatted_message.show_or_hide(
+          format!(
+            "💰 <code>{}</code> ⚠️ Stash account does not have a Controller account ⚠️",
+            stash
+          ),
+          false,
+        );
       }
     }
 
-    message.push(format!(
-      "Job done -> next crunch time will be in {} hours!",
-      config.interval / 3600
-    ));
-    formatted_message.push(format!(
-      "<br>💨 Job done -> next crunch time will be in {} hours ⏱️ 💤<br>___<br>",
-      config.interval / 3600
-    ));
-    message.log();
+    message.show_or_hide_and_log(
+      format!(
+        "Next crunch time will be in {} hours!",
+        config.interval / 3600
+      ),
+      false,
+    );
+    formatted_message.show_or_hide(
+      format!(
+        "<br>💨 Next <code>crunch</code> time will be in {} hours ⏱️ 💤<br>___<br>",
+        config.interval / 3600
+      ),
+      false,
+    );
     self
       .send_message(&message.join("\n"), &formatted_message.join("<br>"))
       .await?;
