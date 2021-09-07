@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Add
+
 - Warn if signer account free funds are lower than 2x the Existential Deposit
+- Link validator identity to subscan.io
+
+### Change
+
 - Remove *nothing to crunch this time message* if short flag is present
 - Fix substrate-subxt dependency by commit hash
 - Fix changelog - latest version comes first
+- Change finalize block link to subscan.io
 
 ## [0.1.15] - 2021-09-03
 

@@ -306,12 +306,12 @@ impl Crunch {
         false
       };
       if is_active {
-        message.show_or_hide_and_log(format!("{} -> ACTIVE", identity), false);
-        formatted_message.show_or_hide(format!("<br>🧑‍🚀 <b>{}</b> -> 🟢 Active", identity), false);
+        message.show_or_hide_and_log(format!("{} -> ACTIVE (https://{}.subscan.io/validator/{})", identity, client.chain_name().to_lowercase(), stash), false);
+        formatted_message.show_or_hide(format!("<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🟢 Active", client.chain_name().to_lowercase(), stash, identity), false);
       } else {
-        message.show_or_hide_and_log(format!("{} INACTIVE", identity), false);
+        message.show_or_hide_and_log(format!("{} INACTIVE (https://{}.subscan.io/validator/{})", identity, client.chain_name().to_lowercase(), stash), false);
         formatted_message.show_or_hide(
-          format!("<br>🧑‍🚀 <b>{}</b> -> 🔴 Inactive", identity),
+          format!("<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🔴 Inactive", client.chain_name().to_lowercase(), stash, identity),
           false,
         );
       }
@@ -541,12 +541,12 @@ impl Crunch {
                   // Log block number
                   if let Some(header) = client.header(Some(event.block)).await? {
                     message.show_or_hide_and_log(format!(
-                      "Crunch era {} finalized at block #{} ({}) https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}",
-                      claim_era, header.number, event.block.to_string(), config.substrate_ws_url, event.block
+                      "Crunch era {} finalized at block #{} ({}) (https://{}.subscan.io/block/{:?})",
+                      claim_era, header.number, event.block.to_string(), client.chain_name().to_lowercase(), event.block
                     ), false);
                     formatted_message.show_or_hide( format!(
-                      "💯 <code>crunch</code> era <del>{}</del> finalized at block #{} (<a href=\"https://polkadot.js.org/apps/?rpc={}#/explorer/query/{:?}\">{}</a>) ✨",
-                      claim_era, header.number, config.substrate_ws_url, event.block, event.block.to_string()
+                      "💯 <code>crunch</code> era <del>{}</del> finalized at block #{} (<a href=\"https://{}.subscan.io/block/{:?}\">{}</a>) ✨",
+                      claim_era, header.number, client.chain_name().to_lowercase(), event.block, event.block.to_string()
                     ), false);
                     // push era to claimed vec
                     claimed.push(claim_era);
