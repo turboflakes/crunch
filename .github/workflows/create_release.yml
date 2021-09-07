@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install latest nightly
+      - name: Install Rust latest stable
         uses: actions-rs/toolchain@v1
         with:
             profile: minimal
