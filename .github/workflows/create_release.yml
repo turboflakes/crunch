@@ -16,29 +16,30 @@ jobs:
       - name: Install latest nightly
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly
+            profile: minimal
+            toolchain: stable
             override: true
             components: rustfmt, clippy
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
-        env:
-          CRUNCH_CONFIG_FILENAME: .env.example
         with:
           command: test
 
       - name: Run cargo build 
         uses: actions-rs/cargo@v1
-        env:
-          CRUNCH_CONFIG_FILENAME: .env.example
         with:
           command: build
           args: --release
 
+      - name: Get Rustc version
+        id: get_rustc
+        run: echo ::set-output name=rustc::$(rustc -V)
+
       - name: Get Tag version
         id: get_tag
         run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
-
+      
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -46,8 +47,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
-          release_name: Release ${{ steps.get_tag.outputs.tag }}
-          draft: false
+          release_name: crunch ${{ steps.get_tag.outputs.tag }}
+          body: "This release was built using `${{ steps.get_rustc.outputs.rustc }}`"
+          draft: true
           prerelease: false
 
       - name: Upload Release Asset
