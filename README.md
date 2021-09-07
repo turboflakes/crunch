@@ -27,7 +27,7 @@ For Nominators in private or public rooms check their chosen Validators rewards 
 # create `crunch-bot` directory
 $ mkdir ~/crunch-bot
 # download `crunch` latest version
-$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.12/crunch
+$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.17/crunch
 # make `crunch` binary file executable
 chmod +x ~/crunch-bot/crunch
 ```
@@ -186,6 +186,9 @@ FLAGS:
                                              with this flag active 'crunch rewards' will not send messages/notifications
                                              about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)
     -h, --help                               Prints help information
+        --short                              Display only essential information (e.g. with this flag active 'crunch
+                                             rewards' will only send essential messages/notifications about claimed
+                                             rewards)
     -V, --version                            Prints version information
 
 OPTIONS:
