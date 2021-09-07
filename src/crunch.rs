@@ -298,7 +298,7 @@ impl Crunch {
     );
     formatted_message.show_or_hide(
       format!(
-        "<br>💙 <b>{}</b> -> playing era {} 🎶 🎹",
+        "<br/>💙 <b>{}</b> -> playing era {} 🎶 🎹",
         client.chain_name(),
         active_era.index
       ),
@@ -331,7 +331,7 @@ impl Crunch {
         );
         formatted_message.show_or_hide(
           format!(
-            "<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🟢 Active",
+            "<br/>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🟢 Active",
             client.chain_name().to_lowercase(),
             stash,
             identity
@@ -350,7 +350,7 @@ impl Crunch {
         );
         formatted_message.show_or_hide(
           format!(
-            "<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🔴 Inactive",
+            "<br/>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🔴 Inactive",
             client.chain_name().to_lowercase(),
             stash,
             identity
@@ -361,7 +361,7 @@ impl Crunch {
 
       // message.show_or_hide_and_log(format!("{} -> crunch {}", identity, subcommand()), config.is_short);
       // formatted_message.show_or_hide(format!(
-      //   "<br>🧑‍🚀 <b>{}</b> -> <code>crunch {}</code>",
+      //   "<br/>🧑‍🚀 <b>{}</b> -> <code>crunch {}</code>",
       //   identity,
       //   subcommand()
       // ), config.is_short);
@@ -735,13 +735,13 @@ impl Crunch {
     );
     formatted_message.show_or_hide(
       format!(
-        "<br>💨 Next <code>crunch</code> time will be in {} hours 💤<br>___<br>",
+        "<br/>💨 Next <code>crunch</code> time will be in {} hours 💤<br/>___<br/>",
         config.interval / 3600
       ),
       false,
     );
     self
-      .send_message(&message.join("\n"), &formatted_message.join("<br>"))
+      .send_message(&message.join("\n"), &formatted_message.join("<br/>"))
       .await?;
     Ok(())
   }
@@ -845,7 +845,7 @@ fn spawn_and_restart_crunch_flakes_on_error() {
           CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
           _ => {
             let message = format!("On hold for 30 min!");
-            let formatted_message = format!("<br>🚨 An error was raised -> <code>crunch</code> on hold for 30 min while rescue is on the way 🚁 🚒 🚑 🚓<br><br>");
+            let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for 30 min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>");
             c.send_message(&message, &formatted_message).await.unwrap();
           }
         }
