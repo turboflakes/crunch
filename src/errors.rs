@@ -33,6 +33,8 @@ pub enum CrunchError {
     CodecError(#[from] codec::Error),
     #[error("Utf8 error: {0}")]
     Utf8Error(#[from] Utf8Error),
+    #[error("Metadata error: {0}")]
+    MetadataError(#[from] substrate_subxt::MetadataError),
     #[error("Matrix error: {0}")]
     MatrixError(String),
     #[error("Other error: {0}")]

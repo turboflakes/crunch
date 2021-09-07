@@ -31,6 +31,7 @@ use rand::Rng;
 use regex::Regex;
 use std::{fs, result::Result, str::FromStr, thread, time};
 use substrate_subxt::{
+  balances::Balances,
   identity::{IdentityOfStoreExt, SuperOfStoreExt},
   session::ValidatorsStoreExt,
   sp_core::{crypto, sr25519, Pair as PairT},
@@ -39,9 +40,11 @@ use substrate_subxt::{
     ActiveEraStoreExt, BondedStoreExt, ErasRewardPointsStoreExt, ErasStakersStoreExt,
     HistoryDepthStoreExt, LedgerStoreExt, PayoutStakersCallExt, RewardedEvent,
   },
+  system::AccountStoreExt,
   Client, ClientBuilder, DefaultNodeRuntime, PairSigner,
 };
 
+type Balance = <DefaultNodeRuntime as Balances>::Balance;
 type Message = Vec<String>;
 
 trait MessageTrait {
@@ -135,14 +138,6 @@ fn fun() -> String {
   words[rng.gen_range(0..words.len() - 1)].to_string()
 }
 
-fn subcommand() -> String {
-  let config = CONFIG.clone();
-  if config.is_boring {
-    return String::from("rewards");
-  }
-  String::from("flakes")
-}
-
 fn context() -> String {
   let config = CONFIG.clone();
   if config.is_boring {
@@ -219,6 +214,14 @@ impl Crunch {
     spawn_crunch_view();
   }
 
+  fn get_existential_deposit(&self) -> Result<Balance, CrunchError> {
+    let client = self.client.clone();
+    let balances_metadata = client.metadata().module("Balances")?;
+    let ed_metadata = balances_metadata.constant("ExistentialDeposit")?;
+    let ed: u128 = ed_metadata.value()?;
+    Ok(ed)
+  }
+
   //
   async fn run(&self) -> Result<(), CrunchError> {
     let client = self.client.clone();
@@ -259,6 +262,18 @@ impl Crunch {
       format!("✍️ Signer account &middot; <code>{}</code>", identity),
       config.is_short,
     );
+    // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
+    let ed = self.get_existential_deposit()?;
+    let seed_account_info = client.account(&seed_account_id, None).await?;
+    let one = (std::u32::MAX as u128 + 1) * 10u128.pow(properties.token_decimals.into());
+    let free: f64 = seed_account_info.data.free as f64 / one as f64;
+    if free * 10f64.powi(properties.token_decimals.into()) <= (ed as f64 * 2_f64) {
+      message.show_or_hide_and_log("Signer account is running low on funds".to_owned(), false);
+      formatted_message.show_or_hide(
+        "⚡ Signer account is running low on funds ⚡".to_owned(),
+        false,
+      );
+    }
 
     let history_depth: u32 = client.history_depth(None).await?;
     let active_era = client.active_era(None).await?;
@@ -575,11 +590,15 @@ impl Crunch {
               );
             }
           } else {
-            let m = if is_active { "😊 🌱 ☀️ 🏄" } else { "🤔 💭 📚 💡 🦸 🗳️" };
-            message.show_or_hide_and_log(format!("Nothing to crunch this time!"), false);
+            let m = if is_active {
+              "😊 🌱 ☀️ 🏄"
+            } else {
+              "🤔 💭 📚 💡 🦸 🗳️"
+            };
+            message.show_or_hide_and_log(format!("Nothing to crunch this time!"), config.is_short);
             formatted_message.show_or_hide(
               format!("🥣 Nothing to <code>crunch</code> this time -> {}", m),
-              false,
+              config.is_short,
             );
           }
           // General stats
@@ -658,7 +677,7 @@ impl Crunch {
     );
     formatted_message.show_or_hide(
       format!(
-        "<br>💨 Next <code>crunch</code> time will be in {} hours ⏱️ 💤<br>___<br>",
+        "<br>💨 Next <code>crunch</code> time will be in {} hours 💤<br>___<br>",
         config.interval / 3600
       ),
       false,
