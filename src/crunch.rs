@@ -165,6 +165,20 @@ fn trend(a: f64, b: f64) -> String {
   }
 }
 
+fn good_performance(a: f64, b: f64, out: String) -> String {
+  if a >= b {
+    return out;
+  }
+  String::from("")
+}
+
+fn poor_performance(a: f64, b: f64, out: String) -> String {
+  if a <= b {
+    return out;
+  }
+  String::from("")
+}
+
 pub struct Crunch {
   pub client: substrate_subxt::Client<DefaultNodeRuntime>,
   matrix: Matrix,
@@ -306,12 +320,41 @@ impl Crunch {
         false
       };
       if is_active {
-        message.show_or_hide_and_log(format!("{} -> ACTIVE (https://{}.subscan.io/validator/{})", identity, client.chain_name().to_lowercase(), stash), false);
-        formatted_message.show_or_hide(format!("<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🟢 Active", client.chain_name().to_lowercase(), stash, identity), false);
-      } else {
-        message.show_or_hide_and_log(format!("{} INACTIVE (https://{}.subscan.io/validator/{})", identity, client.chain_name().to_lowercase(), stash), false);
+        message.show_or_hide_and_log(
+          format!(
+            "{} -> ACTIVE (https://{}.subscan.io/validator/{})",
+            identity,
+            client.chain_name().to_lowercase(),
+            stash
+          ),
+          false,
+        );
         formatted_message.show_or_hide(
-          format!("<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🔴 Inactive", client.chain_name().to_lowercase(), stash, identity),
+          format!(
+            "<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🟢 Active",
+            client.chain_name().to_lowercase(),
+            stash,
+            identity
+          ),
+          false,
+        );
+      } else {
+        message.show_or_hide_and_log(
+          format!(
+            "{} INACTIVE (https://{}.subscan.io/validator/{})",
+            identity,
+            client.chain_name().to_lowercase(),
+            stash
+          ),
+          false,
+        );
+        formatted_message.show_or_hide(
+          format!(
+            "<br>🧑‍🚀 <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b> -> 🔴 Inactive",
+            client.chain_name().to_lowercase(),
+            stash,
+            identity
+          ),
           false,
         );
       }
@@ -438,31 +481,12 @@ impl Crunch {
                   };
 
                   // Calculate average points
-                  let points: Vec<u32> = era_reward_points
+                  let points: Vec<f64> = era_reward_points
                     .individual
                     .into_iter()
-                    .map(|(_, points)| points)
+                    .map(|(_, points)| points as f64)
                     .collect();
                   let avg = stats::mean(&points);
-
-                  message.show_or_hide_and_log(
-                    format!(
-                      "Points {} {} Average {:.0}",
-                      stash_points,
-                      trend(stash_points.into(), avg),
-                      avg
-                    ),
-                    config.is_short,
-                  );
-                  formatted_message.show_or_hide(
-                    format!(
-                      "🎲 Points {} {} Average {:.0}",
-                      stash_points,
-                      trend(stash_points.into(), avg),
-                      avg
-                    ),
-                    config.is_short,
-                  );
 
                   // Calculate validator and nominators reward amounts
                   let mut stash_amount_value: u128 = 0;
@@ -476,6 +500,40 @@ impl Crunch {
                       others_quantity += 1;
                     }
                   }
+
+                  // Total reward amount
+                  let ci95 = stats::confidence_interval_95(&points);
+                  let reward_amount = format!(
+                    "{:.4} {} {}",
+                    (stash_amount_value + others_amount_value) as f64
+                      / 10f64.powi(properties.token_decimals.into()),
+                    properties.token_symbol,
+                    good_performance(stash_points.into(), ci95.1, "🤯 🚀".into())
+                  );
+                  message.show_or_hide_and_log(
+                    format!(
+                      "Points {} {}{}{} ({:.0}) -> {}",
+                      stash_points,
+                      trend(stash_points.into(), avg),
+                      good_performance(stash_points.into(), ci95.1, "↑".into()),
+                      poor_performance(stash_points.into(), ci95.0, "↓".into()),
+                      avg,
+                      reward_amount
+                    ),
+                    false,
+                  );
+                  formatted_message.show_or_hide(
+                    format!(
+                      "🎲 Points {} {}{}{} ({:.0}) -> 💸 {}",
+                      stash_points,
+                      trend(stash_points.into(), avg),
+                      good_performance(stash_points.into(), ci95.1, "↑".into()),
+                      poor_performance(stash_points.into(), ci95.0, "↓".into()),
+                      avg,
+                      reward_amount
+                    ),
+                    false,
+                  );
 
                   // Validator reward amount
                   let stash_amount = format!(
@@ -498,7 +556,7 @@ impl Crunch {
                   );
                   formatted_message.show_or_hide(
                     format!(
-                      "🧑‍🚀 {} -> <b>{}</b> ({:.2}%)",
+                      "🧑‍🚀 {} -> 💸 <b>{}</b> ({:.2}%)",
                       identity,
                       // context(),
                       stash_amount,
@@ -529,7 +587,7 @@ impl Crunch {
                   );
                   formatted_message.show_or_hide(
                     format!(
-                      "🦸 Nominators ({}) -> {} ({:.2}%)",
+                      "🦸 Nominators ({}) -> 💸 {} ({:.2}%)",
                       others_quantity,
                       // context(),
                       others_amount,

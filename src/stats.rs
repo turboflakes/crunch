@@ -19,12 +19,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-pub fn mean(list: &Vec<u32>) -> f64 {
+pub fn mean(list: &Vec<f64>) -> f64 {
   if list.len() == 0 {
     return 0.0;
   }
-  let sum: u32 = list.iter().sum();
-  f64::from(sum) / (list.len() as f64)
+  let sum: f64 = list.iter().sum();
+  sum / (list.len() as f64)
+}
+
+pub fn standard_deviation(list: &Vec<f64>) -> f64 {
+  let m = mean(list);
+  let mut variance: Vec<f64> = list.iter().map(|&score| (score - m).powf(2.0)).collect();
+  mean(&mut variance).sqrt()
+}
+
+// Calculate 95% confidence interval
+// https://www.mathsisfun.com/data/confidence-interval.html
+pub fn confidence_interval_95(list: &Vec<f64>) -> (f64, f64) {
+  let m = mean(list);
+  let sd = standard_deviation(list);
+  let v = 1.96 * (sd / ((list.len() as f64).sqrt()));
+  (m - v, m + v)
 }
 
 #[cfg(test)]
@@ -33,7 +48,7 @@ mod tests {
 
   #[test]
   fn calculate_mean() {
-    let v = vec![1, 2, 3, 4, 5, 4, 2, 6];
+    let v = vec![1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 2.0, 6.0];
     assert_eq!(mean(&v), 3.375);
   }
 }

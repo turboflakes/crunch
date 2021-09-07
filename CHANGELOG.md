@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Warn if signer account free funds are lower than 2x the Existential Deposit
 - Link validator identity to subscan.io
+- Always show points and total reward amount plus good performance reaction
 
 ### Change
 
