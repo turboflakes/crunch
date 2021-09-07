@@ -1,0 +1,21 @@
+name: Matrix - Push Notification
+on:
+  release:
+    types:
+      - published
+jobs:
+  ping_matrix:
+    strategy:
+      matrix:
+        channel:
+        - '!GXvEBJwHIZLDETyjJY:matrix.org' # #westend-crunch-bot:matrix.org -> Westend Crunch Bot (Public)
+        - '!gCVSnDNPSDmUBxnDte:matrix.org' # #kusama-crunch-bot:matrix.org -> Kusama Crunch Bot (Public)
+        - '!IdOnZRytzQTJTyZtQf:matrix.org' # #polkadot-crunch-bot:matrix.org -> Polkadot Crunch Bot (Public)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: s3krit/matrix-message-action@v0.0.3
+        with:
+          room_id: ${{ matrix.channel }}
+          access_token: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          message: "<h4>Hey, <code>crunch ${{github.event.release.tag_name}}</code> has been released ✌️</h4>🔖 ${{github.event.release.html_url}}<br/><br/>${{github.event.release.body}}<br/><br/>"
+          server: "matrix.org"

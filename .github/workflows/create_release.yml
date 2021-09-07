@@ -47,8 +47,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
-          release_name: crunch ${{ steps.get_tag.outputs.tag }}
-          body: "This release was built using `${{ steps.get_rustc.outputs.rustc }}`"
+          release_name: Crunch ${{ steps.get_tag.outputs.tag }}
+          body: "Note: This release was built using `${{ steps.get_rustc.outputs.rustc }}`"
           draft: true
           prerelease: false
 
