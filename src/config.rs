@@ -175,7 +175,7 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("short")
           .long("short")
-          .help("Display minimum payout information."))
+          .help("Display only essential information (e.g. with this flag active 'crunch flakes' will only send essential messages/notifications about claimed rewards)"))
     )
     .subcommand(SubCommand::with_name("rewards")
       .about("Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]")
@@ -249,7 +249,7 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("short")
           .long("short")
-          .help("Display minimum payout information."))
+          .help("Display only essential information (e.g. with this flag active 'crunch rewards' will only send essential messages/notifications about claimed rewards)"))
     )
     .subcommand(SubCommand::with_name("view")
       .about("Inspect staking rewards for the given stashes and display claimed and unclaimed eras.")

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.17] - 2021-09-07
+
 ### Add
 
 - Warn if signer account free funds are lower than 2x the Existential Deposit
