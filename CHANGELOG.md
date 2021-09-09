@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Change
+
+- use 99% confidence interval for performance reaction
+
 ## [0.1.17] - 2021-09-07
 
 ### Add

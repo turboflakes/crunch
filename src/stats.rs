@@ -34,11 +34,20 @@ pub fn standard_deviation(list: &Vec<f64>) -> f64 {
 }
 
 // Calculate 95% confidence interval
+pub fn _confidence_interval_95(list: &Vec<f64>) -> (f64, f64) {
+  confidence_interval(list, 1.96)
+}
+
+// Calculate 99% confidence interval
+pub fn confidence_interval_99(list: &Vec<f64>) -> (f64, f64) {
+  confidence_interval(list, 2.576)
+}
+
 // https://www.mathsisfun.com/data/confidence-interval.html
-pub fn confidence_interval_95(list: &Vec<f64>) -> (f64, f64) {
+pub fn confidence_interval(list: &Vec<f64>, z: f64) -> (f64, f64) {
   let m = mean(list);
   let sd = standard_deviation(list);
-  let v = 1.96 * (sd / ((list.len() as f64).sqrt()));
+  let v = z * (sd / ((list.len() as f64).sqrt()));
   (m - v, m + v)
 }
 

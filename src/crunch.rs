@@ -502,21 +502,21 @@ impl Crunch {
                   }
 
                   // Total reward amount
-                  let ci95 = stats::confidence_interval_95(&points);
+                  let ci99 = stats::confidence_interval_99(&points);
                   let reward_amount = format!(
                     "{:.4} {} {}",
                     (stash_amount_value + others_amount_value) as f64
                       / 10f64.powi(properties.token_decimals.into()),
                     properties.token_symbol,
-                    good_performance(stash_points.into(), ci95.1, "🤯 🚀".into())
+                    good_performance(stash_points.into(), ci99.1, "🤯 🚀".into())
                   );
                   message.show_or_hide_and_log(
                     format!(
                       "Points {} {}{}{} ({:.0}) -> {}",
                       stash_points,
                       trend(stash_points.into(), avg),
-                      good_performance(stash_points.into(), ci95.1, "↑".into()),
-                      poor_performance(stash_points.into(), ci95.0, "↓".into()),
+                      good_performance(stash_points.into(), ci99.1, "↑".into()),
+                      poor_performance(stash_points.into(), ci99.0, "↓".into()),
                       avg,
                       reward_amount
                     ),
@@ -527,8 +527,8 @@ impl Crunch {
                       "🎲 Points {} {}{}{} ({:.0}) -> 💸 {}",
                       stash_points,
                       trend(stash_points.into(), avg),
-                      good_performance(stash_points.into(), ci95.1, "↑".into()),
-                      poor_performance(stash_points.into(), ci95.0, "↓".into()),
+                      good_performance(stash_points.into(), ci99.1, "↑".into()),
+                      poor_performance(stash_points.into(), ci99.0, "↓".into()),
                       avg,
                       reward_amount
                     ),
