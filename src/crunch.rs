@@ -24,7 +24,7 @@ use crate::matrix::Matrix;
 use crate::stats;
 use async_recursion::async_recursion;
 use async_std::task;
-use codec::Encode;
+use codec::{Decode, Encode};
 use log::{debug, error, info, warn};
 use percent_encoding::percent_decode;
 use rand::Rng;
@@ -37,11 +37,11 @@ use substrate_subxt::{
   sp_core::{crypto, sr25519, Pair as PairT},
   sp_runtime::AccountId32,
   staking::{
-    ActiveEraStoreExt, BondedStoreExt, ErasRewardPointsStoreExt, ErasStakersStoreExt,
+    ActiveEraStoreExt, BondedStoreExt, EraPaidEvent, ErasRewardPointsStoreExt, ErasStakersStoreExt,
     HistoryDepthStoreExt, LedgerStoreExt, PayoutStakersCallExt, RewardedEvent,
   },
   system::AccountStoreExt,
-  Client, ClientBuilder, DefaultNodeRuntime, PairSigner,
+  Client, ClientBuilder, DefaultNodeRuntime, EventSubscription, PairSigner,
 };
 
 type Balance = <DefaultNodeRuntime as Balances>::Balance;
@@ -221,6 +221,11 @@ impl Crunch {
   /// Spawn and restart crunch flakes task on error
   pub fn flakes() {
     spawn_and_restart_crunch_flakes_on_error();
+  }
+
+  /// Spawn and restart subscription on error
+  pub fn subscribe() {
+    spawn_and_restart_subscription_on_error();
   }
 
   /// Spawn crunch view task
@@ -726,20 +731,28 @@ impl Crunch {
       }
     }
 
-    message.show_or_hide_and_log(
-      format!(
-        "Next crunch time will be in {} hours!",
-        config.interval / 3600
-      ),
-      false,
-    );
-    formatted_message.show_or_hide(
-      format!(
-        "<br/>💨 Next <code>crunch</code> time will be in {} hours 💤<br/>___<br/>",
-        config.interval / 3600
-      ),
-      false,
-    );
+    if config.is_mode_era {
+      message.show_or_hide_and_log(format!("Next crunch time will be at era end"), false);
+      formatted_message.show_or_hide(
+        format!("<br/>💨 Next <code>crunch</code> time will be at <u>era<u> end 💤<br/>___<br/>"),
+        false,
+      );
+    } else {
+      message.show_or_hide_and_log(
+        format!(
+          "Next crunch time will be in {} hours!",
+          config.interval / 3600
+        ),
+        false,
+      );
+      formatted_message.show_or_hide(
+        format!(
+          "<br/>💨 Next <code>crunch</code> time will be in {} hours 💤<br/>___<br/>",
+          config.interval / 3600
+        ),
+        false,
+      );
+    }
     self
       .send_message(&message.join("\n"), &formatted_message.join("<br/>"))
       .await?;
@@ -832,6 +845,55 @@ impl Crunch {
       }
     }
   }
+
+  async fn run_and_subscribe_era_payout_events(&self) -> Result<(), CrunchError> {
+    // Run once before start subscription
+    self.run().await?;
+    info!("Subscribe 'EraPaid' on-chain finalized event");
+    let client = self.client.clone();
+    let sub = client.subscribe_finalized_events().await?;
+    let decoder = client.events_decoder();
+    let mut sub = EventSubscription::<DefaultNodeRuntime>::new(sub, decoder);
+    sub.filter_event::<EraPaidEvent<DefaultNodeRuntime>>();
+    while let Some(result) = sub.next().await {
+      if let Ok(raw_event) = result {
+        match EraPaidEvent::<DefaultNodeRuntime>::decode(&mut &raw_event.data[..]) {
+          Ok(event) => {
+            info!("Successfully decoded event {:?}", event);
+            self.run().await?;
+          }
+          Err(e) => return Err(CrunchError::CodecError(e)),
+        }
+      }
+    }
+    // If subscription has closed for some reason await and subscribe again
+    Err(CrunchError::SubscriptionFinished)
+  }
+}
+
+fn spawn_and_restart_subscription_on_error() {
+  let crunch_task = task::spawn(async {
+    let config = CONFIG.clone();
+    loop {
+      let c: Crunch = Crunch::new().await;
+      if let Err(e) = c.run_and_subscribe_era_payout_events().await {
+        match e {
+          CrunchError::SubscriptionFinished => warn!("{}", e),
+          CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
+          _ => {
+            error!("{}", e);
+            let message = format!("On hold for {} min!", config.error_interval);
+            let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
+            c.send_message(&message, &formatted_message).await.unwrap();
+            thread::sleep(time::Duration::from_secs(60 * config.error_interval));
+            continue;
+          }
+        }
+        thread::sleep(time::Duration::from_secs(1));
+      };
+    }
+  });
+  task::block_on(crunch_task);
 }
 
 fn spawn_and_restart_crunch_flakes_on_error() {
@@ -840,16 +902,16 @@ fn spawn_and_restart_crunch_flakes_on_error() {
     loop {
       let c: Crunch = Crunch::new().await;
       if let Err(e) = c.run().await {
-        error!("{}", e);
         match e {
           CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
           _ => {
-            let message = format!("On hold for 30 min!");
-            let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for 30 min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>");
+            error!("{}", e);
+            let message = format!("On hold for {} min!", config.error_interval);
+            let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
             c.send_message(&message, &formatted_message).await.unwrap();
           }
         }
-        thread::sleep(time::Duration::from_secs(60 * 30));
+        thread::sleep(time::Duration::from_secs(60 * config.error_interval));
         continue;
       };
       thread::sleep(time::Duration::from_secs(config.interval));

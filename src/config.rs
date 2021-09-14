@@ -47,6 +47,11 @@ fn default_interval() -> u64 {
   21600
 }
 
+/// provides default value for error interval if CRUNCH_ERROR_INTERVAL env var is not set
+fn default_error_interval() -> u64 {
+  30
+}
+
 /// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
 fn default_seed_path() -> String {
   ".private.seed".into()
@@ -61,6 +66,8 @@ fn default_maximum_payouts() -> usize {
 pub struct Config {
   #[serde(default = "default_interval")]
   pub interval: u64,
+  #[serde(default = "default_error_interval")]
+  pub error_interval: u64,
   pub substrate_ws_url: String,
   #[serde(default = "default_seed_path")]
   pub seed_path: String,
@@ -70,9 +77,13 @@ pub struct Config {
   #[serde(default)]
   pub only_view: bool,
   #[serde(default)]
+  pub is_debug: bool,
+  #[serde(default)]
   pub is_boring: bool,
   #[serde(default)]
   pub is_short: bool,
+  #[serde(default)]
+  pub is_mode_era: bool,
   // matrix configuration
   #[serde(default)]
   pub matrix_user: String,
@@ -104,14 +115,14 @@ fn get_config() -> Config {
           )
     )
     .subcommand(SubCommand::with_name("flakes")
-      .about("Crunch awesome flakes (rewards) daily or in turbo mode -> 4x faster [default subcommand]")
+      .about("Crunch awesome flakes (rewards) every era, daily or in turbo mode -> 4x faster")
       .arg(
         Arg::with_name("MODE")
             .index(1)
-            .possible_values(&["daily", "turbo"])
-            .default_value("turbo")
+            .possible_values(&["era", "daily", "turbo"])
+            .default_value("era")
             .help(
-              "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
+              "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
             )
       )
       .arg(
@@ -176,16 +187,23 @@ fn get_config() -> Config {
         Arg::with_name("short")
           .long("short")
           .help("Display only essential information (e.g. with this flag active 'crunch flakes' will only send essential messages/notifications about claimed rewards)"))
+      .arg(
+        Arg::with_name("error-interval")
+          .long("error-interval")
+          .takes_value(true)
+          .default_value("30")
+          .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
+          
     )
     .subcommand(SubCommand::with_name("rewards")
       .about("Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]")
       .arg(
         Arg::with_name("MODE")
             .index(1)
-            .possible_values(&["daily", "turbo"])
-            .default_value("turbo")
+            .possible_values(&["era", "daily", "turbo"])
+            .default_value("era")
             .help(
-              "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
+              "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
             )
       )
       .arg(
@@ -250,6 +268,12 @@ fn get_config() -> Config {
         Arg::with_name("short")
           .long("short")
           .help("Display only essential information (e.g. with this flag active 'crunch rewards' will only send essential messages/notifications about claimed rewards)"))
+      .arg(
+        Arg::with_name("error-interval")
+          .long("error-interval")
+          .takes_value(true)
+          .default_value("30")
+          .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
     )
     .subcommand(SubCommand::with_name("view")
       .about("Inspect staking rewards for the given stashes and display claimed and unclaimed eras.")
@@ -327,6 +351,9 @@ fn get_config() -> Config {
   match matches.subcommand() {
     ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
       match flakes_matches.value_of("MODE").unwrap() {
+        "era" => {
+          env::set_var("CRUNCH_IS_MODE_ERA", "true");
+        }
         "daily" => {
           env::set_var("CRUNCH_INTERVAL", "86400");
         }
@@ -345,11 +372,15 @@ fn get_config() -> Config {
       }
 
       if flakes_matches.is_present("debug") {
-        env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
+        env::set_var("CRUNCH_IS_DEBUG", "true");
       }
 
       if flakes_matches.is_present("short") {
-        env::set_var("CRUNCH_is_short", "true");
+        env::set_var("CRUNCH_IS_SHORT", "true");
+      }
+
+      if flakes_matches.is_present("subscribe") {
+        env::set_var("CRUNCH_IS_SUBSCRIPTION", "true");
       }
 
       if flakes_matches.is_present("disable-matrix") {
@@ -370,6 +401,10 @@ fn get_config() -> Config {
 
       if let Some(matrix_bot_password) = flakes_matches.value_of("matrix-bot-password") {
         env::set_var("CRUNCH_MATRIX_BOT_PASSWORD", matrix_bot_password);
+      }
+      
+      if let Some(error_interval) = flakes_matches.value_of("error-interval") {
+        env::set_var("CRUNCH_ERROR_INTERVAL", error_interval);
       }
     }
     ("view", Some(_)) => {

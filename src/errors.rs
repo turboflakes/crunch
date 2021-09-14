@@ -37,6 +37,8 @@ pub enum CrunchError {
     MetadataError(#[from] substrate_subxt::MetadataError),
     #[error("Matrix error: {0}")]
     MatrixError(String),
+    #[error("Subscription finished")]
+    SubscriptionFinished,
     #[error("Other error: {0}")]
     Other(String),
 }

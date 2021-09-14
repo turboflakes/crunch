@@ -31,7 +31,12 @@ use log::info;
 use std::env;
 
 fn main() {
-    env::set_var("RUST_LOG", "crunch=info");
+    let config = CONFIG.clone();
+    if config.is_debug {
+        env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
+    } else {
+        env::set_var("RUST_LOG", "crunch=info");
+    }
     env_logger::try_init().unwrap_or_default();
 
     info!(
@@ -41,9 +46,11 @@ fn main() {
         env!("CARGO_PKG_DESCRIPTION")
     );
 
-    let config = CONFIG.clone();
     if config.only_view {
         return Crunch::view();
+    }
+    if config.is_mode_era {
+        return Crunch::subscribe();
     }
     Crunch::flakes()
 }
