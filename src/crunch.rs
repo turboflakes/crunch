@@ -734,7 +734,7 @@ impl Crunch {
     if config.is_mode_era {
       message.show_or_hide_and_log(format!("Next crunch time will be at era end"), false);
       formatted_message.show_or_hide(
-        format!("<br/>💨 Next <code>crunch</code> time will be at <u>era<u> end 💤<br/>___<br/>"),
+        format!("<br/>💨 Next <code>crunch</code> time will be at era end 💤<br/>___<br/>"),
         false,
       );
     } else {
