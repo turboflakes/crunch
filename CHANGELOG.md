@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18] - 2021-09-15
+
+### Add
+
+- Optional flag --error-interval to adjust the time between crunch automatic restart in case of error
+- Additional mode 'era' that subscribes to EraPaid on-chain event to trigger the payout
+
 ### Change
 
 - use 99% confidence interval for performance reaction
+- update substrate-subxt dependency
+- fix optional flag --debug
 
 ## [0.1.17] - 2021-09-07
 
