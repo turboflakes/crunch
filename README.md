@@ -27,7 +27,7 @@ For Nominators in private or public rooms check their chosen Validators rewards 
 # create `crunch-bot` directory
 $ mkdir ~/crunch-bot
 # download `crunch` latest version
-$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.17/crunch
+$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.18/crunch
 # make `crunch` binary file executable
 chmod +x ~/crunch-bot/crunch
 ```
@@ -192,6 +192,9 @@ FLAGS:
     -V, --version                            Prints version information
 
 OPTIONS:
+        --error-interval <error-interval>
+            Interval value (in minutes) from which 'crunch' will restart again in case of a critical error. [default:
+            30]
         --matrix-bot-password <matrix-bot-password>    Password for the 'Crunch Bot' matrix user sign in.
         --matrix-bot-user <matrix-bot-user>
             Your new 'Crunch Bot' matrix user. e.g. '@your-own-crunch-bot-account:matrix.org' this user account will be
@@ -209,9 +212,10 @@ OPTIONS:
             call. [default: .private.seed]
 
 ARGS:
-    <MODE>    Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'daily' sets
+    <MODE>    Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets
+              'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets
               'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6
-              hours) [default: turbo]  [possible values: daily, turbo]
+              hours) [default: era]  [possible values: era, daily, turbo]
 ```
 
 Also if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`
