@@ -24,15 +24,14 @@ use crate::matrix::Matrix;
 use crate::stats;
 use async_recursion::async_recursion;
 use async_std::task;
-use codec::{Decode, Encode};
+use codec::Decode;
 use log::{debug, error, info, warn};
-use percent_encoding::percent_decode;
 use rand::Rng;
 use regex::Regex;
 use std::{fs, result::Result, str::FromStr, thread, time};
 use substrate_subxt::{
   balances::Balances,
-  identity::{IdentityOfStoreExt, SuperOfStoreExt},
+  identity::{Data, IdentityOfStoreExt, SuperOfStoreExt},
   session::ValidatorsStoreExt,
   sp_core::{crypto, sr25519, Pair as PairT},
   sp_runtime::AccountId32,
@@ -816,14 +815,15 @@ impl Crunch {
     sub_account_name: Option<String>,
   ) -> Result<String, CrunchError> {
     let client = self.client.clone();
-    // Use regex to remove control characters
-    let re = Regex::new(r"[\x00-\x1F]").unwrap();
     match client.identity_of(stash.clone(), None).await? {
-      Some(registration) => {
-        let encoded = registration.info.display.encode();
-        let decoded = percent_decode(&encoded).decode_utf8()?;
-        let parent = re.replace_all(&decoded.to_string(), "").trim().to_string();
-
+      Some(identity) => {
+        let parent = match identity.info.display {
+          Data::Raw(bytes) => format!(
+            "{}",
+            String::from_utf8(bytes.to_vec()).expect("Identity not utf-8")
+          ),
+          _ => format!("???"),
+        };
         let name = match sub_account_name {
           Some(child) => format!("{}/{}", parent, child),
           None => parent,
@@ -832,9 +832,13 @@ impl Crunch {
       }
       None => {
         if let Some((parent_account, data)) = client.super_of(stash.clone(), None).await? {
-          let encoded = data.encode();
-          let decoded = percent_decode(&encoded).decode_utf8()?;
-          let sub_account_name = re.replace_all(&decoded.trim(), "");
+          let sub_account_name = match data {
+            Data::Raw(bytes) => format!(
+              "{}",
+              String::from_utf8(bytes.to_vec()).expect("Identity not utf-8")
+            ),
+            _ => format!("???"),
+          };
           return self
             .get_identity(&parent_account, Some(sub_account_name.to_string()))
             .await;
