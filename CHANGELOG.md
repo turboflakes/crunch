@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Change
 
 - Fix typo
+- Improve get identity
 
 ## [0.1.18] - 2021-09-15
 
