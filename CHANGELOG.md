@@ -11,14 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Send a batch of dispatch calls by default
+- Support a batch of dispatch calls by default
 - Additional 99.9% confidence interval for performance reaction
+- Additional randomness on emojis and flakes messages
 
 ### Changed
 
 - Fix typos
 - Improve identity
 - Notification message refactored
+- Minor messages typo changes
+- Update substrate-subxt dependency
+- Multilingual hello message
 
 ## [0.1.18] - 2021-09-15
 
