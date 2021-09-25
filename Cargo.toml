@@ -26,4 +26,5 @@ reqwest = { version = "0.11", features = ["json"] }
 url = "2.2.2"
 base64 = "0.13.0"
 rand = "0.8.4"
-substrate-subxt = { git = "https://github.com/turboflakes/substrate-subxt", rev = "a9dc319" }
+# substrate-subxt = { git = "https://github.com/turboflakes/substrate-subxt", rev = "a9dc319" }
+substrate-subxt = { path = "/Users/paulo/Development/github.com/turboflakes/substrate-subxt", branch="develop" }

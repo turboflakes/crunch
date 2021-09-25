@@ -23,6 +23,7 @@ mod config;
 mod crunch;
 mod errors;
 mod matrix;
+mod report;
 mod stats;
 
 use crate::config::CONFIG;

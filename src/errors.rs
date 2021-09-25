@@ -21,7 +21,7 @@
 
 use codec;
 use reqwest;
-use std::{string::String, str::Utf8Error};
+use std::{str::Utf8Error, string::String};
 use thiserror::Error;
 
 /// Crunch specific error messages
@@ -74,4 +74,3 @@ impl From<MatrixError> for CrunchError {
         CrunchError::MatrixError(error.into())
     }
 }
-

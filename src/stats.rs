@@ -20,44 +20,44 @@
 // SOFTWARE.
 
 pub fn mean(list: &Vec<f64>) -> f64 {
-  if list.len() == 0 {
-    return 0.0;
-  }
-  let sum: f64 = list.iter().sum();
-  sum / (list.len() as f64)
+    if list.len() == 0 {
+        return 0.0;
+    }
+    let sum: f64 = list.iter().sum();
+    sum / (list.len() as f64)
 }
 
 pub fn standard_deviation(list: &Vec<f64>) -> f64 {
-  let m = mean(list);
-  let mut variance: Vec<f64> = list.iter().map(|&score| (score - m).powf(2.0)).collect();
-  mean(&mut variance).sqrt()
+    let m = mean(list);
+    let mut variance: Vec<f64> = list.iter().map(|&score| (score - m).powf(2.0)).collect();
+    mean(&mut variance).sqrt()
 }
 
 // Calculate 95% confidence interval
 pub fn _confidence_interval_95(list: &Vec<f64>) -> (f64, f64) {
-  confidence_interval(list, 1.96)
+    confidence_interval(list, 1.96)
 }
 
 // Calculate 99% confidence interval
 pub fn confidence_interval_99(list: &Vec<f64>) -> (f64, f64) {
-  confidence_interval(list, 2.576)
+    confidence_interval(list, 2.576)
 }
 
 // https://www.mathsisfun.com/data/confidence-interval.html
 pub fn confidence_interval(list: &Vec<f64>, z: f64) -> (f64, f64) {
-  let m = mean(list);
-  let sd = standard_deviation(list);
-  let v = z * (sd / ((list.len() as f64).sqrt()));
-  (m - v, m + v)
+    let m = mean(list);
+    let sd = standard_deviation(list);
+    let v = z * (sd / ((list.len() as f64).sqrt()));
+    (m - v, m + v)
 }
 
 #[cfg(test)]
 mod tests {
-  use super::*;
+    use super::*;
 
-  #[test]
-  fn calculate_mean() {
-    let v = vec![1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 2.0, 6.0];
-    assert_eq!(mean(&v), 3.375);
-  }
+    #[test]
+    fn calculate_mean() {
+        let v = vec![1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 2.0, 6.0];
+        assert_eq!(mean(&v), 3.375);
+    }
 }
