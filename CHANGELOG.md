@@ -7,19 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Change
+## [0.2.0] - 2021-09-25
 
-- Fix typo
-- Improve get identity
+### Added
+
+- Send a batch of dispatch calls by default
+- Additional 99.9% confidence interval for performance reaction
+
+### Changed
+
+- Fix typos
+- Improve identity
+- Notification message refactored
 
 ## [0.1.18] - 2021-09-15
 
-### Add
+### Added
 
 - Optional flag --error-interval to adjust the time between crunch automatic restart in case of error
 - Additional mode 'era' that subscribes to EraPaid on-chain event to trigger the payout
 
-### Change
+### Changed
 
 - use 99% confidence interval for performance reaction
 - update substrate-subxt dependency
@@ -27,13 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.17] - 2021-09-07
 
-### Add
+### Added
 
 - Warn if signer account free funds are lower than 2x the Existential Deposit
 - Link validator identity to subscan.io
 - Always show points and total reward amount plus good performance reaction
 
-### Change
+### Changed
 
 - Remove *nothing to crunch this time message* if short flag is present
 - Fix substrate-subxt dependency by commit hash
@@ -42,35 +50,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.15] - 2021-09-03
 
-### Add
+### Added
 
 - Optional flag --short to display only essencial information
 
-### Change
+### Changed
 
 - Small adjustments on overal notifications
 
 ## [0.1.14] - 2021-08-30
 
-### Change
+### Changed
 
 - Fix event 'Rewarded' active on chains runnimg Runtime 9090
 
 ## [0.1.13] - 2021-08-19
 
-### Change
+### Changed
 
 - Update dependencies
 
 ## [0.1.12] - 2021-08-13
 
-### Add
+### Added
 
 - Show validator era points and average
 
 ## [0.1.11] - 2021-08-13
 
-### Changed
+### Changedd
 
 - Improve message readability
 - Only send one matrix message per run

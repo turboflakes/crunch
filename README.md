@@ -27,7 +27,7 @@ For Nominators in private or public rooms check their chosen Validators rewards 
 # create `crunch-bot` directory
 $ mkdir ~/crunch-bot
 # download `crunch` latest version
-$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.1.18/crunch
+$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.2.0/crunch
 # make `crunch` binary file executable
 chmod +x ~/crunch-bot/crunch
 ```

@@ -39,70 +39,70 @@ use std::env;
 
 // Set Config struct into a CONFIG lazy_static to avoid multiple processing
 lazy_static! {
-  pub static ref CONFIG: Config = get_config();
+    pub static ref CONFIG: Config = get_config();
 }
 
 /// provides default value for interval if CRUNCH_INTERVAL env var is not set
 fn default_interval() -> u64 {
-  21600
+    21600
 }
 
 /// provides default value for error interval if CRUNCH_ERROR_INTERVAL env var is not set
 fn default_error_interval() -> u64 {
-  30
+    30
 }
 
 /// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
 fn default_seed_path() -> String {
-  ".private.seed".into()
+    ".private.seed".into()
 }
 
 /// provides default value for maximum_payouts if CRUNCH_MAXIMUM_PAYOUTS env var is not set
 fn default_maximum_payouts() -> usize {
-  4
+    4
 }
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
-  #[serde(default = "default_interval")]
-  pub interval: u64,
-  #[serde(default = "default_error_interval")]
-  pub error_interval: u64,
-  pub substrate_ws_url: String,
-  #[serde(default = "default_seed_path")]
-  pub seed_path: String,
-  pub stashes: Vec<String>,
-  #[serde(default = "default_maximum_payouts")]
-  pub maximum_payouts: usize,
-  #[serde(default)]
-  pub only_view: bool,
-  #[serde(default)]
-  pub is_debug: bool,
-  #[serde(default)]
-  pub is_boring: bool,
-  #[serde(default)]
-  pub is_short: bool,
-  #[serde(default)]
-  pub is_mode_era: bool,
-  // matrix configuration
-  #[serde(default)]
-  pub matrix_user: String,
-  #[serde(default)]
-  pub matrix_bot_user: String,
-  #[serde(default)]
-  pub matrix_bot_password: String,
-  #[serde(default)]
-  pub matrix_disabled: bool,
-  #[serde(default)]
-  pub matrix_public_room_disabled: bool,
-  #[serde(default)]
-  pub matrix_bot_display_name_disabled: bool,
+    #[serde(default = "default_interval")]
+    pub interval: u64,
+    #[serde(default = "default_error_interval")]
+    pub error_interval: u64,
+    pub substrate_ws_url: String,
+    #[serde(default = "default_seed_path")]
+    pub seed_path: String,
+    pub stashes: Vec<String>,
+    #[serde(default = "default_maximum_payouts")]
+    pub maximum_payouts: usize,
+    #[serde(default)]
+    pub only_view: bool,
+    #[serde(default)]
+    pub is_debug: bool,
+    #[serde(default)]
+    pub is_boring: bool,
+    #[serde(default)]
+    pub is_short: bool,
+    #[serde(default)]
+    pub is_mode_era: bool,
+    // matrix configuration
+    #[serde(default)]
+    pub matrix_user: String,
+    #[serde(default)]
+    pub matrix_bot_user: String,
+    #[serde(default)]
+    pub matrix_bot_password: String,
+    #[serde(default)]
+    pub matrix_disabled: bool,
+    #[serde(default)]
+    pub matrix_public_room_disabled: bool,
+    #[serde(default)]
+    pub matrix_bot_display_name_disabled: bool,
 }
 
 /// Inject dotenv and env vars into the Config struct
 fn get_config() -> Config {
-  // Define CLI flags with clap
-  let matches = App::new(env!("CARGO_PKG_NAME"))
+    // Define CLI flags with clap
+    let matches = App::new(env!("CARGO_PKG_NAME"))
     .version(env!("CARGO_PKG_VERSION"))
     .author(env!("CARGO_PKG_AUTHORS"))
     .about(env!("CARGO_PKG_DESCRIPTION"))
@@ -193,7 +193,6 @@ fn get_config() -> Config {
           .takes_value(true)
           .default_value("30")
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
-          
     )
     .subcommand(SubCommand::with_name("rewards")
       .about("Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]")
@@ -309,135 +308,135 @@ fn get_config() -> Config {
     )
     .get_matches();
 
-  // Try to load configuration from file first
-  let config_path = matches.value_of("config-path").unwrap_or(".env");
-  match dotenv::from_filename(&config_path).ok() {
-    Some(_) => info!("Loading configuration from {} file", &config_path),
-    None => {
-      let config_path = env::var("CRUNCH_CONFIG_FILENAME").unwrap_or(".env".to_string());
-      if let Some(_) = dotenv::from_filename(&config_path).ok() {
-        info!("Loading configuration from {} file", &config_path);
-      }
-    }
-  }
-
-  match matches.value_of("CHAIN") {
-    Some("westend") => {
-      env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://westend-rpc.polkadot.io");
-    }
-    Some("kusama") => {
-      env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://kusama-rpc.polkadot.io");
-    }
-    Some("polkadot") => {
-      env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io");
-    }
-    _ => {
-      env::set_var("CRUNCH_SUBSTRATE_WS_URL", "ws://127.0.0.1:9944");
-    }
-  }
-
-  if let Some(seed_path) = matches.value_of("seed-path") {
-    env::set_var("CRUNCH_SEED_PATH", seed_path);
-  }
-
-  if let Some(stashes) = matches.value_of("stashes") {
-    env::set_var("CRUNCH_STASHES", stashes);
-  }
-
-  if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
-    env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
-  }
-
-  match matches.subcommand() {
-    ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
-      match flakes_matches.value_of("MODE").unwrap() {
-        "era" => {
-          env::set_var("CRUNCH_IS_MODE_ERA", "true");
+    // Try to load configuration from file first
+    let config_path = matches.value_of("config-path").unwrap_or(".env");
+    match dotenv::from_filename(&config_path).ok() {
+        Some(_) => info!("Loading configuration from {} file", &config_path),
+        None => {
+            let config_path = env::var("CRUNCH_CONFIG_FILENAME").unwrap_or(".env".to_string());
+            if let Some(_) = dotenv::from_filename(&config_path).ok() {
+                info!("Loading configuration from {} file", &config_path);
+            }
         }
-        "daily" => {
-          env::set_var("CRUNCH_INTERVAL", "86400");
-        }
-        "turbo" => {
-          env::set_var("CRUNCH_INTERVAL", "21600");
-        }
-        _ => unreachable!(),
-      }
+    }
 
-      if let Some(seed_path) = flakes_matches.value_of("seed-path") {
+    match matches.value_of("CHAIN") {
+        Some("westend") => {
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://westend-rpc.polkadot.io");
+        }
+        Some("kusama") => {
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://kusama-rpc.polkadot.io");
+        }
+        Some("polkadot") => {
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io");
+        }
+        _ => {
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "ws://127.0.0.1:9944");
+        }
+    }
+
+    if let Some(seed_path) = matches.value_of("seed-path") {
         env::set_var("CRUNCH_SEED_PATH", seed_path);
-      }
-
-      if let Some(maximum_payouts) = flakes_matches.value_of("maximum-payouts") {
-        env::set_var("CRUNCH_MAXIMUM_PAYOUTS", maximum_payouts);
-      }
-
-      if flakes_matches.is_present("debug") {
-        env::set_var("CRUNCH_IS_DEBUG", "true");
-      }
-
-      if flakes_matches.is_present("short") {
-        env::set_var("CRUNCH_IS_SHORT", "true");
-      }
-
-      if flakes_matches.is_present("subscribe") {
-        env::set_var("CRUNCH_IS_SUBSCRIPTION", "true");
-      }
-
-      if flakes_matches.is_present("disable-matrix") {
-        env::set_var("CRUNCH_MATRIX_DISABLED", "true");
-      }
-
-      if flakes_matches.is_present("disable-public-matrix-room") {
-        env::set_var("CRUNCH_MATRIX_PUBLIC_ROOM_DISABLED", "true");
-      }
-
-      if let Some(matrix_user) = flakes_matches.value_of("matrix-user") {
-        env::set_var("CRUNCH_MATRIX_ACCOUNT", matrix_user);
-      }
-
-      if let Some(matrix_bot_user) = flakes_matches.value_of("matrix-bot-user") {
-        env::set_var("CRUNCH_MATRIX_BOT_USER", matrix_bot_user);
-      }
-
-      if let Some(matrix_bot_password) = flakes_matches.value_of("matrix-bot-password") {
-        env::set_var("CRUNCH_MATRIX_BOT_PASSWORD", matrix_bot_password);
-      }
-      
-      if let Some(error_interval) = flakes_matches.value_of("error-interval") {
-        env::set_var("CRUNCH_ERROR_INTERVAL", error_interval);
-      }
     }
-    ("view", Some(_)) => {
-      env::set_var("CRUNCH_ONLY_VIEW", "true");
-    }
-    _ => {
-      warn!("Besides subcommand 'flakes' being the default subcommand, would be cool to have it visible, so that CLI becomes more expressive (e.g. 'crunch flakes daily')");
-    }
-  }
 
-  if matches.is_present("rewards") {
-    env::set_var("CRUNCH_IS_BORING", "true");
-  }
+    if let Some(stashes) = matches.value_of("stashes") {
+        env::set_var("CRUNCH_STASHES", stashes);
+    }
 
-  match envy::prefixed("CRUNCH_").from_env::<Config>() {
-    Ok(config) => config,
-    Err(error) => panic!("Configuration error: {:#?}", error),
-  }
+    if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
+        env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
+    }
+
+    match matches.subcommand() {
+        ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
+            match flakes_matches.value_of("MODE").unwrap() {
+                "era" => {
+                    env::set_var("CRUNCH_IS_MODE_ERA", "true");
+                }
+                "daily" => {
+                    env::set_var("CRUNCH_INTERVAL", "86400");
+                }
+                "turbo" => {
+                    env::set_var("CRUNCH_INTERVAL", "21600");
+                }
+                _ => unreachable!(),
+            }
+
+            if let Some(seed_path) = flakes_matches.value_of("seed-path") {
+                env::set_var("CRUNCH_SEED_PATH", seed_path);
+            }
+
+            if let Some(maximum_payouts) = flakes_matches.value_of("maximum-payouts") {
+                env::set_var("CRUNCH_MAXIMUM_PAYOUTS", maximum_payouts);
+            }
+
+            if flakes_matches.is_present("debug") {
+                env::set_var("CRUNCH_IS_DEBUG", "true");
+            }
+
+            if flakes_matches.is_present("short") {
+                env::set_var("CRUNCH_IS_SHORT", "true");
+            }
+
+            if flakes_matches.is_present("subscribe") {
+                env::set_var("CRUNCH_IS_SUBSCRIPTION", "true");
+            }
+
+            if flakes_matches.is_present("disable-matrix") {
+                env::set_var("CRUNCH_MATRIX_DISABLED", "true");
+            }
+
+            if flakes_matches.is_present("disable-public-matrix-room") {
+                env::set_var("CRUNCH_MATRIX_PUBLIC_ROOM_DISABLED", "true");
+            }
+
+            if let Some(matrix_user) = flakes_matches.value_of("matrix-user") {
+                env::set_var("CRUNCH_MATRIX_ACCOUNT", matrix_user);
+            }
+
+            if let Some(matrix_bot_user) = flakes_matches.value_of("matrix-bot-user") {
+                env::set_var("CRUNCH_MATRIX_BOT_USER", matrix_bot_user);
+            }
+
+            if let Some(matrix_bot_password) = flakes_matches.value_of("matrix-bot-password") {
+                env::set_var("CRUNCH_MATRIX_BOT_PASSWORD", matrix_bot_password);
+            }
+
+            if let Some(error_interval) = flakes_matches.value_of("error-interval") {
+                env::set_var("CRUNCH_ERROR_INTERVAL", error_interval);
+            }
+        }
+        ("view", Some(_)) => {
+            env::set_var("CRUNCH_ONLY_VIEW", "true");
+        }
+        _ => {
+            warn!("Besides subcommand 'flakes' being the default subcommand, would be cool to have it visible, so that CLI becomes more expressive (e.g. 'crunch flakes daily')");
+        }
+    }
+
+    if matches.is_present("rewards") {
+        env::set_var("CRUNCH_IS_BORING", "true");
+    }
+
+    match envy::prefixed("CRUNCH_").from_env::<Config>() {
+        Ok(config) => config,
+        Err(error) => panic!("Configuration error: {:#?}", error),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::*;
+    use super::*;
 
-  #[test]
-  fn it_gets_a_config() {
-    let config = get_config();
-    assert_ne!(config.substrate_ws_url, "".to_string());
-  }
+    #[test]
+    fn it_gets_a_config() {
+        let config = get_config();
+        assert_ne!(config.substrate_ws_url, "".to_string());
+    }
 
-  #[test]
-  fn it_gets_a_config_from_the_lazy_static() {
-    let config = &CONFIG;
-    assert_ne!(config.substrate_ws_url, "".to_string());
-  }
+    #[test]
+    fn it_gets_a_config_from_the_lazy_static() {
+        let config = &CONFIG;
+        assert_ne!(config.substrate_ws_url, "".to_string());
+    }
 }
