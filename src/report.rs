@@ -74,22 +74,28 @@ impl From<RawData> for Report {
     fn from(data: RawData) -> Report {
         let mut report = Report::new();
         // Crunch Hello message
-        report.add_raw_text(format!("👋 {}!", Random::Hello));
-        
+        report.add_text(format!("👋 {}!", Random::Hello));
+        // Crunch package
+        report.add_raw_text(format!(
+            "🤖 <code>{} v{}</code>",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        ));
+
         // Network info
+        report.add_break();
         report.add_raw_text(format!(
             "💙 <b>{}</b> is playing era <i>{}</i> 🎶 ",
             data.network.name, data.network.active_era
         ));
 
         // Signer
-        report.add_break();
         report.add_text(format!(
-            "✍️ Signer &middot; <code>{}</code>",
+            "<br/>✍️ Signer &middot; <code>{}</code>",
             data.signer.name
         ));
         for warning in data.signer.warnings {
-            report.add_raw_text(warning.clone());
+            report.add_raw_text(format!("⚠️ {} ⚠️", warning.clone()));
             warn!("{}", warning);
         }
 
@@ -116,7 +122,7 @@ impl From<RawData> for Report {
                 "💰 Stash &middot; <code>{}</code>",
                 validator.stash
             ));
-            
+
             // Check if there are no payouts
             if validator.payouts.len() == 0 {
                 if validator.is_active {
@@ -135,34 +141,74 @@ impl From<RawData> for Report {
                 // Show Validator payout info
                 for payout in validator.payouts {
                     // Points
+                    let good_performance = match performance(
+                        payout.points.validator.into(),
+                        payout.points.ci99_9.1,
+                        "🤑 🤯 🚀".into(),
+                    ) {
+                        Some(p) => p,
+                        None => {
+                            match performance(
+                                payout.points.validator.into(),
+                                payout.points.ci99.1,
+                                "🤯 🚀".into(),
+                            ) {
+                                Some(p) => p,
+                                None => String::from(""),
+                            }
+                        }
+                    };
                     let reward_amount = format!(
                         "{:.4} {} {}",
                         (payout.validator_amount_value + payout.nominators_amount_value) as f64
                             / 10f64.powi(data.network.token_decimals.into()),
                         data.network.token_symbol,
-                        good_performance(
-                            payout.points.validator.into(),
-                            payout.points.ci99.1,
-                            "🤯 🚀".into()
-                        )
+                        good_performance
                     );
 
-                    report.add_raw_text(format!(
-                        "🎲 Points {} {}{}{} ({:.0}) -> 💸 {}",
-                        payout.points.validator,
+                    let good_performance = match performance(
+                        payout.points.validator.into(),
+                        payout.points.ci99_9.1,
+                        "↑↑".into(),
+                    ) {
+                        Some(p) => p,
+                        None => {
+                            match performance(
+                                payout.points.validator.into(),
+                                payout.points.ci99.1,
+                                "↑".into(),
+                            ) {
+                                Some(p) => p,
+                                None => String::from(""),
+                            }
+                        }
+                    };
+                    let poor_performance = match performance(
+                        payout.points.ci99_9.0,
+                        payout.points.validator.into(),
+                        "↓↓".into(),
+                    ) {
+                        Some(p) => p,
+                        None => {
+                            match performance(
+                                payout.points.ci99.0,
+                                payout.points.validator.into(),
+                                "↓".into(),
+                            ) {
+                                Some(p) => p,
+                                None => String::from(""),
+                            }
+                        }
+                    };
+                    let trend = format!(
+                        "{}{}{}",
                         trend(payout.points.validator.into(), payout.points.era_avg),
-                        good_performance(
-                            payout.points.validator.into(),
-                            payout.points.ci99.1,
-                            "↑".into()
-                        ),
-                        poor_performance(
-                            payout.points.validator.into(),
-                            payout.points.ci99.0,
-                            "↓".into()
-                        ),
-                        payout.points.era_avg,
-                        reward_amount
+                        good_performance,
+                        poor_performance,
+                    );
+                    report.add_raw_text(format!(
+                        "🎲 Points {} {} ({:.0}) -> 💸 {}",
+                        payout.points.validator, trend, payout.points.era_avg, reward_amount
                     ));
                     // Validator reward amount
                     let stash_amount = format!(
@@ -256,21 +302,16 @@ impl From<RawData> for Report {
         let config = CONFIG.clone();
         if config.is_mode_era {
             report.add_raw_text(format!(
-                "💨 Until next era <i>{}</i> -> Stay tuned 👀",
+                "💤 Until next era <i>{}</i> -> Stay tuned 👀",
                 data.network.active_era + 1
             ));
         } else {
             report.add_raw_text(format!(
-                "💨 The next <code>crunch</code> time will be in {} hours ⏱️",
+                "💤 The next <code>crunch</code> time will be in {} hours ⏱️",
                 config.interval / 3600
             ));
         };
-        // Crunch package
-        report.add_text(format!(
-            "🤖 <code>{} v{}</code> 💤",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
-        ));
+
         report.add_raw_text("___".into());
         report.add_break();
 
@@ -300,18 +341,11 @@ fn trend(a: f64, b: f64) -> String {
     }
 }
 
-fn good_performance(a: f64, b: f64, out: String) -> String {
+fn performance(a: f64, b: f64, out: String) -> Option<String> {
     if a >= b {
-        return out;
+        return Some(out);
     }
-    String::from("")
-}
-
-fn poor_performance(a: f64, b: f64, out: String) -> String {
-    if a <= b {
-        return out;
-    }
-    String::from("")
+    None
 }
 
 enum Random {

@@ -43,6 +43,11 @@ pub fn confidence_interval_99(list: &Vec<f64>) -> (f64, f64) {
     confidence_interval(list, 2.576)
 }
 
+// Calculate 99.9% confidence interval
+pub fn confidence_interval_99_9(list: &Vec<f64>) -> (f64, f64) {
+    confidence_interval(list, 3.291)
+}
+
 // https://www.mathsisfun.com/data/confidence-interval.html
 pub fn confidence_interval(list: &Vec<f64>, z: f64) -> (f64, f64) {
     let m = mean(list);
