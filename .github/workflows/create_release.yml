@@ -36,6 +36,11 @@ jobs:
           command: build
           args: --release
 
+      - name: Generate SHA-256 hash file
+        run: |
+          cd ./target/release
+          sha256sum crunch > crunch.sha256
+
       - name: Get Rustc version
         id: get_rustc
         run: echo ::set-output name=rustc::$(rustc -V)
@@ -56,8 +61,7 @@ jobs:
           draft: true
           prerelease: false
 
-      - name: Upload Release Asset
-        id: upload-release-asset 
+      - name: Upload crunch binary 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,4 +70,14 @@ jobs:
           asset_path: ./target/release/crunch
           asset_name: crunch
           asset_content_type: application/octet-stream
+
+      - name: Upload crunch sha256
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/crunch.sha256
+          asset_name: crunch.sha256
+          asset_content_type: text/plain
           
