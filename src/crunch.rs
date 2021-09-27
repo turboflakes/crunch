@@ -51,8 +51,8 @@ type Balance = <DefaultNodeRuntime as Balances>::Balance;
 pub struct Points {
     pub validator: u32,
     pub era_avg: f64,
-    pub ci99: (f64, f64),
-    pub ci99_9: (f64, f64),
+    pub ci99_9_interval: (f64, f64),
+    pub outlier_limits: (f64, f64),
 }
 
 #[derive(Debug)]
@@ -342,17 +342,19 @@ impl Crunch {
         };
 
         // Calculate average points
-        let points: Vec<f64> = era_reward_points
+        let mut points: Vec<u32> = era_reward_points
             .individual
             .into_iter()
-            .map(|(_, points)| points as f64)
+            .map(|(_, points)| points)
             .collect();
+
+        let points_f64: Vec<f64> = points.iter().map(|points| *points as f64).collect();
 
         let points = Points {
             validator: stash_points,
-            era_avg: stats::mean(&points),
-            ci99: stats::confidence_interval_99(&points),
-            ci99_9: stats::confidence_interval_99_9(&points),
+            era_avg: stats::mean(&points_f64),
+            ci99_9_interval: stats::confidence_interval_99_9(&points_f64),
+            outlier_limits: stats::iqr_interval(&mut points),
         };
 
         Ok(points)

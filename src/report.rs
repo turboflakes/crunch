@@ -141,74 +141,23 @@ impl From<RawData> for Report {
                 // Show Validator payout info
                 for payout in validator.payouts {
                     // Points
-                    let good_performance = match performance(
-                        payout.points.validator.into(),
-                        payout.points.ci99_9.1,
-                        "🤑 🤯 🚀".into(),
-                    ) {
-                        Some(p) => p,
-                        None => {
-                            match performance(
-                                payout.points.validator.into(),
-                                payout.points.ci99.1,
-                                "🤯 🚀".into(),
-                            ) {
-                                Some(p) => p,
-                                None => String::from(""),
-                            }
-                        }
-                    };
                     let reward_amount = format!(
                         "{:.4} {} {}",
                         (payout.validator_amount_value + payout.nominators_amount_value) as f64
                             / 10f64.powi(data.network.token_decimals.into()),
                         data.network.token_symbol,
-                        good_performance
-                    );
-
-                    let good_performance = match performance(
-                        payout.points.validator.into(),
-                        payout.points.ci99_9.1,
-                        "↑↑".into(),
-                    ) {
-                        Some(p) => p,
-                        None => {
-                            match performance(
-                                payout.points.validator.into(),
-                                payout.points.ci99.1,
-                                "↑".into(),
-                            ) {
-                                Some(p) => p,
-                                None => String::from(""),
-                            }
-                        }
-                    };
-                    let poor_performance = match performance(
-                        payout.points.ci99_9.0,
-                        payout.points.validator.into(),
-                        "↓↓".into(),
-                    ) {
-                        Some(p) => p,
-                        None => {
-                            match performance(
-                                payout.points.ci99.0,
-                                payout.points.validator.into(),
-                                "↓".into(),
-                            ) {
-                                Some(p) => p,
-                                None => String::from(""),
-                            }
-                        }
-                    };
-                    let trend = format!(
-                        "{}{}{}",
-                        trend(payout.points.validator.into(), payout.points.era_avg),
-                        good_performance,
-                        poor_performance,
+                        good_performance(
+                            payout.points.validator.into(),
+                            payout.points.ci99_9_interval.1,
+                            payout.points.outlier_limits.1
+                        )
                     );
                     report.add_raw_text(format!(
                         "🎲 Points {} {} ({:.0}) -> 💸 {}",
-                        payout.points.validator, trend, payout.points.era_avg, reward_amount
+                        payout.points.validator,
+                        trend(payout.points.validator.into(), payout.points.era_avg),
+                        payout.points.era_avg,
+                        reward_amount
                     ));
                     // Validator reward amount
                     let stash_amount = format!(
@@ -335,17 +284,27 @@ fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
 
 fn trend(a: f64, b: f64) -> String {
     if a > b {
-        String::from("↑")
+        String::from("⬆️")
     } else {
-        String::from("↓")
+        String::from("⬇️")
     }
 }
 
 fn performance(a: f64, b: f64, out: String) -> Option<String> {
-    if a >= b {
+    if a > b {
         return Some(out);
     }
     None
+}
+
+fn good_performance(value: u32, higher_limit: f64, outlier_limit: f64) -> String {
+    match performance(value.into(), outlier_limit, "🤑 🤯 🚀".into()) {
+        Some(p) => p,
+        None => match performance(value.into(), higher_limit, "😊 🔥".into()) {
+            Some(p) => p,
+            None => String::from(""),
+        },
+    }
 }
 
 enum Random {
@@ -438,4 +397,32 @@ fn context() -> String {
         return String::from("rewards");
     }
     format!("{} flakes", Random::Words)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stats;
+
+    #[test]
+    fn good_performance_emojis() {
+        let v = vec![
+            80.0, 840.0, 920.0, 1580.0, 1160.0, 80.0, 940.0, 40.0, 20.0, 80.0, 60.0, 2680.0,
+            1480.0, 1020.0, 2280.0, 1120.0, 2100.0, 900.0, 1460.0, 1240.0, 940.0, 2380.0, 3420.0,
+            1560.0, 100.0, 1400.0, 180.0, 80.0, 1560.0, 80.0, 40.0, 2720.0, 1660.0, 20.0, 1740.0,
+            1780.0, 2360.0, 960.0, 2420.0, 1700.0, 1080.0, 4840.0, 1160.0, 1620.0, 20.0, 1620.0,
+            1740.0, 1540.0, 100.0, 1240.0, 1260.0, 40.0, 5940.0, 1620.0, 1560.0, 1740.0, 100.0,
+            2760.0, 880.0, 100.0, 1740.0, 1700.0, 4680.0, 1520.0, 2160.0, 1280.0, 2540.0, 3160.0,
+        ];
+        let avg = stats::mean(&v);
+        let ci99_9 = stats::confidence_interval_99_9(&v);
+        let mut points: Vec<u32> = v.iter().map(|points| *points as u32).collect();
+        let iqr_interval = stats::iqr_interval(&mut points);
+        println!("{:?}", avg);
+        println!("{:?}", ci99_9);
+        println!("{:?}", iqr_interval);
+        assert_eq!(good_performance(1, ci99_9.1, iqr_interval.1), "");
+        assert_eq!(good_performance(2620, ci99_9.1, iqr_interval.1), "😊 🔥");
+        assert_eq!(good_performance(3160, ci99_9.1, iqr_interval.1), "🤑 🤯 🚀");
+    }
 }
