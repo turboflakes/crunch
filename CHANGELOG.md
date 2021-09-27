@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Identify an excellence performance using Interquartile Range(IQR)
+
 ## [0.2.0] - 2021-09-25
 
 ### Added
