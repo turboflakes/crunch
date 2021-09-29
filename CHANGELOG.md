@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2021-09-30
+
+### Added
+
+- Add bash script `crunch-update.sh` for easier install or crunch update
+
 ### Changed
 
-- Identify an excellence performance using Interquartile Range(IQR)
+- Identify an excellence performance by using Interquartile Range(IQR)
+- Update substrate-subxt dependency (`Substrate_subxt error: Scale codec error: Could not decode 'Outcome', variant doesn't exist` error fixed)
 
 ## [0.2.0] - 2021-09-25
 
