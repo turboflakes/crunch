@@ -26,14 +26,14 @@
 
 DIRNAME="~/crunch-bot"
 FILENAME="$DIRNAME/crunch"
-URI="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch"
-URI_SHA256="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch.sha256"
 
 read -p "Enter the Crunch version that you would like to download (e.g.: 0.2.1): " INPUT_VERSION
 if [ "$INPUT_VERSION" = "" ]; then
                     INPUT_VERSION="0.2.1"
 fi
 
+URI="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch"
+URI_SHA256="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch.sha256"
 wget $URI && wget $URI_SHA256
 
 if sha256sum -c crunch.sha256 2>&1 | grep -q 'OK'
