@@ -26,11 +26,13 @@ For Nominators in private or public rooms check their chosen Validators rewards 
 #!/bin/bash
 # create `crunch-bot` directory
 $ mkdir ~/crunch-bot
-# download `crunch` latest version
-$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.2.0/crunch
+# download `crunch` binary latest version
+$ wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.2.1/crunch
 # make `crunch` binary file executable
 chmod +x ~/crunch-bot/crunch
 ```
+
+Note: Alternatively download [`crunch-update.sh`](https://github.com/turboflakes/crunch/blob/main/crunch-update.sh) bash script file and make it executable. Easier installation and faster updates.
 
 ## Configuration
 
