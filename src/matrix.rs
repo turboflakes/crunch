@@ -207,7 +207,7 @@ impl Matrix {
         }
         let config = CONFIG.clone();
         if let None = config.matrix_bot_user.find(":") {
-            return Err(MatrixError::Other(format!("matrix bot user '{}' does specifed the matrix server e.g. '@your-own-crunch-bot-account:matrix.org'", config.matrix_bot_user)));
+            return Err(MatrixError::Other(format!("matrix bot user '{}' does not specify the matrix server e.g. '@your-own-crunch-bot-account:matrix.org'", config.matrix_bot_user)));
         }
         let client = self.client.clone();
         let req = LoginRequest {
