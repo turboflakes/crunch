@@ -58,7 +58,12 @@ fn default_seed_path() -> String {
 }
 
 /// provides default value for maximum_payouts if CRUNCH_MAXIMUM_PAYOUTS env var is not set
-fn default_maximum_payouts() -> usize {
+fn default_maximum_payouts() -> u32 {
+    4
+}
+
+/// provides default value for maximum_history_eras if CRUNCH_MAXIMUM_HISTORY_ERAS env var is not set
+fn default_maximum_history_eras() -> u32 {
     4
 }
 
@@ -73,7 +78,9 @@ pub struct Config {
     pub seed_path: String,
     pub stashes: Vec<String>,
     #[serde(default = "default_maximum_payouts")]
-    pub maximum_payouts: usize,
+    pub maximum_payouts: u32,
+    #[serde(default = "default_maximum_history_eras")]
+    pub maximum_history_eras: u32,
     #[serde(default)]
     pub only_view: bool,
     #[serde(default)]
@@ -131,7 +138,6 @@ fn get_config() -> Config {
           .long("seed-path")
           .takes_value(true)
           .value_name("FILE")
-          .default_value(".private.seed")
           .help(
             "Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout call.",
           ),
@@ -141,8 +147,12 @@ fn get_config() -> Config {
           .short("m")
           .long("maximum-payouts")
           .takes_value(true)
-          .default_value("4")
           .help("Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address will be 4)."))
+      .arg(
+        Arg::with_name("maximum-history-eras")
+              .long("maximum-history-eras")
+              .takes_value(true)
+              .help("Maximum number of history eras for which crunch will look for unclaimed rewards. The maximum value supported is the one defined by the constant history_depth - usually 84 - (e.g. a value of 4 means that crunch will only check in latest 4 eras if there are any unclaimed rewards for each stash address). [default: 4]"))
       .arg(
         Arg::with_name("debug")
           .long("debug")
@@ -191,7 +201,6 @@ fn get_config() -> Config {
         Arg::with_name("error-interval")
           .long("error-interval")
           .takes_value(true)
-          .default_value("30")
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
     )
     .subcommand(SubCommand::with_name("rewards")
@@ -211,7 +220,6 @@ fn get_config() -> Config {
           .long("seed-path")
           .takes_value(true)
           .value_name("FILE")
-          .default_value(".private.seed")
           .help(
             "Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout call.",
           ),
@@ -221,8 +229,12 @@ fn get_config() -> Config {
           .short("m")
           .long("maximum-payouts")
           .takes_value(true)
-          .default_value("4")
           .help("Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address will be 4)."))
+      .arg(
+        Arg::with_name("maximum-history-eras")
+              .long("maximum-history-eras")
+              .takes_value(true)
+              .help("Maximum number of history eras for which crunch will look for unclaimed rewards. The maximum value supported is the one defined by the constant history_depth - usually 84 - (e.g. a value of 4 means that crunch will only check in latest 4 eras if there are any unclaimed rewards for each stash address). [default: 4]"))
       .arg(
         Arg::with_name("debug")
           .long("debug")
@@ -271,7 +283,6 @@ fn get_config() -> Config {
         Arg::with_name("error-interval")
           .long("error-interval")
           .takes_value(true)
-          .default_value("30")
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
     )
     .subcommand(SubCommand::with_name("view")
@@ -368,6 +379,10 @@ fn get_config() -> Config {
 
             if let Some(maximum_payouts) = flakes_matches.value_of("maximum-payouts") {
                 env::set_var("CRUNCH_MAXIMUM_PAYOUTS", maximum_payouts);
+            }
+
+            if let Some(maximum_history_eras) = flakes_matches.value_of("maximum-history-eras") {
+                env::set_var("CRUNCH_MAXIMUM_HISTORY_ERAS", maximum_history_eras);
             }
 
             if flakes_matches.is_present("debug") {

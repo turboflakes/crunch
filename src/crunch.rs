@@ -28,7 +28,7 @@ use async_std::task;
 use codec::Decode;
 use log::{debug, error, info, warn};
 use regex::Regex;
-use std::{fs, result::Result, str::FromStr, thread, time};
+use std::{cmp, fs, result::Result, str::FromStr, thread, time};
 use substrate_subxt::{
     balances::Balances,
     identity::{Data, IdentityOfStoreExt, SuperOfStoreExt},
@@ -254,6 +254,23 @@ impl Crunch {
         Ok(ed)
     }
 
+    async fn get_era_index_start(&self, era_index: EraIndex) -> Result<EraIndex, CrunchError> {
+        let client = self.client.clone();
+        let config = CONFIG.clone();
+
+        let history_depth: u32 = client.history_depth(None).await?;
+
+        if era_index < cmp::min(config.maximum_history_eras, history_depth) {
+            return Ok(0);
+        } else if config.is_short {
+            return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
+        } else {
+            // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
+            // since we still want to show information about inclusion and eras crunched for all history_depth
+            return Ok(era_index - history_depth);
+        }
+    }
+
     async fn collect_validators_data(
         &self,
         era_index: EraIndex,
@@ -262,7 +279,6 @@ impl Crunch {
         let config = CONFIG.clone();
 
         // Get unclaimed eras for the stash addresses
-        let history_depth: u32 = client.history_depth(None).await?;
         let active_validators = client.validators(None).await?;
         let mut validators: Validators = Vec::new();
 
@@ -294,8 +310,8 @@ impl Crunch {
             // Check if validator is in active set
             v.is_active = active_validators.contains(&stash);
 
-            // Get unclaimed eras
-            let start_index = era_index - history_depth;
+            // Look for unclaimed eras, starting on current_era - maximum_eras
+            let start_index = self.get_era_index_start(era_index).await?;
 
             // Get staking info from ledger
             if let Some(staking_ledger) = client.ledger(controller.clone(), None).await? {
@@ -305,16 +321,16 @@ impl Crunch {
                 );
 
                 // Find unclaimed eras in previous 84 eras (reverse order)
-                for era_index in (start_index..era_index).rev() {
+                for e in (start_index..era_index).rev() {
                     // If reward was already claimed skip it
-                    if staking_ledger.claimed_rewards.contains(&era_index) {
-                        v.claimed.push(era_index);
+                    if staking_ledger.claimed_rewards.contains(&e) {
+                        v.claimed.push(e);
                         continue;
                     }
                     // Verify if stash was active in set
-                    let exposure = client.eras_stakers(era_index, stash.clone(), None).await?;
+                    let exposure = client.eras_stakers(e, stash.clone(), None).await?;
                     if exposure.total > 0 {
-                        v.unclaimed.push(era_index)
+                        v.unclaimed.push(e)
                     }
                 }
             }
