@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2021-10-09
+
+### Added
+
+- Add `maximum_history_eras` flag with default value of 4. Note: This flag is only valid if `short` flag is also present. By default `crunch` will only check for unclaimed rewards in the last 4 eras rather than the last 84 as in previous versions. If running `crunch` in verbose mode the check in the last 84 eras still apply by default, since we would like to keep showing information regarding Inclusion and total Crunched eras for all history.
+
+### Changed
+
+- Fix loading configuration variables specified in `.env` file.
+- Fix bug for new chains that have `current_era` value lower than `history_depth` constant.
+
 ## [0.2.1] - 2021-09-30
 
 ### Added
