@@ -372,7 +372,7 @@ impl Crunch {
       // ), config.is_short);
       //
 
-      let start_index = active_era.index - history_depth;
+      let start_index = if active_era.index < history_depth { 0 } else { active_era.index - history_depth };
       let mut unclaimed: Vec<u32> = Vec::new();
       let mut claimed: Vec<u32> = Vec::new();
       let mut maximum_payouts = Some(config.maximum_payouts);
@@ -734,7 +734,7 @@ impl Crunch {
     if config.is_mode_era {
       message.show_or_hide_and_log(format!("Next crunch time will be at era end"), false);
       formatted_message.show_or_hide(
-        format!("<br/>💨 Next <code>crunch</code> time will be at <u>era<u> end 💤<br/>___<br/>"),
+        format!("<br/>💨 Next <code>crunch</code> time will be at <u>era</u> end 💤<br/>___<br/>"),
         false,
       );
     } else {
@@ -771,7 +771,7 @@ impl Crunch {
       let stash = AccountId32::from_str(stash_str)?;
       info!("{} * Stash account", stash);
 
-      let start_index = active_era.index - history_depth;
+      let start_index = if active_era.index < history_depth { 0 } else { active_era.index - history_depth };
       let mut unclaimed: Vec<u32> = Vec::new();
       let mut claimed: Vec<u32> = Vec::new();
 
