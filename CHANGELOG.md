@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.19] - 2021-10-09
+
+### Change
+
+- Fix for chains where `current_era` is still lower than `history_depth`
+
 ## [0.1.18] - 2021-09-15
 
 ### Add
