@@ -24,12 +24,7 @@ use crate::matrix::Matrix;
 use crate::report::Report;
 use crate::runtime::{
     node_runtime,
-    node_runtime::{
-        runtime_types::{
-            pallet_identity::types::Data,
-        },
-        staking,
-    },
+    node_runtime::{runtime_types::pallet_identity::types::Data, staking},
     DefaultNodeRuntime,
 };
 use crate::stats;
@@ -44,7 +39,7 @@ use subxt::{
     extrinsic::PairSigner,
     sp_core::{crypto, hash::H256, sr25519, Pair as PairT},
     sp_runtime::AccountId32,
-    Client, ClientBuilder, RawEvent, EventSubscription,
+    Client, ClientBuilder, EventSubscription, RawEvent,
 };
 
 type EraIndex = u32;
@@ -394,8 +389,7 @@ impl Crunch {
                             data,
                             ..
                         } if pallet == "Staking" && variant == "Rewarded" => {
-                            let event_decoded =
-                                staking::events::Rewarded::decode(&mut &data[..])?;
+                            let event_decoded = staking::events::Rewarded::decode(&mut &data[..])?;
                             debug!("{:?}", event_decoded);
                             if event_decoded.0 == stash {
                                 validator_amount_value = event_decoded.1;
@@ -492,7 +486,12 @@ impl Crunch {
             let mut claimed: Vec<u32> = Vec::new();
 
             if let Some(controller) = api.storage().staking().bonded(stash.clone(), None).await? {
-                if let Some(ledger_response) = api.storage().staking().ledger(controller.clone(), None).await? {
+                if let Some(ledger_response) = api
+                    .storage()
+                    .staking()
+                    .ledger(controller.clone(), None)
+                    .await?
+                {
                     // Find unclaimed eras in previous 84 eras
                     for era_index in start_index..active_era_index {
                         // If reward was already claimed skip it
@@ -501,7 +500,11 @@ impl Crunch {
                             continue;
                         }
                         // Verify if stash was active in set
-                        let exposure = api.storage().staking().eras_stakers(era_index, stash.clone(), None).await?;
+                        let exposure = api
+                            .storage()
+                            .staking()
+                            .eras_stakers(era_index, stash.clone(), None)
+                            .await?;
                         if exposure.total > 0 {
                             unclaimed.push(era_index)
                         }
@@ -679,7 +682,11 @@ impl Crunch {
     ) -> Result<Points, CrunchError> {
         let api = self.api();
         // Get era reward points
-        let era_reward_points = api.storage().staking().eras_reward_points(era_index, None).await?;
+        let era_reward_points = api
+            .storage()
+            .staking()
+            .eras_reward_points(era_index, None)
+            .await?;
         let stash_points = match era_reward_points
             .individual
             .iter()
