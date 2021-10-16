@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2021-10-16
+
+### Changed
+
+- Fix substrate-subxt dependency with support for metadata v14
+- Note: Batch calls are not supported on this version -> potentially on next release
+
 ## [0.2.2] - 2021-10-09
 
 ### Added
