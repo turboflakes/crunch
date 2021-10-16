@@ -22,6 +22,16 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::report::Report;
+use crate::runtime::{
+    node_runtime,
+    node_runtime::{
+        runtime_types::{
+            pallet_identity::types::Data,
+        },
+        staking,
+    },
+    DefaultNodeRuntime,
+};
 use crate::stats;
 use async_recursion::async_recursion;
 use async_std::task;
@@ -29,23 +39,15 @@ use codec::Decode;
 use log::{debug, error, info, warn};
 use regex::Regex;
 use std::{cmp, fs, result::Result, str::FromStr, thread, time};
-use substrate_subxt::{
-    balances::Balances,
-    identity::{Data, IdentityOfStoreExt, SuperOfStoreExt},
-    session::ValidatorsStoreExt,
+
+use subxt::{
+    extrinsic::PairSigner,
     sp_core::{crypto, hash::H256, sr25519, Pair as PairT},
     sp_runtime::AccountId32,
-    staking::{
-        ActiveEraStoreExt, BondedStoreExt, EraIndex, EraPaidEvent, ErasRewardPointsStoreExt,
-        ErasStakersStoreExt, HistoryDepthStoreExt, LedgerStoreExt, PayoutStakersCall,
-        PayoutStartedEvent, RewardedEvent,
-    },
-    system::AccountStoreExt,
-    utility::{BatchCallExt, BatchInterruptedEvent},
-    Client, ClientBuilder, DefaultNodeRuntime, EventSubscription, PairSigner, RawEvent,
+    Client, ClientBuilder, RawEvent, EventSubscription,
 };
 
-type Balance = <DefaultNodeRuntime as Balances>::Balance;
+type EraIndex = u32;
 
 #[derive(Debug)]
 pub struct Points {
@@ -108,7 +110,8 @@ pub struct Signer {
 
 #[derive(Debug)]
 pub struct Network {
-    pub active_era: EraIndex,
+    // pub active_era: EraIndex,
+    pub active_era: u32,
     pub name: String,
     pub token_symbol: String,
     pub token_decimals: u8,
@@ -150,11 +153,10 @@ impl MessageTrait for Message {
 
 pub async fn create_substrate_node_client(
     config: Config,
-) -> Result<Client<DefaultNodeRuntime>, substrate_subxt::Error> {
-    ClientBuilder::<DefaultNodeRuntime>::new()
+) -> Result<Client<DefaultNodeRuntime>, subxt::Error> {
+    ClientBuilder::new()
         .set_url(config.substrate_ws_url)
-        .skip_type_sizes_check()
-        .build()
+        .build::<DefaultNodeRuntime>()
         .await
 }
 
@@ -190,13 +192,15 @@ fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
 }
 
 pub struct Crunch {
-    pub client: substrate_subxt::Client<DefaultNodeRuntime>,
+    api: node_runtime::RuntimeApi<DefaultNodeRuntime>,
     matrix: Matrix,
 }
 
 impl Crunch {
     async fn new() -> Crunch {
         let client = create_or_await_substrate_node_client(CONFIG.clone()).await;
+        let api: node_runtime::RuntimeApi<DefaultNodeRuntime> = client.clone().to_runtime_api();
+
         let properties = client.properties();
         // Display SS58 addresses based on the connected chain
         crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
@@ -212,7 +216,15 @@ impl Crunch {
                 error!("{}", e);
                 Default::default()
             });
-        Crunch { client, matrix }
+        Crunch { api, matrix }
+    }
+
+    pub fn client(&self) -> &Client<DefaultNodeRuntime> {
+        &self.api.client
+    }
+
+    pub fn api(&self) -> &node_runtime::RuntimeApi<DefaultNodeRuntime> {
+        &self.api
     }
 
     /// Returns the matrix configuration
@@ -246,149 +258,25 @@ impl Crunch {
         spawn_crunch_view();
     }
 
-    fn get_existential_deposit(&self) -> Result<Balance, CrunchError> {
-        let client = self.client.clone();
-        let balances_metadata = client.metadata().module("Balances")?;
-        let ed_metadata = balances_metadata.constant("ExistentialDeposit")?;
-        let ed: u128 = ed_metadata.value()?;
-        Ok(ed)
-    }
-
-    async fn get_era_index_start(&self, era_index: EraIndex) -> Result<EraIndex, CrunchError> {
-        let client = self.client.clone();
-        let config = CONFIG.clone();
-
-        let history_depth: u32 = client.history_depth(None).await?;
-
-        if era_index < cmp::min(config.maximum_history_eras, history_depth) {
-            return Ok(0);
-        } else if config.is_short {
-            return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
-        } else {
-            // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
-            // since we still want to show information about inclusion and eras crunched for all history_depth
-            return Ok(era_index - history_depth);
-        }
-    }
-
-    async fn collect_validators_data(
-        &self,
-        era_index: EraIndex,
-    ) -> Result<Validators, CrunchError> {
-        let client = self.client.clone();
-        let config = CONFIG.clone();
-
-        // Get unclaimed eras for the stash addresses
-        let active_validators = client.validators(None).await?;
-        let mut validators: Validators = Vec::new();
-
-        for (_i, stash_str) in config.stashes.iter().enumerate() {
-            let stash = AccountId32::from_str(stash_str)?;
-
-            // Check if stash has bonded controller
-            let controller = match client.bonded(stash.clone(), None).await? {
-                Some(controller) => controller,
-                None => {
-                    let mut v = Validator::new(stash.clone());
-                    v.warnings = vec![format!(
-                        "Stash <code>{}</code> does not have a bonded Controller account!",
-                        stash
-                    )];
-                    validators.push(v);
-                    continue;
-                }
-            };
-            // Instantiates a new validator struct
-            let mut v = Validator::new(stash.clone());
-
-            // Set controller
-            v.controller = Some(controller.clone());
-
-            // Get validator name
-            v.name = self.get_display_name(&stash, None).await?;
-
-            // Check if validator is in active set
-            v.is_active = active_validators.contains(&stash);
-
-            // Look for unclaimed eras, starting on current_era - maximum_eras
-            let start_index = self.get_era_index_start(era_index).await?;
-
-            // Get staking info from ledger
-            if let Some(staking_ledger) = client.ledger(controller.clone(), None).await? {
-                debug!(
-                    "{} * claimed_rewards: {:?}",
-                    stash, staking_ledger.claimed_rewards
-                );
-
-                // Find unclaimed eras in previous 84 eras (reverse order)
-                for e in (start_index..era_index).rev() {
-                    // If reward was already claimed skip it
-                    if staking_ledger.claimed_rewards.contains(&e) {
-                        v.claimed.push(e);
-                        continue;
-                    }
-                    // Verify if stash was active in set
-                    let exposure = client.eras_stakers(e, stash.clone(), None).await?;
-                    if exposure.total > 0 {
-                        v.unclaimed.push(e)
-                    }
-                }
-            }
-            validators.push(v);
-        }
-        debug!("validators {:?}", validators);
-        Ok(validators)
-    }
-
-    async fn get_validator_points_info(
-        &self,
-        era_index: EraIndex,
-        stash: AccountId32,
-    ) -> Result<Points, CrunchError> {
-        let client = self.client.clone();
-        // Get era reward points
-        let era_reward_points = client.eras_reward_points(era_index, None).await?;
-        let stash_points = match era_reward_points
-            .individual
-            .iter()
-            .find(|(s, _)| *s == &stash)
-        {
-            Some((_, p)) => *p,
-            None => 0,
-        };
-
-        // Calculate average points
-        let mut points: Vec<u32> = era_reward_points
-            .individual
-            .into_iter()
-            .map(|(_, points)| points)
-            .collect();
-
-        let points_f64: Vec<f64> = points.iter().map(|points| *points as f64).collect();
-
-        let points = Points {
-            validator: stash_points,
-            era_avg: stats::mean(&points_f64),
-            ci99_9_interval: stats::confidence_interval_99_9(&points_f64),
-            outlier_limits: stats::iqr_interval(&mut points),
-        };
-
-        Ok(points)
-    }
-
     async fn run_in_batch(&self) -> Result<(), CrunchError> {
-        let client = self.client.clone();
+        let client = self.client();
+        let api = self.api();
         let config = CONFIG.clone();
         let properties = client.properties();
 
-        // Get network info
-        let active_era = client.active_era(None).await?;
+        let active_era_index = match api.storage().staking().active_era(None).await? {
+            Some(active_era_info) => active_era_info.index,
+            None => return Err(CrunchError::Other("Active era not available".into())),
+        };
+
+        // Set network info
         let network = Network {
-            active_era: active_era.index,
+            active_era: active_era_index,
             name: client.chain_name().clone(),
             token_symbol: properties.token_symbol.clone(),
             token_decimals: properties.token_decimals,
         };
+        debug!("network {:?}", network);
 
         // Load seed account
         let seed = fs::read_to_string(config.seed_path)
@@ -405,37 +293,37 @@ impl Crunch {
             name: signer_name,
             warnings: Vec::new(),
         };
+        debug!("signer {:?}", signer);
 
         // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
         let ed = self.get_existential_deposit()?;
-        let seed_account_info = client.account(&seed_account_id, None).await?;
+        let seed_account_data = api
+            .storage()
+            .balances()
+            .account(seed_account_id, None)
+            .await?;
         let one = (std::u32::MAX as u128 + 1) * 10u128.pow(properties.token_decimals.into());
-        let free: f64 = seed_account_info.data.free as f64 / one as f64;
+        let free: f64 = seed_account_data.free as f64 / one as f64;
         if free * 10f64.powi(properties.token_decimals.into()) <= (ed as f64 * 2_f64) {
             signer
                 .warnings
                 .push("⚡ Signer account is running low on funds ⚡".to_string());
         }
         // Add unclaimed eras into payout staker calls
-        let mut calls = vec![];
-        let mut validators = self.collect_validators_data(active_era.index).await?;
+
+        let mut calls_to_be: Vec<(AccountId32, EraIndex)> = vec![];
+        let mut validators = self.collect_validators_data(active_era_index).await?;
         for v in &mut validators {
             //
             if v.unclaimed.len() > 0 {
                 let mut maximum_payouts = Some(config.maximum_payouts);
-                // encode extrinsic payout stakers calls as many as unclaimed eras or maximum_payouts reached
+                // define extrinsic payout stakers calls as many as unclaimed eras or maximum_payouts reached
                 while let Some(i) = maximum_payouts {
                     if i == 0 {
                         maximum_payouts = None;
                     } else {
                         if let Some(claim_era) = v.unclaimed.pop() {
-                            let call = client
-                                .encode(PayoutStakersCall {
-                                    validator_stash: v.stash.clone(),
-                                    era: claim_era,
-                                })
-                                .unwrap();
-                            calls.push(call);
+                            calls_to_be.push((v.stash.clone(), claim_era));
                         }
                         maximum_payouts = Some(i - 1);
                     }
@@ -443,111 +331,128 @@ impl Crunch {
             }
         }
 
-        if calls.len() > 0 {
-            // Batch calls
+        if calls_to_be.len() > 0 {
             // TODO check batch call weight or maximum 8
             let mut validator_index: ValidatorIndex = None;
-            let mut era_index: EraIndex = 0;
+            // let mut era_index: EraIndex = 0;
             let mut validator_amount_value: ValidatorAmount = 0;
             let mut nominators_amount_value: NominatorsAmount = 0;
             let mut nominators_quantity = 0;
 
-            info!(
-                "Batch call with {} extrinsics ready to be dispatched",
-                calls.len()
-            );
-            // Call extrinsic batch with payout stakers extrinsics as many as unclaimed eras or maximum_payouts reached
-            // Wait for ExtrinsicSuccess event to calculate rewards and fetch points
-            let batch_response = client.batch_and_watch(&seed_account_signer, calls).await?;
-            debug!("batch_response: {:?}", batch_response);
-            // Get block number
-            let block = if let Some(header) = client.header(Some(batch_response.block)).await? {
-                header.number
-            } else {
-                0
-            };
-            // Iterate over events to calculate respective reward amounts
-            for event in batch_response.events {
-                match event {
-                    RawEvent {
-                        ref module,
-                        ref variant,
-                        data,
-                    } if module == "Staking" && variant == "PayoutStarted" => {
-                        let event =
-                            PayoutStartedEvent::<DefaultNodeRuntime>::decode(&mut &data[..])?;
-                        let validator_index_ref = &mut validators
-                            .iter()
-                            .position(|v| v.stash == event.validator_stash);
-                        validator_index = *validator_index_ref;
-                        era_index = event.era_index;
-                        validator_amount_value = 0;
-                        nominators_amount_value = 0;
-                        nominators_quantity = 0;
-                    }
-                    RawEvent {
-                        ref module,
-                        ref variant,
-                        data,
-                    } if module == "Staking" && variant == "Rewarded" => {
-                        if let Some(i) = validator_index {
-                            let event =
-                                RewardedEvent::<DefaultNodeRuntime>::decode(&mut &data[..])?;
-                            let validator = &validators[i];
-                            if event.stash == validator.stash {
-                                validator_amount_value = event.amount;
+            info!("{} extrinsics ready to be dispatched", calls_to_be.len());
+
+            // TODO activate batch calls by optional flag when subxt library is ready for utility().batch()
+            // currently is failing with Substrate_subxt error: Rpc error: The background task been terminated because: Custom error: Unparsable response; restart required
+            //
+            // let batch_response = api
+            //     .tx()
+            //     .utility()
+            //     .batch(calls)
+            //     .sign_and_submit_then_watch(&seed_account_signer)
+            //     .await?;
+            // debug!("batch_response {:?}", batch_response);
+
+            for (stash, era_index) in calls_to_be {
+                let response = api
+                    .tx()
+                    .staking()
+                    .payout_stakers(stash.clone(), era_index)
+                    .sign_and_submit_then_watch(&seed_account_signer)
+                    .await?;
+                debug!("response {:?}", response);
+
+                // Get block number
+                let block = if let Some(header) = client.rpc().header(Some(response.block)).await? {
+                    header.number
+                } else {
+                    0
+                };
+
+                // Iterate over events to calculate respective reward amounts
+                for event in response.events {
+                    debug!("{:?}", event);
+                    match event {
+                        RawEvent {
+                            ref pallet,
+                            ref variant,
+                            data,
+                            ..
+                        } if pallet == "Staking" && variant == "PayoutStarted" => {
+                            let event_decoded =
+                                staking::events::PayoutStarted::decode(&mut &data[..])?;
+                            debug!("{:?}", event_decoded);
+                            let validator_index_ref =
+                                &mut validators.iter().position(|v| v.stash == event_decoded.1);
+                            validator_index = *validator_index_ref;
+                            validator_amount_value = 0;
+                            nominators_amount_value = 0;
+                            nominators_quantity = 0;
+                        }
+                        RawEvent {
+                            ref pallet,
+                            ref variant,
+                            data,
+                            ..
+                        } if pallet == "Staking" && variant == "Rewarded" => {
+                            let event_decoded =
+                                staking::events::Rewarded::decode(&mut &data[..])?;
+                            debug!("{:?}", event_decoded);
+                            if event_decoded.0 == stash {
+                                validator_amount_value = event_decoded.1;
                             } else {
-                                nominators_amount_value += event.amount;
+                                nominators_amount_value += event_decoded.1;
                                 nominators_quantity += 1;
                             }
                         }
-                    }
-                    RawEvent {
-                        ref module,
-                        ref variant,
-                        data: _,
-                    } if module == "Utility" && variant == "ItemCompleted" => {
-                        if let Some(i) = validator_index {
-                            let validator = &mut validators[i];
-                            // Add era to claimed vec
-                            validator.claimed.push(era_index);
-                            // Fetch stash points
-                            let points = self
-                                .get_validator_points_info(era_index, validator.stash.clone())
-                                .await?;
+                        // RawEvent {
+                        //     ref module,
+                        //     ref variant,
+                        //     data: _,
+                        // } if module == "Utility" && variant == "ItemCompleted" => {
+                        //     if let Some(i) = validator_index {
+                        //         let validator = &mut validators[i];
+                        //         // Add era to claimed vec
+                        //         validator.claimed.push(era_index);
+                        //         // Fetch stash points
+                        //         let points = self
+                        //             .get_validator_points_info(era_index, validator.stash.clone())
+                        //             .await?;
 
-                            let p = Payout {
-                                block,
-                                extrinsic: batch_response.extrinsic,
-                                era_index,
-                                validator_amount_value,
-                                nominators_amount_value,
-                                nominators_quantity,
-                                points,
-                            };
-                            validator.payouts.push(p);
-                        }
-                    }
-                    RawEvent {
-                        ref module,
-                        ref variant,
-                        data: _,
-                    } if module == "Utility" && variant == "BatchCompleted" => {
-                        // TODO
-                        info!("Batch completed");
-                    }
-                    RawEvent {
-                        ref module,
-                        ref variant,
-                        data,
-                    } if module == "Utility" && variant == "BatchInterrupted" => {
-                        // TODO
-                        let event =
-                            BatchInterruptedEvent::<DefaultNodeRuntime>::decode(&mut &data[..])?;
-                        error!("BatchInterrupted {:?}", event);
-                    }
-                    _ => (),
-                };
+                        //         let p = Payout {
+                        //             block,
+                        //             extrinsic: batch_response.extrinsic,
+                        //             era_index,
+                        //             validator_amount_value,
+                        //             nominators_amount_value,
+                        //             nominators_quantity,
+                        //             points,
+                        //         };
+                        //         validator.payouts.push(p);
+                        //     }
+                        // }
+                        _ => (),
+                    };
+                }
+                if let Some(i) = validator_index {
+                    let validator = &mut validators[i];
+                    // Add era to claimed vec
+                    validator.claimed.push(era_index);
+                    // Fetch stash points
+                    let points = self
+                        .get_validator_points_info(era_index, validator.stash.clone())
+                        .await?;
+
+                    let p = Payout {
+                        block,
+                        extrinsic: response.extrinsic,
+                        era_index,
+                        validator_amount_value,
+                        nominators_amount_value,
+                        nominators_quantity,
+                        points,
+                    };
+                    validator.payouts.push(p);
+                }
             }
         }
 
@@ -569,31 +474,34 @@ impl Crunch {
 
     //
     async fn inspect(&self) -> Result<(), CrunchError> {
-        let client = self.client.clone();
+        let api = self.api();
         let config = CONFIG.clone();
 
         info!("Inspect stashes -> {}", config.stashes.join(","));
-        let history_depth: u32 = client.history_depth(None).await?;
-        let active_era = client.active_era(None).await?;
+        let history_depth: u32 = api.storage().staking().history_depth(None).await?;
+        let active_era_index = match api.storage().staking().active_era(None).await? {
+            Some(active_era_info) => active_era_info.index,
+            None => return Err(CrunchError::Other("Active era not available".into())),
+        };
         for stash_str in config.stashes.iter() {
             let stash = AccountId32::from_str(stash_str)?;
             info!("{} * Stash account", stash);
 
-            let start_index = active_era.index - history_depth;
+            let start_index = active_era_index - history_depth;
             let mut unclaimed: Vec<u32> = Vec::new();
             let mut claimed: Vec<u32> = Vec::new();
 
-            if let Some(controller) = client.bonded(stash.clone(), None).await? {
-                if let Some(ledger_response) = client.ledger(controller.clone(), None).await? {
+            if let Some(controller) = api.storage().staking().bonded(stash.clone(), None).await? {
+                if let Some(ledger_response) = api.storage().staking().ledger(controller.clone(), None).await? {
                     // Find unclaimed eras in previous 84 eras
-                    for era_index in start_index..active_era.index {
+                    for era_index in start_index..active_era_index {
                         // If reward was already claimed skip it
                         if ledger_response.claimed_rewards.contains(&era_index) {
                             claimed.push(era_index);
                             continue;
                         }
                         // Verify if stash was active in set
-                        let exposure = client.eras_stakers(era_index, stash.clone(), None).await?;
+                        let exposure = api.storage().staking().eras_stakers(era_index, stash.clone(), None).await?;
                         if exposure.total > 0 {
                             unclaimed.push(era_index)
                         }
@@ -623,16 +531,17 @@ impl Crunch {
         stash: &AccountId32,
         sub_account_name: Option<String>,
     ) -> Result<String, CrunchError> {
-        let client = self.client.clone();
-        match client.identity_of(stash.clone(), None).await? {
+        let api = self.api();
+
+        match api
+            .storage()
+            .identity()
+            .identity_of(stash.clone(), None)
+            .await?
+        {
             Some(identity) => {
-                let parent = match identity.info.display {
-                    Data::Raw(bytes) => format!(
-                        "{}",
-                        String::from_utf8(bytes.to_vec()).expect("Identity not utf-8")
-                    ),
-                    _ => format!("???"),
-                };
+                debug!("identity {:?}", identity);
+                let parent = parse_identity_data(identity.info.display);
                 let name = match sub_account_name {
                     Some(child) => format!("{}/{}", parent, child),
                     None => parent,
@@ -640,14 +549,13 @@ impl Crunch {
                 Ok(name)
             }
             None => {
-                if let Some((parent_account, data)) = client.super_of(stash.clone(), None).await? {
-                    let sub_account_name = match data {
-                        Data::Raw(bytes) => format!(
-                            "{}",
-                            String::from_utf8(bytes.to_vec()).expect("Identity not utf-8")
-                        ),
-                        _ => format!("???"),
-                    };
+                if let Some((parent_account, data)) = api
+                    .storage()
+                    .identity()
+                    .super_of(stash.clone(), None)
+                    .await?
+                {
+                    let sub_account_name = parse_identity_data(data);
                     return self
                         .get_display_name(&parent_account, Some(sub_account_name.to_string()))
                         .await;
@@ -659,18 +567,159 @@ impl Crunch {
         }
     }
 
+    fn get_existential_deposit(&self) -> Result<u128, CrunchError> {
+        let client = self.client();
+        let balances_metadata = client.metadata().pallet("Balances")?;
+        let constant_metadata = balances_metadata.constant("ExistentialDeposit")?;
+        let ed = u128::decode(&mut &constant_metadata.value[..])?;
+        Ok(ed)
+    }
+
+    async fn collect_validators_data(
+        &self,
+        era_index: EraIndex,
+    ) -> Result<Validators, CrunchError> {
+        let api = self.api();
+        let config = CONFIG.clone();
+
+        // Get unclaimed eras for the stash addresses
+        let active_validators = api.storage().session().validators(None).await?;
+        debug!("active_validators {:?}", active_validators);
+        let mut validators: Validators = Vec::new();
+
+        for (_i, stash_str) in config.stashes.iter().enumerate() {
+            let stash = AccountId32::from_str(stash_str)?;
+
+            // Check if stash has bonded controller
+            let controller = match api.storage().staking().bonded(stash.clone(), None).await? {
+                Some(controller) => controller,
+                None => {
+                    let mut v = Validator::new(stash.clone());
+                    v.warnings = vec![format!(
+                        "Stash <code>{}</code> does not have a bonded Controller account!",
+                        stash
+                    )];
+                    validators.push(v);
+                    continue;
+                }
+            };
+            debug!("controller {:?}", controller);
+            // Instantiates a new validator struct
+            let mut v = Validator::new(stash.clone());
+
+            // Set controller
+            v.controller = Some(controller.clone());
+
+            // Get validator name
+            v.name = self.get_display_name(&stash, None).await?;
+
+            // Check if validator is in active set
+            v.is_active = active_validators.contains(&stash);
+
+            // Look for unclaimed eras, starting on current_era - maximum_eras
+            let start_index = self.get_era_index_start(era_index).await?;
+
+            // Get staking info from ledger
+            if let Some(staking_ledger) = api
+                .storage()
+                .staking()
+                .ledger(controller.clone(), None)
+                .await?
+            {
+                debug!(
+                    "{} * claimed_rewards: {:?}",
+                    stash, staking_ledger.claimed_rewards
+                );
+
+                // Find unclaimed eras in previous 84 eras (reverse order)
+                for e in (start_index..era_index).rev() {
+                    // If reward was already claimed skip it
+                    if staking_ledger.claimed_rewards.contains(&e) {
+                        v.claimed.push(e);
+                        continue;
+                    }
+                    // Verify if stash was active in set
+                    let exposure = api
+                        .storage()
+                        .staking()
+                        .eras_stakers(e, stash.clone(), None)
+                        .await?;
+                    if exposure.total > 0 {
+                        v.unclaimed.push(e)
+                    }
+                }
+            }
+            validators.push(v);
+        }
+        debug!("validators {:?}", validators);
+        Ok(validators)
+    }
+
+    async fn get_era_index_start(&self, era_index: EraIndex) -> Result<EraIndex, CrunchError> {
+        let api = self.api();
+        let config = CONFIG.clone();
+
+        let history_depth: u32 = api.storage().staking().history_depth(None).await?;
+
+        if era_index < cmp::min(config.maximum_history_eras, history_depth) {
+            return Ok(0);
+        } else if config.is_short {
+            return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
+        } else {
+            // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
+            // since we still want to show information about inclusion and eras crunched for all history_depth
+            return Ok(era_index - history_depth);
+        }
+    }
+
+    async fn get_validator_points_info(
+        &self,
+        era_index: EraIndex,
+        stash: AccountId32,
+    ) -> Result<Points, CrunchError> {
+        let api = self.api();
+        // Get era reward points
+        let era_reward_points = api.storage().staking().eras_reward_points(era_index, None).await?;
+        let stash_points = match era_reward_points
+            .individual
+            .iter()
+            .find(|(s, _)| *s == &stash)
+        {
+            Some((_, p)) => *p,
+            None => 0,
+        };
+
+        // Calculate average points
+        let mut points: Vec<u32> = era_reward_points
+            .individual
+            .into_iter()
+            .map(|(_, points)| points)
+            .collect();
+
+        let points_f64: Vec<f64> = points.iter().map(|points| *points as f64).collect();
+
+        let points = Points {
+            validator: stash_points,
+            era_avg: stats::mean(&points_f64),
+            ci99_9_interval: stats::confidence_interval_99_9(&points_f64),
+            outlier_limits: stats::iqr_interval(&mut points),
+        };
+
+        Ok(points)
+    }
+
     async fn run_and_subscribe_era_payout_events(&self) -> Result<(), CrunchError> {
         // Run once before start subscription
         self.run_in_batch().await?;
         info!("Subscribe 'EraPaid' on-chain finalized event");
-        let client = self.client.clone();
-        let sub = client.subscribe_finalized_events().await?;
+        let client = self.client();
+        let sub = client.rpc().subscribe_finalized_events().await?;
         let decoder = client.events_decoder();
-        let mut sub = EventSubscription::<DefaultNodeRuntime>::new(sub, decoder);
-        sub.filter_event::<EraPaidEvent<DefaultNodeRuntime>>();
+        let mut sub = EventSubscription::<DefaultNodeRuntime>::new(sub, &decoder);
+        sub.filter_event::<staking::events::EraPaid>();
         while let Some(result) = sub.next().await {
-            if let Ok(raw_event) = result {
-                match EraPaidEvent::<DefaultNodeRuntime>::decode(&mut &raw_event.data[..]) {
+            if let Ok(raw) = result {
+                match staking::events::PayoutStarted::decode(&mut &raw.data[..]) {
                     Ok(event) => {
                         info!("Successfully decoded event {:?}", event);
                         self.run_in_batch().await?;
@@ -741,4 +790,47 @@ fn spawn_crunch_view() {
         };
     });
     task::block_on(crunch_task);
+}
+
+fn parse_identity_data(data: Data) -> String {
+    match data {
+        Data::Raw0(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw1(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw2(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw3(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw4(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw5(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw6(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw7(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw8(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw9(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw10(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw11(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw12(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw13(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw14(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw15(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw16(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw17(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw18(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw19(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw20(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw21(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw22(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw23(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw24(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw25(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw26(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw27(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw28(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw29(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw30(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw31(bytes) => parse_display_name(bytes.to_vec()),
+        Data::Raw32(bytes) => parse_display_name(bytes.to_vec()),
+        _ => format!("???"),
+    }
+}
+
+fn parse_display_name(bytes: Vec<u8>) -> String {
+    format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
 }
