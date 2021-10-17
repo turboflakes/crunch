@@ -37,7 +37,7 @@ use std::{cmp, fs, result::Result, str::FromStr, thread, time};
 
 use subxt::{
     extrinsic::PairSigner,
-    sp_core::{crypto, hash::H256, sr25519, Pair as PairT},
+    sp_core::{crypto, H256, sr25519, Pair as PairT},
     sp_runtime::AccountId32,
     Client, ClientBuilder, EventSubscription, RawEvent,
 };
@@ -292,14 +292,12 @@ impl Crunch {
 
         // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
         let ed = self.get_existential_deposit()?;
-        let seed_account_data = api
+        let seed_account_info = api
             .storage()
-            .balances()
+            .system()
             .account(seed_account_id, None)
             .await?;
-        let one = (std::u32::MAX as u128 + 1) * 10u128.pow(properties.token_decimals.into());
-        let free: f64 = seed_account_data.free as f64 / one as f64;
-        if free * 10f64.powi(properties.token_decimals.into()) <= (ed as f64 * 2_f64) {
+        if seed_account_info.data.free <= (2 * ed) {
             signer
                 .warnings
                 .push("⚡ Signer account is running low on funds ⚡".to_string());
