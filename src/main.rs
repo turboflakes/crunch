@@ -24,6 +24,7 @@ mod crunch;
 mod errors;
 mod matrix;
 mod report;
+mod runtime;
 mod stats;
 
 use crate::config::CONFIG;

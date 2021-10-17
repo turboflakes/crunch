@@ -22,19 +22,20 @@
 use codec;
 use reqwest;
 use std::{str::Utf8Error, string::String};
+use subxt;
 use thiserror::Error;
 
 /// Crunch specific error messages
 #[derive(Error, Debug)]
 pub enum CrunchError {
     #[error("Substrate_subxt error: {0}")]
-    SubxtError(#[from] substrate_subxt::Error),
+    SubxtError(#[from] subxt::Error),
     #[error("Codec error: {0}")]
     CodecError(#[from] codec::Error),
     #[error("Utf8 error: {0}")]
     Utf8Error(#[from] Utf8Error),
     #[error("Metadata error: {0}")]
-    MetadataError(#[from] substrate_subxt::MetadataError),
+    MetadataError(#[from] subxt::MetadataError),
     #[error("Matrix error: {0}")]
     MatrixError(String),
     #[error("Subscription finished")]

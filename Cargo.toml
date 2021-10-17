@@ -18,12 +18,23 @@ derive_more = "0.99"
 async-std = { version = "1.9.0", features = ["attributes", "tokio1"] }
 async-recursion = "0.3.2"
 serde = "1"
+serde_json = "1.0.68"
 thiserror = "^1.0.24"
 chrono = "0.4"
-codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive", "full"] }
 regex = "1.4.6"
 reqwest = { version = "0.11", features = ["json"] }
 url = "2.2.2"
 base64 = "0.13.0"
 rand = "0.8.4"
-substrate-subxt = { git = "https://github.com/turboflakes/substrate-subxt", rev = "9fa6fe5" }
+
+subxt = { package = "substrate-subxt", git = "https://github.com/turboflakes/substrate-subxt", branch = "develop-vnext" }
+
+# Dependencies required since the changes on the new subxt package
+
+codec = { package = "parity-scale-codec", version = "2.0.0", features = ["derive"] }
+sp-arithmetic = { package = "sp-arithmetic", git = "https://github.com/paritytech/substrate/", branch = "polkadot-v0.9.11" }
+sp-core = { package = "sp-core", git = "https://github.com/paritytech/substrate/", branch = "polkadot-v0.9.11" }
+sp-keyring = { package = "sp-keyring", git = "https://github.com/paritytech/substrate/", branch = "polkadot-v0.9.11" }
+sp-runtime = { package = "sp-runtime", git = "https://github.com/paritytech/substrate/", branch = "polkadot-v0.9.11" }
+
+
