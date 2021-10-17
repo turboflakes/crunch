@@ -37,7 +37,7 @@ use std::{cmp, fs, result::Result, str::FromStr, thread, time};
 
 use subxt::{
     extrinsic::PairSigner,
-    sp_core::{crypto, H256, sr25519, Pair as PairT},
+    sp_core::{crypto, sr25519, Pair as PairT, H256},
     sp_runtime::AccountId32,
     Client, ClientBuilder, EventSubscription, RawEvent,
 };
