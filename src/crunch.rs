@@ -24,8 +24,9 @@ use crate::matrix::Matrix;
 use crate::report::Report;
 use crate::runtime::{
     node_runtime,
-    node_runtime::{runtime_types::pallet_identity::types::Data, staking},
-    DefaultNodeRuntime,
+    node_runtime::{
+        runtime_types::pallet_identity::types::Data, staking, DefaultConfig,
+    }
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -148,14 +149,14 @@ impl MessageTrait for Message {
 
 pub async fn create_substrate_node_client(
     config: Config,
-) -> Result<Client<DefaultNodeRuntime>, subxt::Error> {
+) -> Result<Client<DefaultConfig>, subxt::Error> {
     ClientBuilder::new()
         .set_url(config.substrate_ws_url)
-        .build::<DefaultNodeRuntime>()
+        .build::<DefaultConfig>()
         .await
 }
 
-pub async fn create_or_await_substrate_node_client(config: Config) -> Client<DefaultNodeRuntime> {
+pub async fn create_or_await_substrate_node_client(config: Config) -> Client<DefaultConfig> {
     loop {
         match create_substrate_node_client(config.clone()).await {
             Ok(client) => {
@@ -186,15 +187,28 @@ fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
         .expect("constructed from known-good static value; qed")
 }
 
+fn set_default_ss58_version(config: Config) {
+	let ss58_version = if config.is_kusama() {
+		crypto::Ss58AddressFormatRegistry::KusamaAccount
+	} else if config.is_westend() {
+		crypto::Ss58AddressFormatRegistry::SubstrateAccount
+	} else {
+		crypto::Ss58AddressFormatRegistry::PolkadotAccount
+	}
+	.into();
+
+	crypto::set_default_ss58_version(ss58_version);
+}
+
 pub struct Crunch {
-    api: node_runtime::RuntimeApi<DefaultNodeRuntime>,
+    api: node_runtime::RuntimeApi<DefaultConfig>,
     matrix: Matrix,
 }
 
 impl Crunch {
     async fn new() -> Crunch {
         let client = create_or_await_substrate_node_client(CONFIG.clone()).await;
-        let api: node_runtime::RuntimeApi<DefaultNodeRuntime> = client.clone().to_runtime_api();
+        let api: node_runtime::RuntimeApi<DefaultConfig> = client.clone().to_runtime_api();
 
         let properties = client.properties();
         // Display SS58 addresses based on the connected chain
@@ -214,11 +228,11 @@ impl Crunch {
         Crunch { api, matrix }
     }
 
-    pub fn client(&self) -> &Client<DefaultNodeRuntime> {
+    pub fn client(&self) -> &Client<DefaultConfig> {
         &self.api.client
     }
 
-    pub fn api(&self) -> &node_runtime::RuntimeApi<DefaultNodeRuntime> {
+    pub fn api(&self) -> &node_runtime::RuntimeApi<DefaultConfig> {
         &self.api
     }
 
@@ -278,7 +292,7 @@ impl Crunch {
             .expect("Something went wrong reading the seed file");
         let seed_account: sr25519::Pair = get_from_seed(&seed, None);
         let seed_account_signer =
-            PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account.clone());
+            PairSigner::<DefaultConfig, sr25519::Pair>::new(seed_account.clone());
         let seed_account_id: AccountId32 = seed_account.public().into();
 
         // Get signer account identity
@@ -720,7 +734,7 @@ impl Crunch {
         let client = self.client();
         let sub = client.rpc().subscribe_finalized_events().await?;
         let decoder = client.events_decoder();
-        let mut sub = EventSubscription::<DefaultNodeRuntime>::new(sub, &decoder);
+        let mut sub = EventSubscription::<DefaultConfig>::new(sub, &decoder);
         sub.filter_event::<staking::events::EraPaid>();
         while let Some(result) = sub.next().await {
             if let Ok(raw) = result {
