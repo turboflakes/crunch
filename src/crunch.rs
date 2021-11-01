@@ -23,9 +23,17 @@ use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::report::Report;
 use crate::runtime::{
-    node_runtime,
-    node_runtime::{runtime_types::pallet_identity::types::Data, staking},
-    DefaultNodeRuntime,
+    // polkadot::{
+    //     self,
+    //     // DefaultConfig,
+    //     // polkadot,
+    //     // polkadot::polkadot
+    //     // node_runtime,
+    //     // node_runtime::{runtime_types::pallet_identity::types::Data, staking},
+    // },
+    polkadot,
+    kusama,
+    westend
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -37,9 +45,14 @@ use std::{cmp, fs, result::Result, str::FromStr, thread, time};
 
 use subxt::{
     extrinsic::PairSigner,
-    sp_core::{crypto, sr25519, Pair as PairT, H256},
+    sp_core::{crypto, sr25519},
+    // sp_core::{crypto, sr25519, Pair as PairT, H256},
     sp_runtime::AccountId32,
-    Client, ClientBuilder, EventSubscription, RawEvent,
+    Client,
+    ClientBuilder,
+    Config as NodeConfig,
+    EventSubscription,
+    RawEvent,
 };
 
 type EraIndex = u32;
@@ -55,7 +68,7 @@ pub struct Points {
 #[derive(Debug)]
 pub struct Payout {
     pub block: u32,
-    pub extrinsic: H256,
+    // pub extrinsic: H256, TODO
     pub era_index: u32,
     pub validator_amount_value: u128,
     pub nominators_amount_value: u128,
@@ -146,36 +159,36 @@ impl MessageTrait for Message {
     }
 }
 
-pub async fn create_substrate_node_client(
-    config: Config,
-) -> Result<Client<DefaultNodeRuntime>, subxt::Error> {
-    ClientBuilder::new()
-        .set_url(config.substrate_ws_url)
-        .build::<DefaultNodeRuntime>()
-        .await
-}
+// pub async fn create_substrate_node_client(
+//     config: Config,
+// ) -> Result<Client<DefaultNodeRuntime>, subxt::Error> {
+//     ClientBuilder::new()
+//         .set_url(config.substrate_ws_url)
+//         .build()
+//         .await
+// }
 
-pub async fn create_or_await_substrate_node_client(config: Config) -> Client<DefaultNodeRuntime> {
-    loop {
-        match create_substrate_node_client(config.clone()).await {
-            Ok(client) => {
-                info!(
-                    "Connected to {} network using {} * Substrate node {} v{}",
-                    client.chain_name(),
-                    config.substrate_ws_url,
-                    client.node_name(),
-                    client.node_version()
-                );
-                break client;
-            }
-            Err(e) => {
-                error!("{}", e);
-                info!("Awaiting for connection using {}", config.substrate_ws_url);
-                thread::sleep(time::Duration::from_secs(6));
-            }
-        }
-    }
-}
+// pub async fn create_or_await_substrate_node_client(config: Config) -> Client<DefaultNodeRuntime> {
+//     loop {
+//         match create_substrate_node_client(config.clone()).await {
+//             Ok(client) => {
+//                 info!(
+//                     "Connected to {} network using {} * Substrate node {} v{}",
+//                     client.chain_name(),
+//                     config.substrate_ws_url,
+//                     client.node_name(),
+//                     client.node_version()
+//                 );
+//                 break client;
+//             }
+//             Err(e) => {
+//                 error!("{}", e);
+//                 info!("Awaiting for connection using {}", config.substrate_ws_url);
+//                 thread::sleep(time::Duration::from_secs(6));
+//             }
+//         }
+//     }
+// }
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
@@ -186,40 +199,171 @@ fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
         .expect("constructed from known-good static value; qed")
 }
 
-pub struct Crunch {
-    api: node_runtime::RuntimeApi<DefaultNodeRuntime>,
+// trait Context {
+//     // fn to_runtime_api<R: From<Self>>(self) -> R;
+//     // Instance method signature
+//     // fn api(&self) -> &'static str;
+//     fn api(&self) -> &'static str;
+// }
+
+// pub struct PolkadotContext {
+//     pub api: polkadot::RuntimeApi<DefaultConfig>,
+// }
+
+// pub struct KusamaContext {
+//     pub api: polkadot::RuntimeApi<DefaultConfig>,
+// }
+
+// pub struct WestendContext {
+//     pub api: polkadot::RuntimeApi<DefaultConfig>,
+// }
+
+// struct Cow {}
+
+// impl Context for Cow {}
+
+// async fn test_context() -> Result<Box<dyn Context>, String> {
+//     let config = CONFIG.clone();
+//     if config.is_kusama() {
+//         let client = ClientBuilder::new()
+//             .set_url(config.substrate_ws_url)
+//             .build::<DefaultConfig>()
+//             .await?;
+//         Ok(Box::new(
+//             client.to_runtime_api::<polkadot::RuntimeApi<polkadot::DefaultConfig>>(),
+//         ))
+//     } else {
+//         Ok(Box::new(Cow {}))
+//     }
+// }
+
+fn set_default_ss58_version() {
+    let config = CONFIG.clone();
+    let ss58_version = if config.is_westend() {
+        crypto::Ss58AddressFormatRegistry::SubstrateAccount
+    } else if config.is_kusama() {
+        crypto::Ss58AddressFormatRegistry::KusamaAccount
+    } else {
+        crypto::Ss58AddressFormatRegistry::PolkadotAccount
+    }
+    .into();
+
+    crypto::set_default_ss58_version(ss58_version);
+}
+
+async fn create_substrate_node_client<C: subxt::Config>(config: Config) -> Client<C> {
+    loop {
+        let result = ClientBuilder::new()
+            .set_url(config.substrate_ws_url.clone())
+            .build::<C>()
+            .await;
+        match result {
+            Ok(client) => {
+                info!(
+                    "Connected to {} network using {} * Substrate node {} v{}",
+                    client.chain_name(),
+                    config.substrate_ws_url,
+                    client.node_name(),
+                    client.node_version()
+                );
+                break client;
+            }
+            Err(err) => {
+                error!("{}", err);
+                thread::sleep(time::Duration::from_secs(5));
+            }
+        }
+    }
+}
+
+// pub async fn polkadot_api(client: &Client<polkadot::DefaultConfig>) -> polkadot::RuntimeApi<polkadot::DefaultConfig> {
+//     client.clone().to_runtime_api()
+// }
+
+pub async fn westend_api() -> westend::RuntimeApi<westend::DefaultConfig> {
+    let client = create_substrate_node_client::<westend::DefaultConfig>(CONFIG.clone()).await;
+    client.clone().to_runtime_api()
+}
+
+pub async fn kusama_api() -> kusama::RuntimeApi<kusama::DefaultConfig> {
+    let client = create_substrate_node_client::<kusama::DefaultConfig>(CONFIG.clone()).await;
+    client.clone().to_runtime_api()
+}
+
+pub async fn polkadot_api() -> polkadot::RuntimeApi<polkadot::DefaultConfig> {
+    let client = create_substrate_node_client::<polkadot::DefaultConfig>(CONFIG.clone()).await;
+    client.clone().to_runtime_api()
+}
+
+pub struct Crunch<R: subxt::Config> {
+    // api: polkadot::RuntimeApi<DefaultConfig>,
+    // polkadot_client: Client<DefaultConfig>,
+    // kusama_client: Client<DefaultConfig>,
+    // westend_client: Client<DefaultConfig>,
+    client: Client<R>,
     matrix: Matrix,
 }
 
-impl Crunch {
-    async fn new() -> Crunch {
-        let client = create_or_await_substrate_node_client(CONFIG.clone()).await;
-        let api: node_runtime::RuntimeApi<DefaultNodeRuntime> = client.clone().to_runtime_api();
+impl<R> Crunch<R>
+where
+    R: subxt::Config,
+{
+    async fn new() -> Crunch<R> {
+        // let client = create_or_await_substrate_node_client(CONFIG.clone()).await;
 
-        let properties = client.properties();
+        // pub api: node_runtime::RuntimeApi<DefaultConfig>,
+
+        // let api: node_runtime::RuntimeApi<DefaultNodeRuntime> = client
+        //     .clone()
+        //     .to_runtime_api::<polkadot::RuntimeApi<polkadot::DefaultConfig>>();
+
+        // let properties = client.properties();
         // Display SS58 addresses based on the connected chain
-        crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
-            properties.ss58_format.into(),
-        ));
+        // crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
+        //     properties.ss58_format.into(),
+        // ));
+
+        // Display SS58 addresses based on the connected chain
+        set_default_ss58_version();
 
         // Initialize matrix client
         let mut matrix: Matrix = Matrix::new();
-        matrix
-            .authenticate(properties.ss58_format.into())
-            .await
-            .unwrap_or_else(|e| {
-                error!("{}", e);
-                Default::default()
-            });
-        Crunch { api, matrix }
+        // matrix
+        //     .authenticate(properties.ss58_format.into())
+        //     .await
+        //     .unwrap_or_else(|e| {
+        //         error!("{}", e);
+        //         Default::default()
+        //     });
+
+        let config = CONFIG.clone();
+        let a = if config.is_kusama() {
+            kusama_api().await
+        } else {
+            westend_api().await
+        };
+
+        // let polkadot_node = TestNodeProcess::<DefaultConfig>::connect().await.unwrap();
+        // .with_authority(key)
+        // .scan_for_open_ports()
+        // .spawn::<DefaultConfig>()
+        // .await;
+
+        let client = create_substrate_node_client::<R>(CONFIG.clone()).await;
+        // pub async fn polkadot_api(&self) -> polkadot::RuntimeApi<polkadot::DefaultConfig> {
+        //     let node = Node::<polkadot::DefaultConfig>::new().await;
+        //     node.client().clone().to_runtime_api()
+        // }
+        // let c = Crunch::<polkadot::DefaultConfig>::new().await;
+        // let api: polkadot::RuntimeApi<polkadot::DefaultConfig> = c.client().clone().to_runtime_api();
+
+        Self { client, matrix }
     }
 
-    pub fn client(&self) -> &Client<DefaultNodeRuntime> {
-        &self.api.client
-    }
+    
 
-    pub fn api(&self) -> &node_runtime::RuntimeApi<DefaultNodeRuntime> {
-        &self.api
+    pub fn client(&self) -> &Client<R> {
+        &self.client
     }
 
     /// Returns the matrix configuration
@@ -239,24 +383,33 @@ impl Crunch {
     }
 
     /// Spawn and restart crunch flakes task on error
-    pub fn flakes() {
-        spawn_and_restart_crunch_flakes_on_error();
-    }
+    // pub fn flakes() {
+    //     spawn_and_restart_crunch_flakes_on_error();
+    // }
 
     /// Spawn and restart subscription on error
-    pub fn subscribe() {
-        spawn_and_restart_subscription_on_error();
-    }
+    // pub fn subscribe() {
+    //     spawn_and_restart_subscription_on_error();
+    // }
 
     /// Spawn crunch view task
-    pub fn view() {
-        spawn_crunch_view();
-    }
+    // pub fn view() {
+    //     spawn_crunch_view();
+    // }
 
     async fn run_in_batch(&self) -> Result<(), CrunchError> {
-        let client = self.client();
-        let api = self.api();
+        // let client = self.client();
         let config = CONFIG.clone();
+        // let api = polkadot_api(self.client()).await;
+        // let api = if config.is_westend() {
+        //     self.client().to_runtime_api::<polkadot::RuntimeApi<polkadot::DefaultConfig>>()
+        //     // Crunch::<polkadot::DefaultConfig>::new().await
+        // } else if config.is_kusama() {
+        //     self.client().to_runtime_api::<polkadot::RuntimeApi<polkadot::DefaultConfig>>()
+        // } else {
+        //     self.client().to_runtime_api::<polkadot::RuntimeApi<polkadot::DefaultConfig>>()
+        // };
+        
         let properties = client.properties();
 
         let active_era_index = match api.storage().staking().active_era(None).await? {
@@ -278,7 +431,7 @@ impl Crunch {
             .expect("Something went wrong reading the seed file");
         let seed_account: sr25519::Pair = get_from_seed(&seed, None);
         let seed_account_signer =
-            PairSigner::<DefaultNodeRuntime, sr25519::Pair>::new(seed_account.clone());
+            PairSigner::<polkadot::DefaultConfig, sr25519::Pair>::new(seed_account.clone());
         let seed_account_id: AccountId32 = seed_account.public().into();
 
         // Get signer account identity
@@ -436,7 +589,7 @@ impl Crunch {
 
                     let p = Payout {
                         block,
-                        extrinsic: response.extrinsic,
+                        // extrinsic: response.extrinsic, //TODO
                         era_index,
                         validator_amount_value,
                         nominators_amount_value,
@@ -763,11 +916,11 @@ fn spawn_and_restart_subscription_on_error() {
     task::block_on(crunch_task);
 }
 
-fn spawn_and_restart_crunch_flakes_on_error() {
+pub fn spawn_and_restart_crunch_flakes_on_error<C: subxt::Config>() {
     let crunch_task = task::spawn(async {
         let config = CONFIG.clone();
         loop {
-            let c: Crunch = Crunch::new().await;
+            let c = Crunch::<C>::new().await;
             if let Err(e) = c.run_in_batch().await {
                 match e {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),

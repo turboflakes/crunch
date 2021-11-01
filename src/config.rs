@@ -52,6 +52,11 @@ fn default_error_interval() -> u64 {
     30
 }
 
+/// provides default value for substrate_ws_url if CRUNCH_SUBSTRATE_WS_URL env var is not set
+fn default_substrate_ws_url() -> String {
+    "ws://127.0.0.1:9944".into()
+}
+
 /// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
 fn default_seed_path() -> String {
     ".private.seed".into()
@@ -69,10 +74,12 @@ fn default_maximum_history_eras() -> u32 {
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
+    chain: String,
     #[serde(default = "default_interval")]
     pub interval: u64,
     #[serde(default = "default_error_interval")]
     pub error_interval: u64,
+    #[serde(default = "default_substrate_ws_url")]
     pub substrate_ws_url: String,
     #[serde(default = "default_seed_path")]
     pub seed_path: String,
@@ -106,6 +113,20 @@ pub struct Config {
     pub matrix_bot_display_name_disabled: bool,
 }
 
+impl Config {
+    pub fn is_westend(&self) -> bool {
+        &self.chain == "westend"
+    }
+
+    pub fn is_kusama(&self) -> bool {
+        &self.chain == "kusama"
+    }
+
+    pub fn is_polkadot(&self) -> bool {
+        &self.chain == "polkadot"
+    }
+}
+
 /// Inject dotenv and env vars into the Config struct
 fn get_config() -> Config {
     // Define CLI flags with clap
@@ -117,6 +138,7 @@ fn get_config() -> Config {
       Arg::with_name("CHAIN")
           .index(1)
           .possible_values(&["westend", "kusama", "polkadot"])
+          .default_value("polkadot")
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -331,19 +353,12 @@ fn get_config() -> Config {
         }
     }
 
-    match matches.value_of("CHAIN") {
-        Some("westend") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://westend-rpc.polkadot.io");
-        }
-        Some("kusama") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://kusama-rpc.polkadot.io");
-        }
-        Some("polkadot") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io");
-        }
-        _ => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "ws://127.0.0.1:9944");
-        }
+    if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
+        env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
+    }
+
+    if let Some(chain) = matches.value_of("CHAIN") {
+        env::set_var("CRUNCH_CHAIN", chain);
     }
 
     if let Some(seed_path) = matches.value_of("seed-path") {
@@ -352,10 +367,6 @@ fn get_config() -> Config {
 
     if let Some(stashes) = matches.value_of("stashes") {
         env::set_var("CRUNCH_STASHES", stashes);
-    }
-
-    if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
-        env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
     }
 
     match matches.subcommand() {

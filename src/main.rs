@@ -28,7 +28,7 @@ mod runtime;
 mod stats;
 
 use crate::config::CONFIG;
-use crate::crunch::Crunch;
+// use crate::crunch;
 use log::info;
 use std::env;
 
@@ -48,11 +48,18 @@ fn main() {
         env!("CARGO_PKG_DESCRIPTION")
     );
 
-    if config.only_view {
-        return Crunch::view();
+    // if config.only_view {
+    //     return Crunch::view();
+    // }
+    // if config.is_mode_era {
+    //     return Crunch::subscribe();
+    // }
+    if config.is_westend() {
+        crunch::spawn_and_restart_crunch_flakes_on_error::<runtime::westend::DefaultConfig>();
+    } else if config.is_kusama() {
+        crunch::spawn_and_restart_crunch_flakes_on_error::<runtime::kusama::DefaultConfig>();
+    } else {
+        crunch::spawn_and_restart_crunch_flakes_on_error::<runtime::polkadot::DefaultConfig>();
     }
-    if config.is_mode_era {
-        return Crunch::subscribe();
-    }
-    Crunch::flakes()
+    
 }

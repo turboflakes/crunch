@@ -196,8 +196,8 @@ impl From<RawData> for Report {
                         payout.era_index,
                         payout.block,
                         data.network.name.to_lowercase(),
-                        payout.extrinsic,
-                        payout.extrinsic.to_string()
+                        // payout.extrinsic,
+                        // payout.extrinsic.to_string()
                     ));
                 }
 
