@@ -27,11 +27,9 @@ url = "2.2.2"
 base64 = "0.13.0"
 rand = "0.8.4"
 
-# subxt = { package = "substrate-subxt", git = "https://github.com/turboflakes/substrate-subxt", branch = "develop-vnext" }
-subxt = { path = "/Users/paulo/Development/github.com/turboflakes/substrate-subxt" }
+subxt = { package = "subxt", git = "https://github.com/turboflakes/subxt", branch = "develop-vnext" }
 # Dependencies required since the changes on the new subxt package
 
-frame-metadata = "14.0.0"
 codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive", "full", "bit-vec"] }
 sp-arithmetic = { package = "sp-arithmetic", git = "https://github.com/paritytech/substrate/", branch = "polkadot-v0.9.12" }
 sp-core = { package = "sp-core", git = "https://github.com/paritytech/substrate/", branch = "polkadot-v0.9.12" }

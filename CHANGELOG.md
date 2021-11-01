@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fix substrate-subxt dependency with some panic events fixed
+- Fix loading `CRUNCH_SUBSTRATE_WS_URL` environment from `.env` file
+
 ## [0.3.0] - 2021-10-17
 
 ### Changed

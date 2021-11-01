@@ -24,9 +24,7 @@ use crate::matrix::Matrix;
 use crate::report::Report;
 use crate::runtime::{
     node_runtime,
-    node_runtime::{
-        runtime_types::pallet_identity::types::Data, staking, DefaultConfig,
-    }
+    node_runtime::{runtime_types::pallet_identity::types::Data, staking, DefaultConfig},
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -187,19 +185,6 @@ fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
         .expect("constructed from known-good static value; qed")
 }
 
-fn set_default_ss58_version(config: Config) {
-	let ss58_version = if config.is_kusama() {
-		crypto::Ss58AddressFormatRegistry::KusamaAccount
-	} else if config.is_westend() {
-		crypto::Ss58AddressFormatRegistry::SubstrateAccount
-	} else {
-		crypto::Ss58AddressFormatRegistry::PolkadotAccount
-	}
-	.into();
-
-	crypto::set_default_ss58_version(ss58_version);
-}
-
 pub struct Crunch {
     api: node_runtime::RuntimeApi<DefaultConfig>,
     matrix: Matrix,
@@ -212,7 +197,7 @@ impl Crunch {
 
         let properties = client.properties();
         // Display SS58 addresses based on the connected chain
-        crypto::set_default_ss58_version(crypto::Ss58AddressFormat::Custom(
+        crypto::set_default_ss58_version(crypto::Ss58AddressFormat::custom(
             properties.ss58_format.into(),
         ));
 
