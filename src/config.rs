@@ -342,8 +342,14 @@ fn get_config() -> Config {
             env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io");
         }
         _ => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "ws://127.0.0.1:9944");
+            if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
+                env::set_var("CRUNCH_SUBSTRATE_WS_URL", "ws://127.0.0.1:9944");
+            };
         }
+    }
+
+    if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
+        env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
     }
 
     if let Some(seed_path) = matches.value_of("seed-path") {
@@ -352,10 +358,6 @@ fn get_config() -> Config {
 
     if let Some(stashes) = matches.value_of("stashes") {
         env::set_var("CRUNCH_STASHES", stashes);
-    }
-
-    if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
-        env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
     }
 
     match matches.subcommand() {
