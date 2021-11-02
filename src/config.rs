@@ -49,7 +49,7 @@ fn default_interval() -> u64 {
 
 /// provides default value for error interval if CRUNCH_ERROR_INTERVAL env var is not set
 fn default_error_interval() -> u64 {
-    30
+    5
 }
 
 /// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
