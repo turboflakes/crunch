@@ -714,7 +714,7 @@ impl Crunch {
 
     async fn run_and_subscribe_era_payout_events(&self) -> Result<(), CrunchError> {
         // Run once before start subscription
-        // self.run_in_batch().await?;
+        self.run_in_batch().await?;
         info!("Subscribe 'EraPaid' on-chain finalized event");
         let client = self.client();
         let sub = client.rpc().subscribe_finalized_events().await?;
