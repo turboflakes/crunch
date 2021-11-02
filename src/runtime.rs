@@ -15,7 +15,7 @@
 // along with substrate-subxt.  If not, see <http://www.gnu.org/licenses/>.
 
 #[subxt::subxt(
-    runtime_metadata_path = "node_runtime.scale",
+    runtime_metadata_path = "src/node_runtime.scale",
     generated_type_derives = "Clone, Debug"
 )]
 pub mod node_runtime {}

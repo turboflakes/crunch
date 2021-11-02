@@ -24,7 +24,7 @@ use crate::matrix::Matrix;
 use crate::report::Report;
 use crate::runtime::{
     node_runtime,
-    node_runtime::{runtime_types::pallet_identity::types::Data, staking, DefaultConfig},
+    node_runtime::{runtime_types::pallet_identity::types::Data, DefaultConfig},
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -371,7 +371,7 @@ impl Crunch {
                             ..
                         } if pallet == "Staking" && variant == "PayoutStarted" => {
                             let event_decoded =
-                                staking::events::PayoutStarted::decode(&mut &data[..])?;
+                                node_runtime::staking::events::PayoutStarted::decode(&mut &data[..])?;
                             debug!("{:?}", event_decoded);
                             let validator_index_ref =
                                 &mut validators.iter().position(|v| v.stash == event_decoded.1);
@@ -386,7 +386,7 @@ impl Crunch {
                             data,
                             ..
                         } if pallet == "Staking" && variant == "Rewarded" => {
-                            let event_decoded = staking::events::Rewarded::decode(&mut &data[..])?;
+                            let event_decoded = node_runtime::staking::events::Rewarded::decode(&mut &data[..])?;
                             debug!("{:?}", event_decoded);
                             if event_decoded.0 == stash {
                                 validator_amount_value = event_decoded.1;
@@ -714,16 +714,16 @@ impl Crunch {
 
     async fn run_and_subscribe_era_payout_events(&self) -> Result<(), CrunchError> {
         // Run once before start subscription
-        self.run_in_batch().await?;
+        // self.run_in_batch().await?;
         info!("Subscribe 'EraPaid' on-chain finalized event");
         let client = self.client();
         let sub = client.rpc().subscribe_finalized_events().await?;
         let decoder = client.events_decoder();
         let mut sub = EventSubscription::<DefaultConfig>::new(sub, &decoder);
-        sub.filter_event::<staking::events::EraPaid>();
+        sub.filter_event::<node_runtime::staking::events::EraPaid>();
         while let Some(result) = sub.next().await {
             if let Ok(raw) = result {
-                match staking::events::PayoutStarted::decode(&mut &raw.data[..]) {
+                match node_runtime::staking::events::EraPaid::decode(&mut &raw.data[..]) {
                     Ok(event) => {
                         info!("Successfully decoded event {:?}", event);
                         self.run_in_batch().await?;
