@@ -35,7 +35,7 @@ use std::env;
 fn main() {
     let config = CONFIG.clone();
     if config.is_debug {
-        env::set_var("RUST_LOG", "crunch=debug,substrate_subxt=debug");
+        env::set_var("RUST_LOG", "crunch=debug,subxt=debug");
     } else {
         env::set_var("RUST_LOG", "crunch=info");
     }
