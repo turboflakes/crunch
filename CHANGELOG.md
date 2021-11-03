@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2021-11-03
+
 ### Changed
 
-- Fix substrate-subxt dependency with some panic events fixed
+- Update substrate-subxt dependency. Subscription to `EraPaid` event should now run as expected without panic events every session.
 - Fix loading `CRUNCH_SUBSTRATE_WS_URL` environment from `.env` file
+- Default `error-interval` time reduced to 5 min
+- Note: Batch calls are still not supported on this version
 
 ## [0.3.0] - 2021-10-17
 
