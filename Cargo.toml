@@ -27,7 +27,7 @@ url = "2.2.2"
 base64 = "0.13.0"
 rand = "0.8.4"
 
-subxt = { package = "subxt", git = "https://github.com/turboflakes/subxt", rev = "cc4eb65" }
+subxt = { package = "subxt", git = "https://github.com/turboflakes/subxt", rev = "6e60b25" }
 # Dependencies required since the changes on the new subxt package
 
 codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive", "full", "bit-vec"] }

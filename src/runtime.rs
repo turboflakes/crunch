@@ -16,6 +16,6 @@
 
 #[subxt::subxt(
     runtime_metadata_path = "src/node_runtime.scale",
-    generated_type_derives = "Clone, Debug"
+    generated_type_derives = "Clone, Debug, PartialEq"
 )]
 pub mod node_runtime {}
