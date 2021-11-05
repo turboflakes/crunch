@@ -8,7 +8,7 @@
 
 ## Why use `crunch`
 
-To claim payout of staking rewards for just one or a list of Validators at the end of each Era or every X hours.
+To claim staking rewards for just one or a list of Validators at the end of each Era or every X hours.
 
 To get notified about the amount and rate of the total staking rewards each Validator and their Nominators got
 
