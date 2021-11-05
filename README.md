@@ -4,11 +4,11 @@
   <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-github-header.png?raw=true">
 </p>
 
-`crunch` is a command-line interface (CLI) to claim staking rewards on Substrate-based chains at the end of each Era.
+`crunch` is a command-line interface (CLI) to easily automate payouts of staking rewards on Substrate-based chains.
 
 ## Why use `crunch`
 
-To automate payout of staking rewards for just one or a list of Validators at the end of each Era or every X hours.
+To claim payout of staking rewards for just one or a list of Validators at the end of each Era or every X hours.
 
 To get notified about the amount and rate of the total staking rewards each Validator and their Nominators got
 
