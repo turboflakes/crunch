@@ -141,20 +141,20 @@ If all has been set as previously described `crunch` should be ready with just t
 
 ```bash
 #!/bin/bash
-# and than simple run crunch with default options to connect to your local node
-crunch flakes
-# or specify directly which network crunch will try to connect
-crunch westend flakes
-# or for Kusama network and claiming rewards every 6 hours
-crunch kusama flakes turbo
-# or for Polkadot network and claiming rewards once a day
-crunch polkadot flakes daily
-# or run crunch a bit more boring for Westend network
-crunch westend rewards turbo
-# or for Kusama network and claiming rewards once a day
-crunch kusama rewards daily
-# or for Polkadot network and claiming rewards once a day
+# if running a local node than simple run crunch with default options
+# by default crunch will try to connect to ws://localhost:9944
+# and claim staking rewards as soon as the current era finishes
+crunch rewards
+# or be specific to which network crunch will try to connect
+crunch kusama rewards
+# or for Polkadot network and claiming rewards once a day at a specific time
 crunch polkadot rewards daily
+# or for Westend network and claiming rewards every 6 hours at a specific time
+crunch westend rewards turbo
+# or try flakes just for fun :)
+crunch flakes
+# to list all options try help
+crunch help
 ```
 
 If you need more customization run help to check all sub commands, flags and options.
