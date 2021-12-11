@@ -88,7 +88,7 @@ vi ~/crunch-bot/.private.seed
 
 ## Example configuration of systemd service
 
-Good idea is to run the tool as a systemd service, example configuration:
+Good idea is to run the tool as a `systemd` service, example configuration:
 
 ```bash
 [Unit]
