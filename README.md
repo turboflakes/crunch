@@ -25,24 +25,24 @@ For Nominators in private or public rooms check their chosen Validators rewards 
 ```bash
 #!/bin/bash
 # create `crunch-bot` directory
-mkdir ~/crunch-bot
+mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P ~/crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.3.2/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.3.2/crunch
 # make `crunch` binary file executable
-chmod +x ~/crunch-bot/crunch
+chmod +x /crunch-bot/crunch
 ```
 
 Note: Alternatively download [`crunch-update.sh`](https://github.com/turboflakes/crunch/blob/main/crunch-update.sh) bash script file and make it executable. Easier installation and faster updates.
 
 ## Configuration
 
-Create a configuration file `.env` inside `crunch-bot` folder and copy the default variables from [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example) (Note: `.env` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch --config-path ~/crunch-bot/config_kusama.env` )
+Create a configuration file `.env` inside `crunch-bot` folder and copy the default variables from [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example) (Note: `.env` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch --config-path /crunch-bot/config_kusama.env` )
 
 ```bash
 #!/bin/bash
 # create/open a file with a file editor (Vim in this case) and add/change the configuration
 # variables with your own personal values
-vi ~/crunch-bot/.env
+vi /crunch-bot/.env
 # when ready write and quit (:wq!)
 ```
 
@@ -82,20 +82,20 @@ Create a seed private file `.private.seed` inside `crunch-bot` folder and write 
 #!/bin/bash
 # create a file with a file editor (Vim in this case) and write the private seed phrase 
 # of the account responsible to sign the extrinsic payout call
-vi ~/crunch-bot/.private.seed
+vi /crunch-bot/.private.seed
 # when ready write and quit (:wq!)
 ```
 
-## Example configuration of systemd service
+### Configuration of _systemd_ service
 
-Good idea is to run the tool as a `systemd` service, example configuration:
+A good idea is to run the tool as a `systemd` service. Based on the previous path configuration, here is an example for reference:
 
 ```bash
 [Unit]
-Description=Kusama Autopayout
+Description=Kusama Crunch Bot
 
 [Service]
-ExecStart=/home/towa/crunch-bot/crunch --config-path /home/towa/crunch-bot/.env rewards era --seed-path '/home/towa/crunch-bot/.private.seed' --disable-matrix
+ExecStart=/crunch-bot/crunch --config-path /crunch-bot/.env rewards era --seed-path '/crunch-bot/.private.seed'
 Restart=always
 RestartSec=15
 
@@ -141,12 +141,12 @@ Join and read the messages history of all the Public Rooms for which **Crunch Bo
 
 ## Usage
 
-If you have been doing `crunch` configuration as described in previous steps (assuming `.env` and `.private.seed` defined inside `~/crunch-bot` folder), run `crunch` when `~/crunch-bot` folder is your current working directory. Otherwise you will have to specify `.env` and `.private.seed` custom paths.
+If you have been doing `crunch` configuration as described in previous steps (assuming `.env` and `.private.seed` defined inside `/crunch-bot` folder), run `crunch` when `/crunch-bot` folder is your current working directory. Otherwise you will have to specify `.env` and `.private.seed` custom paths.
 
 ```bash
 #!/bin/bash
-# set ~/crunch-bot your current working directory
-cd ~/crunch-bot
+# set /crunch-bot your current working directory
+cd /crunch-bot
 ```
 
 By default `crunch` tries to connect to your local substrate node on the default websocket port `ws://127.0.0.1:9944`. This can be changed by typing one of polkadot main chains - westend, kusama or polkadot. Or by changing the substrate websocket url with the option `--substrate-ws-url`.
