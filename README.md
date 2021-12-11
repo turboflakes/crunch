@@ -86,6 +86,24 @@ vi ~/crunch-bot/.private.seed
 # when ready write and quit (:wq!)
 ```
 
+## Example configuration of systemd service
+
+Good idea is to run the tool as a systemd service, example configuration:
+
+```bash
+[Unit]
+Description=Kusama Autopayout
+
+[Service]
+ExecStart=/home/towa/crunch-bot/crunch --config-path /home/towa/crunch-bot/.env rewards era --seed-path '/home/towa/crunch-bot/.private.seed' --disable-matrix
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
+
+```
+
 ### Crunch Bot ([Matrix](https://matrix.org/))
 
 If you set up `crunch` on your server with a matrix user 👉  you get your own **Crunch Bot**.
