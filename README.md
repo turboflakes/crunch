@@ -95,7 +95,7 @@ A good idea is to run the tool as a `systemd` service. Based on the previous pat
 Description=Kusama Crunch Bot
 
 [Service]
-ExecStart=/crunch-bot/crunch --config-path /crunch-bot/.env rewards era --seed-path '/crunch-bot/.private.seed'
+ExecStart=/crunch-bot/crunch --config-path /crunch-bot/.env rewards era --seed-path /crunch-bot/.private.seed
 Restart=always
 RestartSec=15
 
