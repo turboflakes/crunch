@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Changed single payouts for batch calls
+- Update `subxt` dependency to revision `41bd8cc`
 
 ### Added
 
