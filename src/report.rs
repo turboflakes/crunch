@@ -19,9 +19,81 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 use crate::config::CONFIG;
-use crate::crunch::RawData;
 use log::{info, warn};
 use rand::Rng;
+use subxt::{sp_core::H256, sp_runtime::AccountId32};
+
+pub type EraIndex = u32;
+
+#[derive(Debug)]
+pub struct Points {
+    pub validator: u32,
+    pub era_avg: f64,
+    pub ci99_9_interval: (f64, f64),
+    pub outlier_limits: (f64, f64),
+}
+
+#[derive(Debug)]
+pub struct Payout {
+    pub block_number: u32,
+    pub extrinsic: H256,
+    pub era_index: u32,
+    pub validator_amount_value: u128,
+    pub nominators_amount_value: u128,
+    pub nominators_quantity: u32,
+    pub points: Points,
+}
+
+#[derive(Debug)]
+pub struct Validator {
+    pub stash: AccountId32,
+    pub controller: Option<AccountId32>,
+    pub name: String,
+    pub is_active: bool,
+    pub claimed: Vec<EraIndex>,
+    pub unclaimed: Vec<EraIndex>,
+    pub payouts: Vec<Payout>,
+    pub warnings: Vec<String>,
+}
+
+impl Validator {
+    pub fn new(stash: AccountId32) -> Validator {
+        Validator {
+            stash,
+            controller: None,
+            name: "".to_string(),
+            is_active: false,
+            claimed: Vec::new(),
+            unclaimed: Vec::new(),
+            payouts: Vec::new(),
+            warnings: Vec::new(),
+        }
+    }
+}
+
+pub type Validators = Vec<Validator>;
+
+#[derive(Debug)]
+pub struct Signer {
+    pub account: AccountId32,
+    pub name: String,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct Network {
+    pub active_era: EraIndex,
+    pub name: String,
+    pub token_symbol: String,
+    pub token_decimals: u8,
+}
+
+#[derive(Debug)]
+pub struct RawData {
+    pub network: Network,
+    pub signer: Signer,
+    pub validators: Validators,
+}
 
 type Body = Vec<String>;
 
@@ -194,7 +266,7 @@ impl From<RawData> for Report {
                         "💯 Payout for era <del>{}</del> finalized at block #{} 
                         (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
                         payout.era_index,
-                        payout.block,
+                        payout.block_number,
                         data.network.name.to_lowercase(),
                         payout.extrinsic,
                         payout.extrinsic.to_string()

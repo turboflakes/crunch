@@ -67,6 +67,11 @@ fn default_maximum_history_eras() -> u32 {
     4
 }
 
+/// provides default value for maximum_calls if CRUNCH_MAXIMUM_CALLS env var is not set
+fn default_maximum_calls() -> u32 {
+    8
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     #[serde(default = "default_interval")]
@@ -81,6 +86,8 @@ pub struct Config {
     pub maximum_payouts: u32,
     #[serde(default = "default_maximum_history_eras")]
     pub maximum_history_eras: u32,
+    #[serde(default = "default_maximum_calls")]
+    pub maximum_calls: u32,
     #[serde(default)]
     pub only_view: bool,
     #[serde(default)]
@@ -153,6 +160,11 @@ fn get_config() -> Config {
               .long("maximum-history-eras")
               .takes_value(true)
               .help("Maximum number of history eras for which crunch will look for unclaimed rewards. The maximum value supported is the one defined by the constant history_depth - usually 84 - (e.g. a value of 4 means that crunch will only check in latest 4 eras if there are any unclaimed rewards for each stash address). [default: 4]"))
+      .arg(
+        Arg::with_name("maximum-calls")
+              .long("maximum-calls")
+              .takes_value(true)
+              .help("Maximum number of calls in a single batch. [default: 8]"))
       .arg(
         Arg::with_name("debug")
           .long("debug")
@@ -235,6 +247,11 @@ fn get_config() -> Config {
               .long("maximum-history-eras")
               .takes_value(true)
               .help("Maximum number of history eras for which crunch will look for unclaimed rewards. The maximum value supported is the one defined by the constant history_depth - usually 84 - (e.g. a value of 4 means that crunch will only check in latest 4 eras if there are any unclaimed rewards for each stash address). [default: 4]"))
+      .arg(
+        Arg::with_name("maximum-calls")
+              .long("maximum-calls")
+              .takes_value(true)
+              .help("Maximum number of calls in a single batch. [default: 8]"))
       .arg(
         Arg::with_name("debug")
           .long("debug")
@@ -385,6 +402,10 @@ fn get_config() -> Config {
 
             if let Some(maximum_history_eras) = flakes_matches.value_of("maximum-history-eras") {
                 env::set_var("CRUNCH_MAXIMUM_HISTORY_ERAS", maximum_history_eras);
+            }
+
+            if let Some(maximum_calls) = flakes_matches.value_of("maximum-calls") {
+                env::set_var("CRUNCH_MAXIMUM_CALLS", maximum_calls);
             }
 
             if flakes_matches.is_present("debug") {

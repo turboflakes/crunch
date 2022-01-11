@@ -19,40 +19,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-mod config;
-mod crunch;
-mod errors;
-mod matrix;
-mod report;
-mod runtimes;
-mod stats;
+pub type ChainPrefix = u16;
 
-use crate::config::CONFIG;
-use crate::crunch::Crunch;
-use log::info;
-use std::env;
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SupportedRuntime {
+    Polkadot,
+    Kusama,
+    Westend,
+}
 
-fn main() {
-    let config = CONFIG.clone();
-    if config.is_debug {
-        env::set_var("RUST_LOG", "crunch=debug,subxt=debug");
-    } else {
-        env::set_var("RUST_LOG", "crunch=info");
+impl From<ChainPrefix> for SupportedRuntime {
+    fn from(v: ChainPrefix) -> Self {
+        match v {
+            0 => Self::Polkadot,
+            2 => Self::Kusama,
+            42 => Self::Westend,
+            _ => unimplemented!("Chain prefix not supported"),
+        }
     }
-    env_logger::try_init().unwrap_or_default();
+}
 
-    info!(
-        "{} v{} * {}",
-        env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION"),
-        env!("CARGO_PKG_DESCRIPTION")
-    );
-
-    // if config.only_view {
-    //     return Crunch::view();
-    // }
-    if config.is_mode_era {
-        return Crunch::subscribe();
+impl std::fmt::Display for SupportedRuntime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Polkadot => write!(f, "Polkadot"),
+            Self::Kusama => write!(f, "Kusama"),
+            Self::Westend => write!(f, "Westend"),
+        }
     }
-    // Crunch::flakes()
 }

@@ -19,40 +19,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-mod config;
-mod crunch;
-mod errors;
-mod matrix;
-mod report;
-mod runtimes;
-mod stats;
+#![allow(clippy::all)]
 
-use crate::config::CONFIG;
-use crate::crunch::Crunch;
-use log::info;
-use std::env;
-
-fn main() {
-    let config = CONFIG.clone();
-    if config.is_debug {
-        env::set_var("RUST_LOG", "crunch=debug,subxt=debug");
-    } else {
-        env::set_var("RUST_LOG", "crunch=info");
-    }
-    env_logger::try_init().unwrap_or_default();
-
-    info!(
-        "{} v{} * {}",
-        env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION"),
-        env!("CARGO_PKG_DESCRIPTION")
-    );
-
-    // if config.only_view {
-    //     return Crunch::view();
-    // }
-    if config.is_mode_era {
-        return Crunch::subscribe();
-    }
-    // Crunch::flakes()
-}
+// pub mod kusama;
+// pub mod polkadot;
+pub mod support;
+pub mod westend;
