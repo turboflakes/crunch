@@ -146,7 +146,7 @@ Join and read the messages history of all the Public Rooms for which **Crunch Bo
 
 ### Crunch Bot messages
 
-![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/westend-crunch-bot.png?raw=true)
+![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/kusama-crunch-bot.png?raw=true)
 
 ## Usage
 
