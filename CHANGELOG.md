@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2022-01-11
+
+### Changed
+
+- Changed single payouts for batch calls
+
+### Added
+
+- Add `maximum-calls` flag with default value of 8. By default `crunch` collects all the outstanding payouts from previous eras and group all the extrinsic payout calls in group of 8 (or whatever value defined by this flag) so that a single batch call per group can be made. Using batch calls rather than single payouts we could expect a significant drop in transaction fees and a significat increase on `crunch` performance.
+
+### Changed
+
 ## [0.3.2] - 2021-11-03
 
 ### Changed

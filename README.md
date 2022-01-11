@@ -238,13 +238,15 @@ ARGS:
               hours) [default: era]  [possible values: era, daily, turbo]
 ```
 
-Also if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`
+Note: By default `crunch` collects the outstanding payouts from previous eras and group all the extrinsic payout calls in group of 8 or whatever value defined in the flag `maximum-calls` so that a single batch call per group can be made. The collection of all outstanding payouts from previous eras is also limited by 2 other flags. The first being `maximum-payouts` which default value is 4, this flag limits the number of payouts **per stash**. The other one is the `maximum-history-eras` which default is also 4, this flag limits the number of past eras `crunch` will look for unclaimed rewards - but this flag only applies if `short` flag is also used in the configuration. This is done so that `crunch` can run efficiently every era.
+
+With that said, if it's the **first time** you are running `crunch` and you are not sure if you have any unclaimed rewards or if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`.
 
 Note: This option only logs information on the terminal
 
 ```bash
 #!/bin/bash
-# run crunch for Westend network and claiming rewards every 6 hours
+# log unclaimed rewards for Westend network 
 crunch westend view
 # or for Kusama network
 crunch kusama view
