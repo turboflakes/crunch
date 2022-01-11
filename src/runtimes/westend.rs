@@ -73,7 +73,7 @@ pub async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), Cr
     Err(CrunchError::SubscriptionFinished)
 }
 
-async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
+pub async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
     let client = crunch.client();
     let api = client.clone().to_runtime_api::<WestendApi>();
     let properties = client.properties();
@@ -583,4 +583,66 @@ fn parse_identity_data(data: api::runtime_types::pallet_identity::types::Data) -
 
 fn str(bytes: Vec<u8>) -> String {
     format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
+}
+
+pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
+    let client = crunch.client();
+    let api = client.clone().to_runtime_api::<WestendApi>();
+    let config = CONFIG.clone();
+
+    info!("Inspect stashes -> {}", config.stashes.join(","));
+    let history_depth: u32 = api.storage().staking().history_depth(None).await?;
+    let active_era_index = match api.storage().staking().active_era(None).await? {
+        Some(active_era_info) => active_era_info.index,
+        None => return Err(CrunchError::Other("Active era not available".into())),
+    };
+    for stash_str in config.stashes.iter() {
+        let stash = AccountId32::from_str(stash_str)?;
+        info!("{} * Stash account", stash);
+
+        let start_index = active_era_index - history_depth;
+        let mut unclaimed: Vec<u32> = Vec::new();
+        let mut claimed: Vec<u32> = Vec::new();
+
+        if let Some(controller) = api.storage().staking().bonded(stash.clone(), None).await? {
+            if let Some(ledger_response) = api
+                .storage()
+                .staking()
+                .ledger(controller.clone(), None)
+                .await?
+            {
+                // Find unclaimed eras in previous 84 eras
+                for era_index in start_index..active_era_index {
+                    // If reward was already claimed skip it
+                    if ledger_response.claimed_rewards.contains(&era_index) {
+                        claimed.push(era_index);
+                        continue;
+                    }
+                    // Verify if stash was active in set
+                    let exposure = api
+                        .storage()
+                        .staking()
+                        .eras_stakers(era_index, stash.clone(), None)
+                        .await?;
+                    if exposure.total > 0 {
+                        unclaimed.push(era_index)
+                    }
+                }
+            }
+        }
+        info!(
+            "{} claimed eras in the last {} -> {:?}",
+            claimed.len(),
+            history_depth,
+            claimed
+        );
+        info!(
+            "{} unclaimed eras in the last {} -> {:?}",
+            unclaimed.len(),
+            history_depth,
+            unclaimed
+        );
+    }
+    info!("Job done!");
+    Ok(())
 }
