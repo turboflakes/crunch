@@ -1,6 +1,6 @@
 [package]
 name = "crunch"
-version = "0.4.0-rc2"
+version = "0.4.0"
 authors = ["Paulo <paulo@turboflakes.com>"]
 description = "Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains" 
 edition = "2018"
