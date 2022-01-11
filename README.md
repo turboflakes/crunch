@@ -66,6 +66,15 @@ CRUNCH_STASHES=5GTD7ZeD823BjpmZBCSzBQp7cvHR1Gunq7oDkurZr9zUev2n
 # 84 the maximum unclaimed payout calls for each stash address will be 4). [default: 4]
 CRUNCH_MAXIMUM_PAYOUTS=4
 #
+# [CRUNCH_MAXIMUM_HISTORY_ERAS] Maximum number of history eras for which crunch will look for 
+# unclaimed rewards. The maximum value supported is the one defined by constant history_depth
+# (e.g. a value of 4 means that crunch will only check in the latest 4 eras if there are any 
+# unclaimed rewards for each stash address). [default: 4]
+CRUNCH_MAXIMUM_HISTORY_ERAS=4
+#
+# [CRUNCH_MAXIMUM_CALLS] Maximum number of calls in a single batch. [default: 8]
+CRUNCH_MAXIMUM_CALLS=8
+#
 # [CRUNCH_SEED_PATH] File path containing the private seed phrase to Sign the extrinsic 
 # payout call. [default: .private.seed]
 #CRUNCH_SEED_PATH=.private.seed.example
@@ -223,6 +232,7 @@ OPTIONS:
         --matrix-user <matrix-user>
             Your regular matrix user. e.g. '@your-regular-matrix-account:matrix.org' this user account will receive
             notifications from your other 'Crunch Bot' matrix account.
+        --maximum-calls <maximum-calls>                  Maximum number of calls in a single batch. [default: 8]
     -m, --maximum-payouts <maximum-payouts>
             Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means
             that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address
@@ -326,16 +336,14 @@ Any feedback is welcome.
 
 ## About
 
-`crunch` was made by <a href="https://turboflakes.com" target="_blank">TurboFlakes</a>.
+`crunch` was made by <a href="https://turboflakes.io" target="_blank">TurboFlakes</a>.
 
 TurboFlakes is also an independent validator in the Kusama Network and eligible in the Kusama's Thousand Validators Programme, aka <a href="https://thousand-validators.kusama.network/#/leaderboard/FZsMKYHoQG1dAVhXBMyC7aYFYpASoBrrMYsAn1gJJUAueZX" target="_blank" rel="noreferrer">1KV</a>.
 
-If you like this project ✌️ Share our work and support us with your nomination or tip ✨💙
-
-- **Polkadot**: 12gPFmRqnsDhc9C5DuXyXBFA23io5fSGtKTSAimQtAWgueD2
-- **Kusama**: FZsMKYHoQG1dAVhXBMyC7aYFYpASoBrrMYsAn1gJJUAueZX
-
-You could also Star the Github project :)
+If you like this project 💯  
+  - 🚀 Share our work 
+  - ✌️ Visit us at <a href="https://turboflakes.io" target="_blank" rel="noreferrer">turboflakes.io</a>
+  - ✨ Or you could also star the Github project :)
 
 ### License
 
