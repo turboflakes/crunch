@@ -16,7 +16,7 @@ clap = "2.33"
 lazy_static = "1.4"
 derive_more = "0.99"
 async-std = { version = "1.9.0", features = ["attributes", "tokio1"] }
-async-recursion = "0.4.0-rc1"
+async-recursion = "0.3.2"
 serde = "1"
 serde_json = "1.0.68"
 thiserror = "^1.0.24"
