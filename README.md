@@ -27,7 +27,7 @@ For Nominators in private or public rooms check their chosen Validators rewards 
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.3.2/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.4.1/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
@@ -320,6 +320,23 @@ Otherwise, recompile the code on changes and run the binary
 cargo watch -x 'run --bin crunch'
 ```
 
+### Downloading metadata from a Substrate node
+
+Use the [`subxt-cli`](./cli) tool to download the metadata for your target runtime from a node.
+
+Install
+```bash
+cargo install subxt-cli
+```
+Save the encoded metadata to a file
+```bash
+subxt metadata --url https://westend-rpc.polkadot.io  -f bytes > westend_metadata.scale
+```
+(Optional) Generate runtime API client code from metadata
+```bash
+subxt codegen --url https://westend-rpc.polkadot.io | rustfmt --edition=2018 --emit=stdout > westend_runtime.rs
+```
+
 ## Inspiration
 
 Similar projects that had influence in crunch design.
@@ -336,9 +353,7 @@ Any feedback is welcome.
 
 ## About
 
-`crunch` was made by <a href="https://turboflakes.io" target="_blank">TurboFlakes</a>.
-
-TurboFlakes is also an independent validator in the Kusama Network and eligible in the Kusama's Thousand Validators Programme, aka <a href="https://thousand-validators.kusama.network/#/leaderboard/FZsMKYHoQG1dAVhXBMyC7aYFYpASoBrrMYsAn1gJJUAueZX" target="_blank" rel="noreferrer">1KV</a>.
+`crunch` was made by **TurboFlakes**. Visit us at <a href="https://turboflakes.io" target="_blank" rel="noreferrer">turboflakes.io</a> to know more about our work.
 
 If you like this project 💯  
   - 🚀 Share our work 
