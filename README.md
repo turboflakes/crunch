@@ -1,7 +1,7 @@
 # crunch &middot; ![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)
 
 <p align="center">
-  <img src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-github-header.png?raw=true">
+  <img src="https://github.com/turboflakes/crunch/blob/main/assets/crunchbot-github-header.png?raw=true">
 </p>
 
 `crunch` is a command-line interface (CLI) to easily automate payouts of staking rewards on Substrate-based chains.
@@ -126,19 +126,19 @@ Join and read the messages history of all the Public Rooms for which **Crunch Bo
 <table style="width:100%;" cellspacing="0" cellpadding="0">
   <tr>
     <td style="width: 100px;">
-        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-westend-room-128.png?raw=true" />
+        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/main/assets/crunchbot-westend-room-128.png?raw=true" />
     </td>
     <td><a href="https://matrix.to/#/%23westend-crunch-bot:matrix.org" target="_blank">Westend Crunch Bot (Public)</a></td>
   </tr>
   <tr>
     <td style="width: 100px;">
-        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-kusama-room-128.png?raw=true" />
+        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/main/assets/crunchbot-kusama-room-128.png?raw=true" />
     </td>
     <td><a href="https://matrix.to/#/%23kusama-crunch-bot:matrix.org" target="_blank">Kusama Crunch Bot (Public)</a></td>
   </tr>
   <tr>
     <td style="width: 100px;">
-        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/assets/crunchbot-polkadot-room-128.png?raw=true" />
+        <img style="width: 80px;" src="https://github.com/turboflakes/crunch/blob/main/assets/crunchbot-polkadot-room-128.png?raw=true" />
     </td>
     <td><a href="https://matrix.to/#/%23polkadot-crunch-bot:matrix.org" target="_blank">Polkadot Crunch Bot (Public)</a></td>
   </tr>
@@ -146,7 +146,7 @@ Join and read the messages history of all the Public Rooms for which **Crunch Bo
 
 ### Crunch Bot messages
 
-![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/assets/kusama-crunch-bot.png?raw=true)
+![crunch bot notification messages example](https://github.com/turboflakes/crunch/blob/main/assets/matrix-example-512.png?raw=true)
 
 ## Usage
 
