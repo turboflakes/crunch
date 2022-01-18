@@ -355,10 +355,15 @@ Any feedback is welcome.
 
 `crunch` was made by **TurboFlakes**. Visit us at <a href="https://turboflakes.io" target="_blank" rel="noreferrer">turboflakes.io</a> to know more about our work.
 
-If you like this project 💯  
+If you like this project
   - 🚀 Share our work 
   - ✌️ Visit us at <a href="https://turboflakes.io" target="_blank" rel="noreferrer">turboflakes.io</a>
   - ✨ Or you could also star the Github project :)
+
+Tips are welcome
+
+- Polkadot 14Sqrs7dk6gmSiuPK7VWGbPmGr4EfESzZBcpT6U15W4ajJRf (turboflakes.io)
+- Kusama H1tAQMm3eizGcmpAhL9aA9gR844kZpQfkU7pkmMiLx9jSzE (turboflakes.io)
 
 ### License
 
