@@ -222,9 +222,9 @@ FLAGS:
 
 OPTIONS:
         --error-interval <error-interval>
-            Interval value (in minutes) from which 'crunch' will restart again in case of a critical error. [default:
-            30]
-        --matrix-bot-password <matrix-bot-password>    Password for the 'Crunch Bot' matrix user sign in.
+            Interval value (in minutes) from which 'crunch' will restart again in case of a critical error.
+
+        --matrix-bot-password <matrix-bot-password>      Password for the 'Crunch Bot' matrix user sign in.
         --matrix-bot-user <matrix-bot-user>
             Your new 'Crunch Bot' matrix user. e.g. '@your-own-crunch-bot-account:matrix.org' this user account will be
             your 'Crunch Bot' which will be responsible to send messages/notifications to your private or public 'Crunch
@@ -233,13 +233,17 @@ OPTIONS:
             Your regular matrix user. e.g. '@your-regular-matrix-account:matrix.org' this user account will receive
             notifications from your other 'Crunch Bot' matrix account.
         --maximum-calls <maximum-calls>                  Maximum number of calls in a single batch. [default: 8]
+        --maximum-history-eras <maximum-history-eras>
+            Maximum number of history eras for which crunch will look for unclaimed rewards. The maximum value supported
+            is the one defined by the constant history_depth - usually 84 - (e.g. a value of 4 means that crunch will
+            only check in latest 4 eras if there are any unclaimed rewards for each stash address). [default: 4]
     -m, --maximum-payouts <maximum-payouts>
             Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means
             that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address
-            will be 4). [default: 4]
+            will be 4).
     -f, --seed-path <FILE>
             Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout
-            call. [default: .private.seed]
+            call.
 
 ARGS:
     <MODE>    Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets
