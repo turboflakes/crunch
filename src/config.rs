@@ -350,13 +350,13 @@ fn get_config() -> Config {
 
     match matches.value_of("CHAIN") {
         Some("westend") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://westend-rpc.polkadot.io");
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://westend-rpc.polkadot.io:443");
         }
         Some("kusama") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://kusama-rpc.polkadot.io");
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://kusama-rpc.polkadot.io:443");
         }
         Some("polkadot") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io");
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io:443");
         }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
