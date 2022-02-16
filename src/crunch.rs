@@ -28,6 +28,7 @@ use crate::runtimes::{
 };
 use async_std::task;
 use log::{error, info, warn};
+use rand::Rng;
 use regex::Regex;
 use std::{convert::TryInto, result::Result, thread, time};
 
@@ -204,9 +205,9 @@ impl Crunch {
 
     async fn try_run_batch(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => polkadot::try_run_batch(self).await,
-            SupportedRuntime::Kusama => kusama::try_run_batch(self).await,
-            SupportedRuntime::Westend => westend::try_run_batch(self).await,
+            SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
+            SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
+            SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
         }
     }
 
@@ -276,4 +277,9 @@ fn spawn_crunch_view() {
         };
     });
     task::block_on(crunch_task);
+}
+
+pub fn random_wait(max: u64) -> u64 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(0..max)
 }

@@ -20,7 +20,9 @@
 // SOFTWARE.
 
 use crate::config::CONFIG;
-use crate::crunch::{get_from_seed, Crunch, NominatorsAmount, ValidatorAmount, ValidatorIndex};
+use crate::crunch::{
+    get_from_seed, random_wait, Crunch, NominatorsAmount, ValidatorAmount, ValidatorIndex,
+};
 use crate::errors::CrunchError;
 use crate::report::{
     EraIndex, Network, Payout, Points, RawData, Report, Signer, Validator, Validators,
@@ -28,9 +30,10 @@ use crate::report::{
 use crate::stats;
 use async_recursion::async_recursion;
 use codec::Decode;
-use log::{debug, info};
-use std::{cmp, convert::TryInto, fs};
-use std::{result::Result, str::FromStr};
+use log::{debug, info, warn};
+use std::{
+    cmp, convert::TryFrom, convert::TryInto, fs, result::Result, str::FromStr, thread, time,
+};
 use subxt::{
     sp_core::{sr25519, Pair as PairT},
     sp_runtime::AccountId32,
@@ -51,7 +54,7 @@ type StakingCall = api::runtime_types::pallet_staking::pallet::pallet::Call;
 pub async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), CrunchError> {
     info!("Inspect and `crunch` unclaimed payout rewards");
     // Run once before start subscription
-    try_run_batch(&crunch).await?;
+    try_run_batch(&crunch, None).await?;
     info!("Subscribe 'EraPaid' on-chain finalized event");
     let client = crunch.client().clone();
     let sub = client.rpc().subscribe_finalized_events().await?;
@@ -63,7 +66,10 @@ pub async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), Cr
             match api::staking::events::EraPaid::decode(&mut &raw.data[..]) {
                 Ok(event) => {
                     info!("Successfully decoded event {:?}", event);
-                    try_run_batch(&crunch).await?;
+                    let wait: u64 = random_wait(120);
+                    info!("Waiting {} seconds before run batch", wait);
+                    thread::sleep(time::Duration::from_secs(wait));
+                    try_run_batch(&crunch, None).await?;
                 }
                 Err(e) => return Err(CrunchError::CodecError(e)),
             }
@@ -73,7 +79,20 @@ pub async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), Cr
     Err(CrunchError::SubscriptionFinished)
 }
 
-pub async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
+#[async_recursion]
+pub async fn try_run_batch(crunch: &Crunch, next_attempt: Option<u8>) -> Result<(), CrunchError> {
+    // Skip run if it's the 3rd or more attempt
+    let mut attempt = match next_attempt {
+        Some(na) => {
+            if na >= 3 {
+                return Ok(());
+            } else {
+                next_attempt
+            }
+        }
+        _ => None,
+    };
+    //
     let client = crunch.client();
     let api = client.clone().to_runtime_api::<WestendApi>();
     let properties = client.properties();
@@ -209,10 +228,12 @@ pub async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
                     call_start_index, call_end_index
                 );
 
+                let calls_for_batch_clipped =
+                    calls_for_batch[call_start_index..call_end_index].to_vec();
                 let batch_response = api
                     .tx()
                     .utility()
-                    .batch(calls_for_batch[call_start_index..call_end_index].to_vec())
+                    .batch(calls_for_batch_clipped.clone())
                     .sign_and_submit_then_watch(&seed_account_signer)
                     .await?
                     .wait_for_finalized()
@@ -318,6 +339,62 @@ pub async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
                                     validator.payouts.push(p);
                                 }
                             }
+                            RawEvent {
+                                ref pallet,
+                                ref variant,
+                                ..
+                            } if pallet == "Utility" && variant == "BatchCompleted" => {
+                                // https://polkadot.js.org/docs/substrate/events#batchcompleted
+                                // summary: Batch of dispatches completed fully with no error.
+                                info!("Batch Completed for Era {}", network.active_era);
+                                attempt = None;
+                            }
+                            RawEvent {
+                                ref pallet,
+                                ref variant,
+                                data,
+                                ..
+                            } if pallet == "Utility" && variant == "BatchInterrupted" => {
+                                // https://polkadot.js.org/docs/substrate/events#batchinterruptedu32-spruntimedispatcherror
+                                // summary: Batch of dispatches did not complete fully. Index of first failing dispatch given, as well as the error.
+                                //
+                                // Fix: https://github.com/turboflakes/crunch/issues/4
+                                // Most likely the batch was interrupted because of an AlreadyClaimed era
+                                // BatchInterrupted { index: 0, error: Module { index: 6, error: 14 } }
+                                let event_decoded =
+                                    api::utility::events::BatchInterrupted::decode(&mut &data[..])?;
+                                warn!("{:?}", event_decoded);
+
+                                if let Call::Staking(call) = &calls_for_batch_clipped
+                                    [usize::try_from(event_decoded.index).unwrap()]
+                                {
+                                    match &call {
+                                        StakingCall::payout_stakers {
+                                            validator_stash, ..
+                                        } => {
+                                            warn!("validator_stash: {:?}", validator_stash);
+                                            let validator_index = &mut validators
+                                                .iter()
+                                                .position(|v| v.stash == *validator_stash);
+
+                                            if let Some(i) = *validator_index {
+                                                let validator = &mut validators[i];
+                                                // TODO: decode DispatchError to a readable format
+                                                validator
+                                                    .warnings
+                                                    .push("⚡ Batch interrupted ⚡".to_string());
+                                            }
+                                        }
+                                        _ => unreachable!(),
+                                    };
+                                }
+                                // Attempt to run one more time
+                                attempt = if let Some(na) = attempt {
+                                    Some(na + 1)
+                                } else {
+                                    Some(1)
+                                };
+                            }
                             _ => (),
                         };
                     }
@@ -341,7 +418,12 @@ pub async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
         .send_message(&report.message(), &report.formatted_message())
         .await?;
 
-    Ok(())
+    // Note: If there's anything to attempt, call recursively try_run_batch one more time
+    if let None = attempt {
+        Ok(())
+    } else {
+        return try_run_batch(&crunch, attempt).await;
+    }
 }
 
 async fn collect_validators_data(

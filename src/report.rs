@@ -174,14 +174,6 @@ impl From<RawData> for Report {
         // Validators info
         for validator in data.validators {
             report.add_break();
-            // Show validator warnings
-            if validator.warnings.len() > 0 {
-                for warning in validator.warnings {
-                    report.add_raw_text(format!("⚠️ {} ⚠️", warning.clone()));
-                    warn!("{}", warning);
-                }
-                continue;
-            }
             let is_active_desc = if validator.is_active { "🟢" } else { "🔴" };
             report.add_raw_text(format!(
                 "{} <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b>",
@@ -190,6 +182,15 @@ impl From<RawData> for Report {
                 validator.stash,
                 validator.name,
             ));
+            // Show validator warnings
+            if validator.warnings.len() > 0 {
+                for warning in validator.warnings {
+                    report.add_raw_text(format!("⚠️ {} ⚠️", warning.clone()));
+                    warn!("{}", warning);
+                }
+                continue;
+            }
+
             report.add_text(format!(
                 "💰 Stash &middot; <code>{}</code>",
                 validator.stash
