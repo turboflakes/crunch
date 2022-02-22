@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Fix parity default endpoints by defining port number
+- Add optional flag 'stashes-url' so that a list of stashes could be fetched from a remote endpoint
+- Fix `Already claimed` rewards issue
+
+TODO
+- Update metadata Westend runtime/9160
+- Update metadata Kusama runtime/9160
+
 
 ## [0.4.1] - 2022-01-14
 

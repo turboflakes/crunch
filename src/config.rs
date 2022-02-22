@@ -79,6 +79,8 @@ pub struct Config {
     #[serde(default = "default_error_interval")]
     pub error_interval: u64,
     pub substrate_ws_url: String,
+    #[serde(default)]
+    pub stashes_url: String,
     #[serde(default = "default_seed_path")]
     pub seed_path: String,
     pub stashes: Vec<String>,
@@ -315,6 +317,14 @@ fn get_config() -> Config {
         ),
     )
     .arg(
+      Arg::with_name("stashes-url")
+        .long("stashes-url")
+        .takes_value(true)
+        .help(
+          "Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g. https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).",
+        ),
+    )
+    .arg(
       Arg::with_name("substrate-ws-url")
         .short("w")
         .long("substrate-ws-url")
@@ -377,6 +387,10 @@ fn get_config() -> Config {
 
     if let Some(seed_path) = matches.value_of("seed-path") {
         env::set_var("CRUNCH_SEED_PATH", seed_path);
+    }
+
+    if let Some(stashes_url) = matches.value_of("stashes-url") {
+        env::set_var("CRUNCH_STASHES_URL", stashes_url);
     }
 
     if let Some(stashes) = matches.value_of("stashes") {

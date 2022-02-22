@@ -40,6 +40,10 @@ pub enum CrunchError {
     MatrixError(String),
     #[error("Subscription finished")]
     SubscriptionFinished,
+    #[error("Reqwest error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
+    #[error("ParseError error: {0}")]
+    ParseError(#[from] url::ParseError),
     #[error("Other error: {0}")]
     Other(String),
 }

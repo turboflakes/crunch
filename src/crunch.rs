@@ -31,6 +31,7 @@ use log::{error, info, warn};
 use rand::Rng;
 use regex::Regex;
 use std::{convert::TryInto, result::Result, thread, time};
+use url::{ParseError, Url};
 
 use subxt::{
     sp_core::{crypto, sr25519, Pair as PairT},
@@ -282,4 +283,18 @@ fn spawn_crunch_view() {
 pub fn random_wait(max: u64) -> u64 {
     let mut rng = rand::thread_rng();
     rng.gen_range(0..max)
+}
+
+pub async fn try_fetch_stashes_from_remote_url() -> Result<Option<Vec<String>>, CrunchError> {
+    let config = CONFIG.clone();
+    if config.stashes_url.len() == 0 {
+        return Ok(None);
+    }
+    let response = reqwest::get(&config.stashes_url).await?.text().await?;
+    let v: Vec<String> = response.split('\n').map(|s| s.to_string()).collect();
+    if v.is_empty() {
+        return Ok(None);
+    }
+    info!("{} stashes loaded from {}", v.len(), config.stashes_url);
+    Ok(Some(v))
 }

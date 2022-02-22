@@ -21,7 +21,8 @@
 
 use crate::config::CONFIG;
 use crate::crunch::{
-    get_from_seed, random_wait, Crunch, NominatorsAmount, ValidatorAmount, ValidatorIndex,
+    get_from_seed, random_wait, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount,
+    ValidatorAmount, ValidatorIndex,
 };
 use crate::errors::CrunchError;
 use crate::report::{
@@ -439,7 +440,12 @@ async fn collect_validators_data(
     debug!("active_validators {:?}", active_validators);
     let mut validators: Validators = Vec::new();
 
-    for (_i, stash_str) in config.stashes.iter().enumerate() {
+    let stashes: Vec<String> = match try_fetch_stashes_from_remote_url().await? {
+        Some(stashes) => stashes,
+        None => config.stashes,
+    };
+
+    for (_i, stash_str) in stashes.iter().enumerate() {
         let stash = AccountId32::from_str(stash_str)?;
 
         // Check if stash has bonded controller
