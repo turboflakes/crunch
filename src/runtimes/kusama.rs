@@ -26,7 +26,8 @@ use crate::crunch::{
 };
 use crate::errors::CrunchError;
 use crate::report::{
-    EraIndex, Network, Payout, Points, RawData, Report, Signer, Validator, Validators,
+    EraIndex, Network, Payout, PayoutSummary, Points, RawData, Report, Signer, Validator,
+    Validators,
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -170,6 +171,8 @@ pub async fn try_run_batch(crunch: &Crunch, next_attempt: Option<u8>) -> Result<
     // Add unclaimed eras into payout staker calls
     let mut calls_for_batch: Vec<Call> = vec![];
     let mut validators = collect_validators_data(&crunch, active_era_index).await?;
+    let mut summary: PayoutSummary = Default::default();
+
     for v in &mut validators {
         //
         if v.unclaimed.len() > 0 {
@@ -185,12 +188,17 @@ pub async fn try_run_batch(crunch: &Crunch, next_attempt: Option<u8>) -> Result<
                             era: claim_era,
                         });
                         calls_for_batch.push(call);
+                        summary.calls += 1;
                     }
                     maximum_payouts = Some(i - 1);
                 }
             }
         }
+        if v.is_active {
+            summary.next_minimum_expected += 1;
+        }
     }
+    summary.total_validators = validators.len() as u32;
 
     if calls_for_batch.len() > 0 {
         // TODO check batch call weight or maximum_calls [default: 8]
@@ -338,6 +346,7 @@ pub async fn try_run_batch(crunch: &Crunch, next_attempt: Option<u8>) -> Result<
                                         points,
                                     };
                                     validator.payouts.push(p);
+                                    summary.calls_succeeded += 1;
                                 }
                             }
                             RawEvent {
@@ -412,6 +421,7 @@ pub async fn try_run_batch(crunch: &Crunch, next_attempt: Option<u8>) -> Result<
         network,
         signer,
         validators,
+        summary,
     };
 
     let report = Report::from(data);

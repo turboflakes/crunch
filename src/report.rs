@@ -88,11 +88,20 @@ pub struct Network {
     pub token_decimals: u8,
 }
 
+#[derive(Debug, Default)]
+pub struct PayoutSummary {
+    pub calls: u32,
+    pub calls_succeeded: u32,
+    pub next_minimum_expected: u32,
+    pub total_validators: u32,
+}
+
 #[derive(Debug)]
 pub struct RawData {
     pub network: Network,
     pub signer: Signer,
     pub validators: Validators,
+    pub summary: PayoutSummary,
 }
 
 type Body = Vec<String>;
@@ -129,7 +138,7 @@ impl Report {
     }
 
     pub fn formatted_message(&self) -> String {
-        self.body.join("<br/>")
+        self.body.join("<br>")
     }
 
     pub fn log(&self) {
@@ -145,6 +154,36 @@ impl From<RawData> for Report {
     /// Converts a Crunch `RawData` into a [`Report`].
     fn from(data: RawData) -> Report {
         let mut report = Report::new();
+
+        let summary_crunch_desc = if data.summary.calls_succeeded > 0 {
+            format!(
+                "<b>{:.0}% crunched</b> ({}) ->",
+                (data.summary.calls_succeeded as f32 / data.summary.calls as f32) * 100.0,
+                data.summary.calls_succeeded,
+            )
+        } else {
+            format!("")
+        };
+
+        let summary_next_desc = if data.summary.next_minimum_expected > 0 {
+            format!(
+                "<b>{:.0}% expecting</b> ({}) rewards {}",
+                (data.summary.next_minimum_expected as f32 / data.summary.total_validators as f32)
+                    * 100.0,
+                data.summary.next_minimum_expected,
+                Random::Happy,
+            )
+        } else {
+            format!(
+                "Nothing for <code>crunch</code> next era {}",
+                Random::Grumpy
+            )
+        };
+
+        report.add_text(format!(
+            "<details><summary>{} {}</summary>",
+            summary_crunch_desc, summary_next_desc,
+        ));
         // Crunch Hello message
         report.add_text(format!("👋 {}!", Random::Hello));
         // Crunch package
@@ -336,6 +375,7 @@ impl From<RawData> for Report {
 
         report.add_raw_text("___".into());
         report.add_break();
+        report.add_text("</details>".into());
 
         // Log report
         report.log();

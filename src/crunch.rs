@@ -31,7 +31,6 @@ use log::{error, info, warn};
 use rand::Rng;
 use regex::Regex;
 use std::{convert::TryInto, result::Result, thread, time};
-use url::{ParseError, Url};
 
 use subxt::{
     sp_core::{crypto, sr25519, Pair as PairT},
