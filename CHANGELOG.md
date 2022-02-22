@@ -7,14 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fix parity default endpoints by defining port number
+## [0.5.0] - 2022-02-22
+
+### Added
+
+- Add summary with a clickable details on top.
 - Add optional flag 'stashes-url' so that a list of stashes could be fetched from a remote endpoint
+
+### Changed
+
+- After the end of an era the payout is triggered after a random waiting period (up to a maximum of 120 seconds). This aims to prevent a block race from all `crunch` bots at the beginning of each era.
 - Fix `Already claimed` rewards issue
-
-TODO
-- Update metadata Westend runtime/9160
+- Fix parity default endpoints by defining port number
+- Update metadata Polkadot runtime/9151
 - Update metadata Kusama runtime/9160
-
+- Update metadata Westend runtime/9160
 
 ## [0.4.1] - 2022-01-14
 

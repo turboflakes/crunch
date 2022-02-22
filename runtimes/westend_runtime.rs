@@ -28,6 +28,8 @@ pub mod api {
         Vesting(vesting::Event),
         #[codec(index = 20)]
         Scheduler(scheduler::Event),
+        #[codec(index = 28)]
+        Preimage(preimage::Event),
         #[codec(index = 21)]
         Sudo(sudo::Event),
         #[codec(index = 22)]
@@ -54,6 +56,8 @@ pub mod api {
         Auctions(auctions::Event),
         #[codec(index = 64)]
         Crowdloan(crowdloan::Event),
+        #[codec(index = 65)]
+        AssignedSlots(assigned_slots::Event),
         #[codec(index = 99)]
         XcmPallet(xcm_pallet::Event),
     }
@@ -220,16 +224,18 @@ pub mod api {
         pub mod events {
             use super::runtime_types;
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct ExtrinsicSuccess(pub runtime_types::frame_support::weights::DispatchInfo);
+            pub struct ExtrinsicSuccess {
+                pub dispatch_info: runtime_types::frame_support::weights::DispatchInfo,
+            }
             impl ::subxt::Event for ExtrinsicSuccess {
                 const PALLET: &'static str = "System";
                 const EVENT: &'static str = "ExtrinsicSuccess";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct ExtrinsicFailed(
-                pub runtime_types::sp_runtime::DispatchError,
-                pub runtime_types::frame_support::weights::DispatchInfo,
-            );
+            pub struct ExtrinsicFailed {
+                pub dispatch_error: runtime_types::sp_runtime::DispatchError,
+                pub dispatch_info: runtime_types::frame_support::weights::DispatchInfo,
+            }
             impl ::subxt::Event for ExtrinsicFailed {
                 const PALLET: &'static str = "System";
                 const EVENT: &'static str = "ExtrinsicFailed";
@@ -241,22 +247,26 @@ pub mod api {
                 const EVENT: &'static str = "CodeUpdated";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct NewAccount(pub ::subxt::sp_core::crypto::AccountId32);
+            pub struct NewAccount {
+                pub account: ::subxt::sp_core::crypto::AccountId32,
+            }
             impl ::subxt::Event for NewAccount {
                 const PALLET: &'static str = "System";
                 const EVENT: &'static str = "NewAccount";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct KilledAccount(pub ::subxt::sp_core::crypto::AccountId32);
+            pub struct KilledAccount {
+                pub account: ::subxt::sp_core::crypto::AccountId32,
+            }
             impl ::subxt::Event for KilledAccount {
                 const PALLET: &'static str = "System";
                 const EVENT: &'static str = "KilledAccount";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct Remarked(
-                pub ::subxt::sp_core::crypto::AccountId32,
-                pub ::subxt::sp_core::H256,
-            );
+            pub struct Remarked {
+                pub sender: ::subxt::sp_core::crypto::AccountId32,
+                pub hash: ::subxt::sp_core::H256,
+            }
             impl ::subxt::Event for Remarked {
                 const PALLET: &'static str = "System";
                 const EVENT: &'static str = "Remarked";
@@ -2107,17 +2117,18 @@ pub mod api {
                 const FUNCTION: &'static str = "kick";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct SetStakingLimits {
+            pub struct SetStakingConfigs {
                 pub min_nominator_bond: ::core::primitive::u128,
                 pub min_validator_bond: ::core::primitive::u128,
                 pub max_nominator_count: ::core::option::Option<::core::primitive::u32>,
                 pub max_validator_count: ::core::option::Option<::core::primitive::u32>,
-                pub threshold:
+                pub chill_threshold:
                     ::core::option::Option<runtime_types::sp_arithmetic::per_things::Percent>,
+                pub min_commission: runtime_types::sp_arithmetic::per_things::Perbill,
             }
-            impl ::subxt::Call for SetStakingLimits {
+            impl ::subxt::Call for SetStakingConfigs {
                 const PALLET: &'static str = "Staking";
-                const FUNCTION: &'static str = "set_staking_limits";
+                const FUNCTION: &'static str = "set_staking_configs";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
             pub struct ChillOther {
@@ -2331,22 +2342,24 @@ pub mod api {
                     let call = Kick { who };
                     ::subxt::SubmittableExtrinsic::new(self.client, call)
                 }
-                pub fn set_staking_limits(
+                pub fn set_staking_configs(
                     &self,
                     min_nominator_bond: ::core::primitive::u128,
                     min_validator_bond: ::core::primitive::u128,
                     max_nominator_count: ::core::option::Option<::core::primitive::u32>,
                     max_validator_count: ::core::option::Option<::core::primitive::u32>,
-                    threshold: ::core::option::Option<
+                    chill_threshold: ::core::option::Option<
                         runtime_types::sp_arithmetic::per_things::Percent,
                     >,
-                ) -> ::subxt::SubmittableExtrinsic<T, SetStakingLimits> {
-                    let call = SetStakingLimits {
+                    min_commission: runtime_types::sp_arithmetic::per_things::Perbill,
+                ) -> ::subxt::SubmittableExtrinsic<T, SetStakingConfigs> {
+                    let call = SetStakingConfigs {
                         min_nominator_bond,
                         min_validator_bond,
                         max_nominator_count,
                         max_validator_count,
-                        threshold,
+                        chill_threshold,
+                        min_commission,
                     };
                     ::subxt::SubmittableExtrinsic::new(self.client, call)
                 }
@@ -2524,6 +2537,15 @@ pub mod api {
                 const PALLET: &'static str = "Staking";
                 const STORAGE: &'static str = "MinValidatorBond";
                 type Value = ::core::primitive::u128;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Plain
+                }
+            }
+            pub struct MinCommission;
+            impl ::subxt::StorageEntry for MinCommission {
+                const PALLET: &'static str = "Staking";
+                const STORAGE: &'static str = "MinCommission";
+                type Value = runtime_types::sp_arithmetic::per_things::Perbill;
                 fn key(&self) -> ::subxt::StorageEntryKey {
                     ::subxt::StorageEntryKey::Plain
                 }
@@ -2970,6 +2992,16 @@ pub mod api {
                 ) -> ::core::result::Result<::core::primitive::u128, ::subxt::Error>
                 {
                     let entry = MinValidatorBond;
+                    self.client.storage().fetch_or_default(&entry, hash).await
+                }
+                pub async fn min_commission(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<
+                    runtime_types::sp_arithmetic::per_things::Perbill,
+                    ::subxt::Error,
+                > {
+                    let entry = MinCommission;
                     self.client.storage().fetch_or_default(&entry, hash).await
                 }
                 pub async fn ledger(
@@ -4367,9 +4399,9 @@ pub mod api {
                 const EVENT: &'static str = "ItemCompleted";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct DispatchedAs(
-                pub ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
-            );
+            pub struct DispatchedAs {
+                pub result: ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
+            }
             impl ::subxt::Event for DispatchedAs {
                 const PALLET: &'static str = "Utility";
                 const EVENT: &'static str = "DispatchedAs";
@@ -5492,7 +5524,10 @@ pub mod api {
                 pub maybe_periodic:
                     ::core::option::Option<(::core::primitive::u32, ::core::primitive::u32)>,
                 pub priority: ::core::primitive::u8,
-                pub call: runtime_types::westend_runtime::Call,
+                pub call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                    runtime_types::westend_runtime::Call,
+                    ::subxt::sp_core::H256,
+                >,
             }
             impl ::subxt::Call for Schedule {
                 const PALLET: &'static str = "Scheduler";
@@ -5514,7 +5549,10 @@ pub mod api {
                 pub maybe_periodic:
                     ::core::option::Option<(::core::primitive::u32, ::core::primitive::u32)>,
                 pub priority: ::core::primitive::u8,
-                pub call: runtime_types::westend_runtime::Call,
+                pub call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                    runtime_types::westend_runtime::Call,
+                    ::subxt::sp_core::H256,
+                >,
             }
             impl ::subxt::Call for ScheduleNamed {
                 const PALLET: &'static str = "Scheduler";
@@ -5534,7 +5572,10 @@ pub mod api {
                 pub maybe_periodic:
                     ::core::option::Option<(::core::primitive::u32, ::core::primitive::u32)>,
                 pub priority: ::core::primitive::u8,
-                pub call: runtime_types::westend_runtime::Call,
+                pub call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                    runtime_types::westend_runtime::Call,
+                    ::subxt::sp_core::H256,
+                >,
             }
             impl ::subxt::Call for ScheduleAfter {
                 const PALLET: &'static str = "Scheduler";
@@ -5547,7 +5588,10 @@ pub mod api {
                 pub maybe_periodic:
                     ::core::option::Option<(::core::primitive::u32, ::core::primitive::u32)>,
                 pub priority: ::core::primitive::u8,
-                pub call: runtime_types::westend_runtime::Call,
+                pub call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                    runtime_types::westend_runtime::Call,
+                    ::subxt::sp_core::H256,
+                >,
             }
             impl ::subxt::Call for ScheduleNamedAfter {
                 const PALLET: &'static str = "Scheduler";
@@ -5571,7 +5615,10 @@ pub mod api {
                         ::core::primitive::u32,
                     )>,
                     priority: ::core::primitive::u8,
-                    call: runtime_types::westend_runtime::Call,
+                    call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                        runtime_types::westend_runtime::Call,
+                        ::subxt::sp_core::H256,
+                    >,
                 ) -> ::subxt::SubmittableExtrinsic<T, Schedule> {
                     let call = Schedule {
                         when,
@@ -5598,7 +5645,10 @@ pub mod api {
                         ::core::primitive::u32,
                     )>,
                     priority: ::core::primitive::u8,
-                    call: runtime_types::westend_runtime::Call,
+                    call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                        runtime_types::westend_runtime::Call,
+                        ::subxt::sp_core::H256,
+                    >,
                 ) -> ::subxt::SubmittableExtrinsic<T, ScheduleNamed> {
                     let call = ScheduleNamed {
                         id,
@@ -5624,7 +5674,10 @@ pub mod api {
                         ::core::primitive::u32,
                     )>,
                     priority: ::core::primitive::u8,
-                    call: runtime_types::westend_runtime::Call,
+                    call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                        runtime_types::westend_runtime::Call,
+                        ::subxt::sp_core::H256,
+                    >,
                 ) -> ::subxt::SubmittableExtrinsic<T, ScheduleAfter> {
                     let call = ScheduleAfter {
                         after,
@@ -5643,7 +5696,10 @@ pub mod api {
                         ::core::primitive::u32,
                     )>,
                     priority: ::core::primitive::u8,
-                    call: runtime_types::westend_runtime::Call,
+                    call: runtime_types::frame_support::traits::schedule::MaybeHashed<
+                        runtime_types::westend_runtime::Call,
+                        ::subxt::sp_core::H256,
+                    >,
                 ) -> ::subxt::SubmittableExtrinsic<T, ScheduleNamedAfter> {
                     let call = ScheduleNamedAfter {
                         id,
@@ -5660,26 +5716,42 @@ pub mod api {
         pub mod events {
             use super::runtime_types;
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct Scheduled(pub ::core::primitive::u32, pub ::core::primitive::u32);
+            pub struct Scheduled {
+                pub when: ::core::primitive::u32,
+                pub index: ::core::primitive::u32,
+            }
             impl ::subxt::Event for Scheduled {
                 const PALLET: &'static str = "Scheduler";
                 const EVENT: &'static str = "Scheduled";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct Canceled(pub ::core::primitive::u32, pub ::core::primitive::u32);
+            pub struct Canceled {
+                pub when: ::core::primitive::u32,
+                pub index: ::core::primitive::u32,
+            }
             impl ::subxt::Event for Canceled {
                 const PALLET: &'static str = "Scheduler";
                 const EVENT: &'static str = "Canceled";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct Dispatched(
-                pub (::core::primitive::u32, ::core::primitive::u32),
-                pub ::core::option::Option<::std::vec::Vec<::core::primitive::u8>>,
-                pub ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
-            );
+            pub struct Dispatched {
+                pub task: (::core::primitive::u32, ::core::primitive::u32),
+                pub id: ::core::option::Option<::std::vec::Vec<::core::primitive::u8>>,
+                pub result: ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
+            }
             impl ::subxt::Event for Dispatched {
                 const PALLET: &'static str = "Scheduler";
                 const EVENT: &'static str = "Dispatched";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct CallLookupFailed {
+                pub task: (::core::primitive::u32, ::core::primitive::u32),
+                pub id: ::core::option::Option<::std::vec::Vec<::core::primitive::u8>>,
+                pub error: runtime_types::frame_support::traits::schedule::LookupError,
+            }
+            impl ::subxt::Event for CallLookupFailed {
+                const PALLET: &'static str = "Scheduler";
+                const EVENT: &'static str = "CallLookupFailed";
             }
         }
         pub mod storage {
@@ -5690,8 +5762,11 @@ pub mod api {
                 const STORAGE: &'static str = "Agenda";
                 type Value = ::std::vec::Vec<
                     ::core::option::Option<
-                        runtime_types::pallet_scheduler::ScheduledV2<
-                            runtime_types::westend_runtime::Call,
+                        runtime_types::pallet_scheduler::ScheduledV3<
+                            runtime_types::frame_support::traits::schedule::MaybeHashed<
+                                runtime_types::westend_runtime::Call,
+                                ::subxt::sp_core::H256,
+                            >,
                             ::core::primitive::u32,
                             runtime_types::westend_runtime::OriginCaller,
                             ::subxt::sp_core::crypto::AccountId32,
@@ -5717,15 +5792,6 @@ pub mod api {
                     )])
                 }
             }
-            pub struct StorageVersion;
-            impl ::subxt::StorageEntry for StorageVersion {
-                const PALLET: &'static str = "Scheduler";
-                const STORAGE: &'static str = "StorageVersion";
-                type Value = runtime_types::pallet_scheduler::Releases;
-                fn key(&self) -> ::subxt::StorageEntryKey {
-                    ::subxt::StorageEntryKey::Plain
-                }
-            }
             pub struct StorageApi<'a, T: ::subxt::Config> {
                 client: &'a ::subxt::Client<T>,
             }
@@ -5740,8 +5806,11 @@ pub mod api {
                 ) -> ::core::result::Result<
                     ::std::vec::Vec<
                         ::core::option::Option<
-                            runtime_types::pallet_scheduler::ScheduledV2<
-                                runtime_types::westend_runtime::Call,
+                            runtime_types::pallet_scheduler::ScheduledV3<
+                                runtime_types::frame_support::traits::schedule::MaybeHashed<
+                                    runtime_types::westend_runtime::Call,
+                                    ::subxt::sp_core::H256,
+                                >,
                                 ::core::primitive::u32,
                                 runtime_types::westend_runtime::OriginCaller,
                                 ::subxt::sp_core::crypto::AccountId32,
@@ -5778,13 +5847,195 @@ pub mod api {
                 {
                     self.client.storage().iter(hash).await
                 }
-                pub async fn storage_version(
+            }
+        }
+    }
+    pub mod preimage {
+        use super::runtime_types;
+        pub mod calls {
+            use super::runtime_types;
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct NotePreimage {
+                pub bytes: ::std::vec::Vec<::core::primitive::u8>,
+            }
+            impl ::subxt::Call for NotePreimage {
+                const PALLET: &'static str = "Preimage";
+                const FUNCTION: &'static str = "note_preimage";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct UnnotePreimage {
+                pub hash: ::subxt::sp_core::H256,
+            }
+            impl ::subxt::Call for UnnotePreimage {
+                const PALLET: &'static str = "Preimage";
+                const FUNCTION: &'static str = "unnote_preimage";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct RequestPreimage {
+                pub hash: ::subxt::sp_core::H256,
+            }
+            impl ::subxt::Call for RequestPreimage {
+                const PALLET: &'static str = "Preimage";
+                const FUNCTION: &'static str = "request_preimage";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct UnrequestPreimage {
+                pub hash: ::subxt::sp_core::H256,
+            }
+            impl ::subxt::Call for UnrequestPreimage {
+                const PALLET: &'static str = "Preimage";
+                const FUNCTION: &'static str = "unrequest_preimage";
+            }
+            pub struct TransactionApi<'a, T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>> {
+                client: &'a ::subxt::Client<T>,
+            }
+            impl<'a, T: ::subxt::Config> TransactionApi<'a, T>
+            where
+                T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>,
+            {
+                pub fn new(client: &'a ::subxt::Client<T>) -> Self {
+                    Self { client }
+                }
+                pub fn note_preimage(
+                    &self,
+                    bytes: ::std::vec::Vec<::core::primitive::u8>,
+                ) -> ::subxt::SubmittableExtrinsic<T, NotePreimage> {
+                    let call = NotePreimage { bytes };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn unnote_preimage(
+                    &self,
+                    hash: ::subxt::sp_core::H256,
+                ) -> ::subxt::SubmittableExtrinsic<T, UnnotePreimage> {
+                    let call = UnnotePreimage { hash };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn request_preimage(
+                    &self,
+                    hash: ::subxt::sp_core::H256,
+                ) -> ::subxt::SubmittableExtrinsic<T, RequestPreimage> {
+                    let call = RequestPreimage { hash };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn unrequest_preimage(
+                    &self,
+                    hash: ::subxt::sp_core::H256,
+                ) -> ::subxt::SubmittableExtrinsic<T, UnrequestPreimage> {
+                    let call = UnrequestPreimage { hash };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+            }
+        }
+        pub type Event = runtime_types::pallet_preimage::pallet::Event;
+        pub mod events {
+            use super::runtime_types;
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct Noted {
+                pub hash: ::subxt::sp_core::H256,
+            }
+            impl ::subxt::Event for Noted {
+                const PALLET: &'static str = "Preimage";
+                const EVENT: &'static str = "Noted";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct Requested {
+                pub hash: ::subxt::sp_core::H256,
+            }
+            impl ::subxt::Event for Requested {
+                const PALLET: &'static str = "Preimage";
+                const EVENT: &'static str = "Requested";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct Cleared {
+                pub hash: ::subxt::sp_core::H256,
+            }
+            impl ::subxt::Event for Cleared {
+                const PALLET: &'static str = "Preimage";
+                const EVENT: &'static str = "Cleared";
+            }
+        }
+        pub mod storage {
+            use super::runtime_types;
+            pub struct StatusFor(pub ::subxt::sp_core::H256);
+            impl ::subxt::StorageEntry for StatusFor {
+                const PALLET: &'static str = "Preimage";
+                const STORAGE: &'static str = "StatusFor";
+                type Value = runtime_types::pallet_preimage::RequestStatus<
+                    ::subxt::sp_core::crypto::AccountId32,
+                    ::core::primitive::u128,
+                >;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Map(vec![::subxt::StorageMapKey::new(
+                        &self.0,
+                        ::subxt::StorageHasher::Identity,
+                    )])
+                }
+            }
+            pub struct PreimageFor(pub ::subxt::sp_core::H256);
+            impl ::subxt::StorageEntry for PreimageFor {
+                const PALLET: &'static str = "Preimage";
+                const STORAGE: &'static str = "PreimageFor";
+                type Value = runtime_types::frame_support::storage::bounded_vec::BoundedVec<
+                    ::core::primitive::u8,
+                >;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Map(vec![::subxt::StorageMapKey::new(
+                        &self.0,
+                        ::subxt::StorageHasher::Identity,
+                    )])
+                }
+            }
+            pub struct StorageApi<'a, T: ::subxt::Config> {
+                client: &'a ::subxt::Client<T>,
+            }
+            impl<'a, T: ::subxt::Config> StorageApi<'a, T> {
+                pub fn new(client: &'a ::subxt::Client<T>) -> Self {
+                    Self { client }
+                }
+                pub async fn status_for(
+                    &self,
+                    _0: ::subxt::sp_core::H256,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<
+                    ::core::option::Option<
+                        runtime_types::pallet_preimage::RequestStatus<
+                            ::subxt::sp_core::crypto::AccountId32,
+                            ::core::primitive::u128,
+                        >,
+                    >,
+                    ::subxt::Error,
+                > {
+                    let entry = StatusFor(_0);
+                    self.client.storage().fetch(&entry, hash).await
+                }
+                pub async fn status_for_iter(
                     &self,
                     hash: ::core::option::Option<T::Hash>,
-                ) -> ::core::result::Result<runtime_types::pallet_scheduler::Releases, ::subxt::Error>
+                ) -> ::core::result::Result<::subxt::KeyIter<'a, T, StatusFor>, ::subxt::Error>
                 {
-                    let entry = StorageVersion;
-                    self.client.storage().fetch_or_default(&entry, hash).await
+                    self.client.storage().iter(hash).await
+                }
+                pub async fn preimage_for(
+                    &self,
+                    _0: ::subxt::sp_core::H256,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<
+                    ::core::option::Option<
+                        runtime_types::frame_support::storage::bounded_vec::BoundedVec<
+                            ::core::primitive::u8,
+                        >,
+                    >,
+                    ::subxt::Error,
+                > {
+                    let entry = PreimageFor(_0);
+                    self.client.storage().fetch(&entry, hash).await
+                }
+                pub async fn preimage_for_iter(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::subxt::KeyIter<'a, T, PreimageFor>, ::subxt::Error>
+                {
+                    self.client.storage().iter(hash).await
                 }
             }
         }
@@ -5891,7 +6142,7 @@ pub mod api {
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
             pub struct KeyChanged {
-                pub new_sudoer: ::subxt::sp_core::crypto::AccountId32,
+                pub old_sudoer: ::core::option::Option<::subxt::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::Event for KeyChanged {
                 const PALLET: &'static str = "Sudo";
@@ -5928,10 +6179,12 @@ pub mod api {
                 pub async fn key(
                     &self,
                     hash: ::core::option::Option<T::Hash>,
-                ) -> ::core::result::Result<::subxt::sp_core::crypto::AccountId32, ::subxt::Error>
-                {
+                ) -> ::core::result::Result<
+                    ::core::option::Option<::subxt::sp_core::crypto::AccountId32>,
+                    ::subxt::Error,
+                > {
                     let entry = Key;
-                    self.client.storage().fetch_or_default(&entry, hash).await
+                    self.client.storage().fetch(&entry, hash).await
                 }
             }
         }
@@ -6970,21 +7223,9 @@ pub mod api {
                 > {
                     let entry = SignedSubmissionIndices;
                     self.client.storage().fetch_or_default(&entry, hash).await
-                }
-                pub async fn signed_submissions_map(
-                    &self,
-                    _0: ::core::primitive::u32,
-                    hash: ::core::option::Option<T::Hash>,
-                ) -> ::core::result::Result<
-                    runtime_types::pallet_election_provider_multi_phase::signed::SignedSubmission<
-                        ::subxt::sp_core::crypto::AccountId32,
-                        ::core::primitive::u128,
-                        runtime_types::westend_runtime::NposCompactSolution16,
-                    >,
-                    ::subxt::Error,
-                > {
+                }                pub async fn signed_submissions_map (& self , _0 : :: core :: primitive :: u32 , hash : :: core :: option :: Option < T :: Hash > ,) -> :: core :: result :: Result < :: core :: option :: Option < runtime_types :: pallet_election_provider_multi_phase :: signed :: SignedSubmission < :: subxt :: sp_core :: crypto :: AccountId32 , :: core :: primitive :: u128 , runtime_types :: westend_runtime :: NposCompactSolution16 > > , :: subxt :: Error >{
                     let entry = SignedSubmissionsMap(_0);
-                    self.client.storage().fetch_or_default(&entry, hash).await
+                    self.client.storage().fetch(&entry, hash).await
                 }
                 pub async fn signed_submissions_map_iter(
                     &self,
@@ -7020,6 +7261,14 @@ pub mod api {
                 const PALLET: &'static str = "BagsList";
                 const FUNCTION: &'static str = "rebag";
             }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct PutInFrontOf {
+                pub lighter: ::subxt::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::Call for PutInFrontOf {
+                const PALLET: &'static str = "BagsList";
+                const FUNCTION: &'static str = "put_in_front_of";
+            }
             pub struct TransactionApi<'a, T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>> {
                 client: &'a ::subxt::Client<T>,
             }
@@ -7035,6 +7284,13 @@ pub mod api {
                     dislocated: ::subxt::sp_core::crypto::AccountId32,
                 ) -> ::subxt::SubmittableExtrinsic<T, Rebag> {
                     let call = Rebag { dislocated };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn put_in_front_of(
+                    &self,
+                    lighter: ::subxt::sp_core::crypto::AccountId32,
+                ) -> ::subxt::SubmittableExtrinsic<T, PutInFrontOf> {
+                    let call = PutInFrontOf { lighter };
                     ::subxt::SubmittableExtrinsic::new(self.client, call)
                 }
             }
@@ -7150,12 +7406,12 @@ pub mod api {
         pub mod calls {
             use super::runtime_types;
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct SetValidationUpgradeFrequency {
+            pub struct SetValidationUpgradeCooldown {
                 pub new: ::core::primitive::u32,
             }
-            impl ::subxt::Call for SetValidationUpgradeFrequency {
+            impl ::subxt::Call for SetValidationUpgradeCooldown {
                 const PALLET: &'static str = "Configuration";
-                const FUNCTION: &'static str = "set_validation_upgrade_frequency";
+                const FUNCTION: &'static str = "set_validation_upgrade_cooldown";
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
             pub struct SetValidationUpgradeDelay {
@@ -7477,6 +7733,38 @@ pub mod api {
                 const PALLET: &'static str = "Configuration";
                 const FUNCTION: &'static str = "set_ump_max_individual_weight";
             }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct SetPvfCheckingEnabled {
+                pub new: ::core::primitive::bool,
+            }
+            impl ::subxt::Call for SetPvfCheckingEnabled {
+                const PALLET: &'static str = "Configuration";
+                const FUNCTION: &'static str = "set_pvf_checking_enabled";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct SetPvfVotingTtl {
+                pub new: ::core::primitive::u32,
+            }
+            impl ::subxt::Call for SetPvfVotingTtl {
+                const PALLET: &'static str = "Configuration";
+                const FUNCTION: &'static str = "set_pvf_voting_ttl";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct SetMinimumValidationUpgradeDelay {
+                pub new: ::core::primitive::u32,
+            }
+            impl ::subxt::Call for SetMinimumValidationUpgradeDelay {
+                const PALLET: &'static str = "Configuration";
+                const FUNCTION: &'static str = "set_minimum_validation_upgrade_delay";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct SetBypassConsistencyCheck {
+                pub new: ::core::primitive::bool,
+            }
+            impl ::subxt::Call for SetBypassConsistencyCheck {
+                const PALLET: &'static str = "Configuration";
+                const FUNCTION: &'static str = "set_bypass_consistency_check";
+            }
             pub struct TransactionApi<'a, T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>> {
                 client: &'a ::subxt::Client<T>,
             }
@@ -7487,12 +7775,12 @@ pub mod api {
                 pub fn new(client: &'a ::subxt::Client<T>) -> Self {
                     Self { client }
                 }
-                pub fn set_validation_upgrade_frequency(
+                pub fn set_validation_upgrade_cooldown(
                     &self,
                     new: ::core::primitive::u32,
-                ) -> ::subxt::SubmittableExtrinsic<T, SetValidationUpgradeFrequency>
+                ) -> ::subxt::SubmittableExtrinsic<T, SetValidationUpgradeCooldown>
                 {
-                    let call = SetValidationUpgradeFrequency { new };
+                    let call = SetValidationUpgradeCooldown { new };
                     ::subxt::SubmittableExtrinsic::new(self.client, call)
                 }
                 pub fn set_validation_upgrade_delay(
@@ -7784,6 +8072,35 @@ pub mod api {
                     let call = SetUmpMaxIndividualWeight { new };
                     ::subxt::SubmittableExtrinsic::new(self.client, call)
                 }
+                pub fn set_pvf_checking_enabled(
+                    &self,
+                    new: ::core::primitive::bool,
+                ) -> ::subxt::SubmittableExtrinsic<T, SetPvfCheckingEnabled> {
+                    let call = SetPvfCheckingEnabled { new };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn set_pvf_voting_ttl(
+                    &self,
+                    new: ::core::primitive::u32,
+                ) -> ::subxt::SubmittableExtrinsic<T, SetPvfVotingTtl> {
+                    let call = SetPvfVotingTtl { new };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn set_minimum_validation_upgrade_delay(
+                    &self,
+                    new: ::core::primitive::u32,
+                ) -> ::subxt::SubmittableExtrinsic<T, SetMinimumValidationUpgradeDelay>
+                {
+                    let call = SetMinimumValidationUpgradeDelay { new };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn set_bypass_consistency_check(
+                    &self,
+                    new: ::core::primitive::bool,
+                ) -> ::subxt::SubmittableExtrinsic<T, SetBypassConsistencyCheck> {
+                    let call = SetBypassConsistencyCheck { new };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
             }
         }
         pub mod storage {
@@ -7804,15 +8121,35 @@ pub mod api {
             impl ::subxt::StorageEntry for PendingConfig {
                 const PALLET: &'static str = "Configuration";
                 const STORAGE: &'static str = "PendingConfig";
-                type Value =
-                    runtime_types::polkadot_runtime_parachains::configuration::HostConfiguration<
-                        ::core::primitive::u32,
-                    >;
+                type Value = runtime_types :: polkadot_runtime_parachains :: configuration :: migration :: v1 :: HostConfiguration < :: core :: primitive :: u32 > ;
                 fn key(&self) -> ::subxt::StorageEntryKey {
                     ::subxt::StorageEntryKey::Map(vec![::subxt::StorageMapKey::new(
                         &self.0,
                         ::subxt::StorageHasher::Twox64Concat,
                     )])
+                }
+            }
+            pub struct PendingConfigs;
+            impl ::subxt::StorageEntry for PendingConfigs {
+                const PALLET: &'static str = "Configuration";
+                const STORAGE: &'static str = "PendingConfigs";
+                type Value = ::std::vec::Vec<(
+                    ::core::primitive::u32,
+                    runtime_types::polkadot_runtime_parachains::configuration::HostConfiguration<
+                        ::core::primitive::u32,
+                    >,
+                )>;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Plain
+                }
+            }
+            pub struct BypassConsistencyCheck;
+            impl ::subxt::StorageEntry for BypassConsistencyCheck {
+                const PALLET: &'static str = "Configuration";
+                const STORAGE: &'static str = "BypassConsistencyCheck";
+                type Value = ::core::primitive::bool;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Plain
                 }
             }
             pub struct StorageApi<'a, T: ::subxt::Config> {
@@ -7833,7 +8170,7 @@ pub mod api {
                 > {
                     let entry = ActiveConfig;
                     self.client.storage().fetch_or_default(&entry, hash).await
-                }                pub async fn pending_config (& self , _0 : :: core :: primitive :: u32 , hash : :: core :: option :: Option < T :: Hash > ,) -> :: core :: result :: Result < :: core :: option :: Option < runtime_types :: polkadot_runtime_parachains :: configuration :: HostConfiguration < :: core :: primitive :: u32 > > , :: subxt :: Error >{
+                }                pub async fn pending_config (& self , _0 : :: core :: primitive :: u32 , hash : :: core :: option :: Option < T :: Hash > ,) -> :: core :: result :: Result < :: core :: option :: Option < runtime_types :: polkadot_runtime_parachains :: configuration :: migration :: v1 :: HostConfiguration < :: core :: primitive :: u32 > > , :: subxt :: Error >{
                     let entry = PendingConfig(_0);
                     self.client.storage().fetch(&entry, hash).await
                 }
@@ -7843,6 +8180,17 @@ pub mod api {
                 ) -> ::core::result::Result<::subxt::KeyIter<'a, T, PendingConfig>, ::subxt::Error>
                 {
                     self.client.storage().iter(hash).await
+                }                pub async fn pending_configs (& self , hash : :: core :: option :: Option < T :: Hash > ,) -> :: core :: result :: Result < :: std :: vec :: Vec < (:: core :: primitive :: u32 , runtime_types :: polkadot_runtime_parachains :: configuration :: HostConfiguration < :: core :: primitive :: u32 > ,) > , :: subxt :: Error >{
+                    let entry = PendingConfigs;
+                    self.client.storage().fetch_or_default(&entry, hash).await
+                }
+                pub async fn bypass_consistency_check(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::core::primitive::bool, ::subxt::Error>
+                {
+                    let entry = BypassConsistencyCheck;
+                    self.client.storage().fetch_or_default(&entry, hash).await
                 }
             }
         }
@@ -8371,6 +8719,32 @@ pub mod api {
                 const PALLET: &'static str = "Paras";
                 const FUNCTION: &'static str = "force_queue_action";
             }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct AddTrustedValidationCode {
+                pub validation_code: runtime_types::polkadot_parachain::primitives::ValidationCode,
+            }
+            impl ::subxt::Call for AddTrustedValidationCode {
+                const PALLET: &'static str = "Paras";
+                const FUNCTION: &'static str = "add_trusted_validation_code";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct PokeUnusedValidationCode {
+                pub validation_code_hash:
+                    runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+            }
+            impl ::subxt::Call for PokeUnusedValidationCode {
+                const PALLET: &'static str = "Paras";
+                const FUNCTION: &'static str = "poke_unused_validation_code";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct IncludePvfCheckStatement {
+                pub stmt: runtime_types::polkadot_primitives::v2::PvfCheckStatement,
+                pub signature: runtime_types::polkadot_primitives::v0::validator_app::Signature,
+            }
+            impl ::subxt::Call for IncludePvfCheckStatement {
+                const PALLET: &'static str = "Paras";
+                const FUNCTION: &'static str = "include_pvf_check_statement";
+            }
             pub struct TransactionApi<'a, T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>> {
                 client: &'a ::subxt::Client<T>,
             }
@@ -8425,6 +8799,30 @@ pub mod api {
                     let call = ForceQueueAction { para };
                     ::subxt::SubmittableExtrinsic::new(self.client, call)
                 }
+                pub fn add_trusted_validation_code(
+                    &self,
+                    validation_code: runtime_types::polkadot_parachain::primitives::ValidationCode,
+                ) -> ::subxt::SubmittableExtrinsic<T, AddTrustedValidationCode> {
+                    let call = AddTrustedValidationCode { validation_code };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn poke_unused_validation_code(
+                    &self,
+                    validation_code_hash : runtime_types :: polkadot_parachain :: primitives :: ValidationCodeHash,
+                ) -> ::subxt::SubmittableExtrinsic<T, PokeUnusedValidationCode> {
+                    let call = PokeUnusedValidationCode {
+                        validation_code_hash,
+                    };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn include_pvf_check_statement(
+                    &self,
+                    stmt: runtime_types::polkadot_primitives::v2::PvfCheckStatement,
+                    signature: runtime_types::polkadot_primitives::v0::validator_app::Signature,
+                ) -> ::subxt::SubmittableExtrinsic<T, IncludePvfCheckStatement> {
+                    let call = IncludePvfCheckStatement { stmt, signature };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
             }
         }
         pub type Event = runtime_types::polkadot_runtime_parachains::paras::pallet::Event;
@@ -8463,9 +8861,64 @@ pub mod api {
                 const PALLET: &'static str = "Paras";
                 const EVENT: &'static str = "ActionQueued";
             }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct PvfCheckStarted(
+                pub runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                pub runtime_types::polkadot_parachain::primitives::Id,
+            );
+            impl ::subxt::Event for PvfCheckStarted {
+                const PALLET: &'static str = "Paras";
+                const EVENT: &'static str = "PvfCheckStarted";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct PvfCheckAccepted(
+                pub runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                pub runtime_types::polkadot_parachain::primitives::Id,
+            );
+            impl ::subxt::Event for PvfCheckAccepted {
+                const PALLET: &'static str = "Paras";
+                const EVENT: &'static str = "PvfCheckAccepted";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct PvfCheckRejected(
+                pub runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                pub runtime_types::polkadot_parachain::primitives::Id,
+            );
+            impl ::subxt::Event for PvfCheckRejected {
+                const PALLET: &'static str = "Paras";
+                const EVENT: &'static str = "PvfCheckRejected";
+            }
         }
         pub mod storage {
             use super::runtime_types;
+            pub struct PvfActiveVoteMap(
+                pub runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+            );
+            impl ::subxt::StorageEntry for PvfActiveVoteMap {
+                const PALLET: &'static str = "Paras";
+                const STORAGE: &'static str = "PvfActiveVoteMap";
+                type Value =
+                    runtime_types::polkadot_runtime_parachains::paras::PvfCheckActiveVoteState<
+                        ::core::primitive::u32,
+                    >;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Map(vec![::subxt::StorageMapKey::new(
+                        &self.0,
+                        ::subxt::StorageHasher::Twox64Concat,
+                    )])
+                }
+            }
+            pub struct PvfActiveVoteList;
+            impl ::subxt::StorageEntry for PvfActiveVoteList {
+                const PALLET: &'static str = "Paras";
+                const STORAGE: &'static str = "PvfActiveVoteList";
+                type Value = ::std::vec::Vec<
+                    runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                >;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Plain
+                }
+            }
             pub struct Parachains;
             impl ::subxt::StorageEntry for Parachains {
                 const PALLET: &'static str = "Paras";
@@ -8684,6 +9137,40 @@ pub mod api {
             impl<'a, T: ::subxt::Config> StorageApi<'a, T> {
                 pub fn new(client: &'a ::subxt::Client<T>) -> Self {
                     Self { client }
+                }
+                pub async fn pvf_active_vote_map(
+                    &self,
+                    _0: runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<
+                    ::core::option::Option<
+                        runtime_types::polkadot_runtime_parachains::paras::PvfCheckActiveVoteState<
+                            ::core::primitive::u32,
+                        >,
+                    >,
+                    ::subxt::Error,
+                > {
+                    let entry = PvfActiveVoteMap(_0);
+                    self.client.storage().fetch(&entry, hash).await
+                }
+                pub async fn pvf_active_vote_map_iter(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::subxt::KeyIter<'a, T, PvfActiveVoteMap>, ::subxt::Error>
+                {
+                    self.client.storage().iter(hash).await
+                }
+                pub async fn pvf_active_vote_list(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<
+                    ::std::vec::Vec<
+                        runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                    >,
+                    ::subxt::Error,
+                > {
+                    let entry = PvfActiveVoteList;
+                    self.client.storage().fetch_or_default(&entry, hash).await
                 }
                 pub async fn parachains(
                     &self,
@@ -10024,7 +10511,7 @@ pub mod api {
             impl ::subxt::StorageEntry for Sessions {
                 const PALLET: &'static str = "ParaSessionInfo";
                 const STORAGE: &'static str = "Sessions";
-                type Value = runtime_types::polkadot_primitives::v1::SessionInfo;
+                type Value = runtime_types::polkadot_primitives::v2::SessionInfo;
                 fn key(&self) -> ::subxt::StorageEntryKey {
                     ::subxt::StorageEntryKey::Map(vec![::subxt::StorageMapKey::new(
                         &self.0,
@@ -10062,7 +10549,7 @@ pub mod api {
                     _0: ::core::primitive::u32,
                     hash: ::core::option::Option<T::Hash>,
                 ) -> ::core::result::Result<
-                    ::core::option::Option<runtime_types::polkadot_primitives::v1::SessionInfo>,
+                    ::core::option::Option<runtime_types::polkadot_primitives::v2::SessionInfo>,
                     ::subxt::Error,
                 > {
                     let entry = Sessions(_0);
@@ -10972,6 +11459,16 @@ pub mod api {
                 const PALLET: &'static str = "Crowdloan";
                 const FUNCTION: &'static str = "poke";
             }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct ContributeAll {
+                #[codec(compact)]
+                pub index: runtime_types::polkadot_parachain::primitives::Id,
+                pub signature: ::core::option::Option<runtime_types::sp_runtime::MultiSignature>,
+            }
+            impl ::subxt::Call for ContributeAll {
+                const PALLET: &'static str = "Crowdloan";
+                const FUNCTION: &'static str = "contribute_all";
+            }
             pub struct TransactionApi<'a, T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>> {
                 client: &'a ::subxt::Client<T>,
             }
@@ -11068,6 +11565,14 @@ pub mod api {
                     index: runtime_types::polkadot_parachain::primitives::Id,
                 ) -> ::subxt::SubmittableExtrinsic<T, Poke> {
                     let call = Poke { index };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn contribute_all(
+                    &self,
+                    index: runtime_types::polkadot_parachain::primitives::Id,
+                    signature: ::core::option::Option<runtime_types::sp_runtime::MultiSignature>,
+                ) -> ::subxt::SubmittableExtrinsic<T, ContributeAll> {
+                    let call = ContributeAll { index, signature };
                     ::subxt::SubmittableExtrinsic::new(self.client, call)
                 }
             }
@@ -11253,6 +11758,208 @@ pub mod api {
                 ) -> ::core::result::Result<::core::primitive::u32, ::subxt::Error>
                 {
                     let entry = NextTrieIndex;
+                    self.client.storage().fetch_or_default(&entry, hash).await
+                }
+            }
+        }
+    }
+    pub mod assigned_slots {
+        use super::runtime_types;
+        pub mod calls {
+            use super::runtime_types;
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct AssignPermParachainSlot {
+                pub id: runtime_types::polkadot_parachain::primitives::Id,
+            }
+            impl ::subxt::Call for AssignPermParachainSlot {
+                const PALLET: &'static str = "AssignedSlots";
+                const FUNCTION: &'static str = "assign_perm_parachain_slot";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct AssignTempParachainSlot {
+                pub id: runtime_types::polkadot_parachain::primitives::Id,
+                pub lease_period_start:
+                    runtime_types::polkadot_runtime_common::assigned_slots::SlotLeasePeriodStart,
+            }
+            impl ::subxt::Call for AssignTempParachainSlot {
+                const PALLET: &'static str = "AssignedSlots";
+                const FUNCTION: &'static str = "assign_temp_parachain_slot";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct UnassignParachainSlot {
+                pub id: runtime_types::polkadot_parachain::primitives::Id,
+            }
+            impl ::subxt::Call for UnassignParachainSlot {
+                const PALLET: &'static str = "AssignedSlots";
+                const FUNCTION: &'static str = "unassign_parachain_slot";
+            }
+            pub struct TransactionApi<'a, T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>> {
+                client: &'a ::subxt::Client<T>,
+            }
+            impl<'a, T: ::subxt::Config> TransactionApi<'a, T>
+            where
+                T: ::subxt::Config + ::subxt::ExtrinsicExtraData<T>,
+            {
+                pub fn new(client: &'a ::subxt::Client<T>) -> Self {
+                    Self { client }
+                }
+                pub fn assign_perm_parachain_slot(
+                    &self,
+                    id: runtime_types::polkadot_parachain::primitives::Id,
+                ) -> ::subxt::SubmittableExtrinsic<T, AssignPermParachainSlot> {
+                    let call = AssignPermParachainSlot { id };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn assign_temp_parachain_slot(
+                    &self,
+                    id: runtime_types::polkadot_parachain::primitives::Id,
+                    lease_period_start : runtime_types :: polkadot_runtime_common :: assigned_slots :: SlotLeasePeriodStart,
+                ) -> ::subxt::SubmittableExtrinsic<T, AssignTempParachainSlot> {
+                    let call = AssignTempParachainSlot {
+                        id,
+                        lease_period_start,
+                    };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+                pub fn unassign_parachain_slot(
+                    &self,
+                    id: runtime_types::polkadot_parachain::primitives::Id,
+                ) -> ::subxt::SubmittableExtrinsic<T, UnassignParachainSlot> {
+                    let call = UnassignParachainSlot { id };
+                    ::subxt::SubmittableExtrinsic::new(self.client, call)
+                }
+            }
+        }
+        pub type Event = runtime_types::polkadot_runtime_common::assigned_slots::pallet::Event;
+        pub mod events {
+            use super::runtime_types;
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct PermanentSlotAssigned(pub runtime_types::polkadot_parachain::primitives::Id);
+            impl ::subxt::Event for PermanentSlotAssigned {
+                const PALLET: &'static str = "AssignedSlots";
+                const EVENT: &'static str = "PermanentSlotAssigned";
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub struct TemporarySlotAssigned(pub runtime_types::polkadot_parachain::primitives::Id);
+            impl ::subxt::Event for TemporarySlotAssigned {
+                const PALLET: &'static str = "AssignedSlots";
+                const EVENT: &'static str = "TemporarySlotAssigned";
+            }
+        }
+        pub mod storage {
+            use super::runtime_types;
+            pub struct PermanentSlots(pub runtime_types::polkadot_parachain::primitives::Id);
+            impl ::subxt::StorageEntry for PermanentSlots {
+                const PALLET: &'static str = "AssignedSlots";
+                const STORAGE: &'static str = "PermanentSlots";
+                type Value = (::core::primitive::u32, ::core::primitive::u32);
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Map(vec![::subxt::StorageMapKey::new(
+                        &self.0,
+                        ::subxt::StorageHasher::Twox64Concat,
+                    )])
+                }
+            }
+            pub struct PermanentSlotCount;
+            impl ::subxt::StorageEntry for PermanentSlotCount {
+                const PALLET: &'static str = "AssignedSlots";
+                const STORAGE: &'static str = "PermanentSlotCount";
+                type Value = ::core::primitive::u32;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Plain
+                }
+            }
+            pub struct TemporarySlots(pub runtime_types::polkadot_parachain::primitives::Id);
+            impl ::subxt::StorageEntry for TemporarySlots {
+                const PALLET: &'static str = "AssignedSlots";
+                const STORAGE: &'static str = "TemporarySlots";
+                type Value =
+                    runtime_types::polkadot_runtime_common::assigned_slots::ParachainTemporarySlot<
+                        ::subxt::sp_core::crypto::AccountId32,
+                        ::core::primitive::u32,
+                    >;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Map(vec![::subxt::StorageMapKey::new(
+                        &self.0,
+                        ::subxt::StorageHasher::Twox64Concat,
+                    )])
+                }
+            }
+            pub struct TemporarySlotCount;
+            impl ::subxt::StorageEntry for TemporarySlotCount {
+                const PALLET: &'static str = "AssignedSlots";
+                const STORAGE: &'static str = "TemporarySlotCount";
+                type Value = ::core::primitive::u32;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Plain
+                }
+            }
+            pub struct ActiveTemporarySlotCount;
+            impl ::subxt::StorageEntry for ActiveTemporarySlotCount {
+                const PALLET: &'static str = "AssignedSlots";
+                const STORAGE: &'static str = "ActiveTemporarySlotCount";
+                type Value = ::core::primitive::u32;
+                fn key(&self) -> ::subxt::StorageEntryKey {
+                    ::subxt::StorageEntryKey::Plain
+                }
+            }
+            pub struct StorageApi<'a, T: ::subxt::Config> {
+                client: &'a ::subxt::Client<T>,
+            }
+            impl<'a, T: ::subxt::Config> StorageApi<'a, T> {
+                pub fn new(client: &'a ::subxt::Client<T>) -> Self {
+                    Self { client }
+                }
+                pub async fn permanent_slots(
+                    &self,
+                    _0: runtime_types::polkadot_parachain::primitives::Id,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<
+                    ::core::option::Option<(::core::primitive::u32, ::core::primitive::u32)>,
+                    ::subxt::Error,
+                > {
+                    let entry = PermanentSlots(_0);
+                    self.client.storage().fetch(&entry, hash).await
+                }
+                pub async fn permanent_slots_iter(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::subxt::KeyIter<'a, T, PermanentSlots>, ::subxt::Error>
+                {
+                    self.client.storage().iter(hash).await
+                }
+                pub async fn permanent_slot_count(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::core::primitive::u32, ::subxt::Error>
+                {
+                    let entry = PermanentSlotCount;
+                    self.client.storage().fetch_or_default(&entry, hash).await
+                }                pub async fn temporary_slots (& self , _0 : runtime_types :: polkadot_parachain :: primitives :: Id , hash : :: core :: option :: Option < T :: Hash > ,) -> :: core :: result :: Result < :: core :: option :: Option < runtime_types :: polkadot_runtime_common :: assigned_slots :: ParachainTemporarySlot < :: subxt :: sp_core :: crypto :: AccountId32 , :: core :: primitive :: u32 > > , :: subxt :: Error >{
+                    let entry = TemporarySlots(_0);
+                    self.client.storage().fetch(&entry, hash).await
+                }
+                pub async fn temporary_slots_iter(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::subxt::KeyIter<'a, T, TemporarySlots>, ::subxt::Error>
+                {
+                    self.client.storage().iter(hash).await
+                }
+                pub async fn temporary_slot_count(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::core::primitive::u32, ::subxt::Error>
+                {
+                    let entry = TemporarySlotCount;
+                    self.client.storage().fetch_or_default(&entry, hash).await
+                }
+                pub async fn active_temporary_slot_count(
+                    &self,
+                    hash: ::core::option::Option<T::Hash>,
+                ) -> ::core::result::Result<::core::primitive::u32, ::subxt::Error>
+                {
+                    let entry = ActiveTemporarySlotCount;
                     self.client.storage().fetch_or_default(&entry, hash).await
                 }
             }
@@ -11974,6 +12681,23 @@ pub mod api {
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub struct WrapperOpaque<_0>(::core::primitive::u32, pub _0);
                 }
+                pub mod schedule {
+                    use super::runtime_types;
+                    #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                    pub enum LookupError {
+                        #[codec(index = 0)]
+                        Unknown,
+                        #[codec(index = 1)]
+                        BadFormat,
+                    }
+                    #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                    pub enum MaybeHashed<_0, _1> {
+                        #[codec(index = 0)]
+                        Value(_0),
+                        #[codec(index = 1)]
+                        Hash(_1),
+                    }
+                }
                 pub mod tokens {
                     use super::runtime_types;
                     pub mod misc {
@@ -12047,6 +12771,11 @@ pub mod api {
                     use super::runtime_types;
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub struct CheckMortality(pub runtime_types::sp_runtime::generic::era::Era);
+                }
+                pub mod check_non_zero_sender {
+                    use super::runtime_types;
+                    #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                    pub struct CheckNonZeroSender {}
                 }
                 pub mod check_nonce {
                     use super::runtime_types;
@@ -12154,23 +12883,29 @@ pub mod api {
                 #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                 pub enum Event {
                     #[codec(index = 0)]
-                    ExtrinsicSuccess(runtime_types::frame_support::weights::DispatchInfo),
+                    ExtrinsicSuccess {
+                        dispatch_info: runtime_types::frame_support::weights::DispatchInfo,
+                    },
                     #[codec(index = 1)]
-                    ExtrinsicFailed(
-                        runtime_types::sp_runtime::DispatchError,
-                        runtime_types::frame_support::weights::DispatchInfo,
-                    ),
+                    ExtrinsicFailed {
+                        dispatch_error: runtime_types::sp_runtime::DispatchError,
+                        dispatch_info: runtime_types::frame_support::weights::DispatchInfo,
+                    },
                     #[codec(index = 2)]
                     CodeUpdated,
                     #[codec(index = 3)]
-                    NewAccount(::subxt::sp_core::crypto::AccountId32),
+                    NewAccount {
+                        account: ::subxt::sp_core::crypto::AccountId32,
+                    },
                     #[codec(index = 4)]
-                    KilledAccount(::subxt::sp_core::crypto::AccountId32),
+                    KilledAccount {
+                        account: ::subxt::sp_core::crypto::AccountId32,
+                    },
                     #[codec(index = 5)]
-                    Remarked(
-                        ::subxt::sp_core::crypto::AccountId32,
-                        ::subxt::sp_core::H256,
-                    ),
+                    Remarked {
+                        sender: ::subxt::sp_core::crypto::AccountId32,
+                        hash: ::subxt::sp_core::H256,
+                    },
                 }
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
@@ -12327,6 +13062,19 @@ pub mod api {
                     rebag {
                         dislocated: ::subxt::sp_core::crypto::AccountId32,
                     },
+                    #[codec(index = 1)]
+                    put_in_front_of {
+                        lighter: ::subxt::sp_core::crypto::AccountId32,
+                    },
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub enum Error {
+                    #[codec(index = 0)]
+                    NotInSameBag,
+                    #[codec(index = 1)]
+                    IdNotFound,
+                    #[codec(index = 2)]
+                    NotHeavier,
                 }
                 #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                 pub enum Event {
@@ -13338,6 +14086,56 @@ pub mod api {
                 }
             }
         }
+        pub mod pallet_preimage {
+            use super::runtime_types;
+            pub mod pallet {
+                use super::runtime_types;
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub enum Call {
+                    #[codec(index = 0)]
+                    note_preimage {
+                        bytes: ::std::vec::Vec<::core::primitive::u8>,
+                    },
+                    #[codec(index = 1)]
+                    unnote_preimage { hash: ::subxt::sp_core::H256 },
+                    #[codec(index = 2)]
+                    request_preimage { hash: ::subxt::sp_core::H256 },
+                    #[codec(index = 3)]
+                    unrequest_preimage { hash: ::subxt::sp_core::H256 },
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub enum Error {
+                    #[codec(index = 0)]
+                    TooLarge,
+                    #[codec(index = 1)]
+                    AlreadyNoted,
+                    #[codec(index = 2)]
+                    NotAuthorized,
+                    #[codec(index = 3)]
+                    NotNoted,
+                    #[codec(index = 4)]
+                    Requested,
+                    #[codec(index = 5)]
+                    NotRequested,
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub enum Event {
+                    #[codec(index = 0)]
+                    Noted { hash: ::subxt::sp_core::H256 },
+                    #[codec(index = 1)]
+                    Requested { hash: ::subxt::sp_core::H256 },
+                    #[codec(index = 2)]
+                    Cleared { hash: ::subxt::sp_core::H256 },
+                }
+            }
+            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+            pub enum RequestStatus<_0, _1> {
+                #[codec(index = 0)]
+                Unrequested(::core::option::Option<(_0, _1)>),
+                #[codec(index = 1)]
+                Requested(::core::primitive::u32),
+            }
+        }
         pub mod pallet_proxy {
             use super::runtime_types;
             pub mod pallet {
@@ -13608,7 +14406,12 @@ pub mod api {
                             ::core::primitive::u32,
                         )>,
                         priority: ::core::primitive::u8,
-                        call: ::std::boxed::Box<runtime_types::westend_runtime::Call>,
+                        call: ::std::boxed::Box<
+                            runtime_types::frame_support::traits::schedule::MaybeHashed<
+                                runtime_types::westend_runtime::Call,
+                                ::subxt::sp_core::H256,
+                            >,
+                        >,
                     },
                     #[codec(index = 1)]
                     cancel {
@@ -13624,7 +14427,12 @@ pub mod api {
                             ::core::primitive::u32,
                         )>,
                         priority: ::core::primitive::u8,
-                        call: ::std::boxed::Box<runtime_types::westend_runtime::Call>,
+                        call: ::std::boxed::Box<
+                            runtime_types::frame_support::traits::schedule::MaybeHashed<
+                                runtime_types::westend_runtime::Call,
+                                ::subxt::sp_core::H256,
+                            >,
+                        >,
                     },
                     #[codec(index = 3)]
                     cancel_named {
@@ -13638,7 +14446,12 @@ pub mod api {
                             ::core::primitive::u32,
                         )>,
                         priority: ::core::primitive::u8,
-                        call: ::std::boxed::Box<runtime_types::westend_runtime::Call>,
+                        call: ::std::boxed::Box<
+                            runtime_types::frame_support::traits::schedule::MaybeHashed<
+                                runtime_types::westend_runtime::Call,
+                                ::subxt::sp_core::H256,
+                            >,
+                        >,
                     },
                     #[codec(index = 5)]
                     schedule_named_after {
@@ -13649,7 +14462,12 @@ pub mod api {
                             ::core::primitive::u32,
                         )>,
                         priority: ::core::primitive::u8,
-                        call: ::std::boxed::Box<runtime_types::westend_runtime::Call>,
+                        call: ::std::boxed::Box<
+                            runtime_types::frame_support::traits::schedule::MaybeHashed<
+                                runtime_types::westend_runtime::Call,
+                                ::subxt::sp_core::H256,
+                            >,
+                        >,
                     },
                 }
                 #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
@@ -13666,26 +14484,32 @@ pub mod api {
                 #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                 pub enum Event {
                     #[codec(index = 0)]
-                    Scheduled(::core::primitive::u32, ::core::primitive::u32),
+                    Scheduled {
+                        when: ::core::primitive::u32,
+                        index: ::core::primitive::u32,
+                    },
                     #[codec(index = 1)]
-                    Canceled(::core::primitive::u32, ::core::primitive::u32),
+                    Canceled {
+                        when: ::core::primitive::u32,
+                        index: ::core::primitive::u32,
+                    },
                     #[codec(index = 2)]
-                    Dispatched(
-                        (::core::primitive::u32, ::core::primitive::u32),
-                        ::core::option::Option<::std::vec::Vec<::core::primitive::u8>>,
-                        ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
-                    ),
+                    Dispatched {
+                        task: (::core::primitive::u32, ::core::primitive::u32),
+                        id: ::core::option::Option<::std::vec::Vec<::core::primitive::u8>>,
+                        result:
+                            ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
+                    },
+                    #[codec(index = 3)]
+                    CallLookupFailed {
+                        task: (::core::primitive::u32, ::core::primitive::u32),
+                        id: ::core::option::Option<::std::vec::Vec<::core::primitive::u8>>,
+                        error: runtime_types::frame_support::traits::schedule::LookupError,
+                    },
                 }
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub enum Releases {
-                #[codec(index = 0)]
-                V1,
-                #[codec(index = 1)]
-                V2,
-            }
-            #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-            pub struct ScheduledV2<_0, _1, _2, _3> {
+            pub struct ScheduledV3<_0, _1, _2, _3> {
                 pub maybe_id: ::core::option::Option<::std::vec::Vec<::core::primitive::u8>>,
                 pub priority: ::core::primitive::u8,
                 pub call: _0,
@@ -13859,14 +14683,15 @@ pub mod api {
                             >,
                         },
                         #[codec(index = 23)]
-                        set_staking_limits {
+                        set_staking_configs {
                             min_nominator_bond: ::core::primitive::u128,
                             min_validator_bond: ::core::primitive::u128,
                             max_nominator_count: ::core::option::Option<::core::primitive::u32>,
                             max_validator_count: ::core::option::Option<::core::primitive::u32>,
-                            threshold: ::core::option::Option<
+                            chill_threshold: ::core::option::Option<
                                 runtime_types::sp_arithmetic::per_things::Percent,
                             >,
+                            min_commission: runtime_types::sp_arithmetic::per_things::Perbill,
                         },
                         #[codec(index = 24)]
                         chill_other {
@@ -13921,6 +14746,8 @@ pub mod api {
                         TooManyNominators,
                         #[codec(index = 22)]
                         TooManyValidators,
+                        #[codec(index = 23)]
+                        CommissionTooLow,
                     }
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub enum Event {
@@ -14142,7 +14969,7 @@ pub mod api {
                     },
                     #[codec(index = 1)]
                     KeyChanged {
-                        new_sudoer: ::subxt::sp_core::crypto::AccountId32,
+                        old_sudoer: ::core::option::Option<::subxt::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 2)]
                     SudoAsDone {
@@ -14220,9 +15047,10 @@ pub mod api {
                     #[codec(index = 2)]
                     ItemCompleted,
                     #[codec(index = 3)]
-                    DispatchedAs(
-                        ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
-                    ),
+                    DispatchedAs {
+                        result:
+                            ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
+                    },
                 }
             }
         }
@@ -14775,26 +15603,6 @@ pub mod api {
                     >,
                 }
                 #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
-                pub struct SessionInfo {
-                    pub validators: ::std::vec::Vec<
-                        runtime_types::polkadot_primitives::v0::validator_app::Public,
-                    >,
-                    pub discovery_keys:
-                        ::std::vec::Vec<runtime_types::sp_authority_discovery::app::Public>,
-                    pub assignment_keys: ::std::vec::Vec<
-                        runtime_types::polkadot_primitives::v1::assignment_app::Public,
-                    >,
-                    pub validator_groups: ::std::vec::Vec<
-                        ::std::vec::Vec<runtime_types::polkadot_primitives::v0::ValidatorIndex>,
-                    >,
-                    pub n_cores: ::core::primitive::u32,
-                    pub zeroth_delay_tranche_width: ::core::primitive::u32,
-                    pub relay_vrf_modulo_samples: ::core::primitive::u32,
-                    pub n_delay_tranches: ::core::primitive::u32,
-                    pub no_show_slots: ::core::primitive::u32,
-                    pub needed_approvals: ::core::primitive::u32,
-                }
-                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                 pub enum UpgradeGoAhead {
                     #[codec(index = 0)]
                     Abort,
@@ -14818,9 +15626,95 @@ pub mod api {
                     ApprovalChecking,
                 }
             }
+            pub mod v2 {
+                use super::runtime_types;
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub struct PvfCheckStatement {
+                    pub accept: ::core::primitive::bool,
+                    pub subject: runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                    pub session_index: ::core::primitive::u32,
+                    pub validator_index: runtime_types::polkadot_primitives::v0::ValidatorIndex,
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub struct SessionInfo {
+                    pub active_validator_indices:
+                        ::std::vec::Vec<runtime_types::polkadot_primitives::v0::ValidatorIndex>,
+                    pub random_seed: [::core::primitive::u8; 32usize],
+                    pub dispute_period: ::core::primitive::u32,
+                    pub validators: ::std::vec::Vec<
+                        runtime_types::polkadot_primitives::v0::validator_app::Public,
+                    >,
+                    pub discovery_keys:
+                        ::std::vec::Vec<runtime_types::sp_authority_discovery::app::Public>,
+                    pub assignment_keys: ::std::vec::Vec<
+                        runtime_types::polkadot_primitives::v1::assignment_app::Public,
+                    >,
+                    pub validator_groups: ::std::vec::Vec<
+                        ::std::vec::Vec<runtime_types::polkadot_primitives::v0::ValidatorIndex>,
+                    >,
+                    pub n_cores: ::core::primitive::u32,
+                    pub zeroth_delay_tranche_width: ::core::primitive::u32,
+                    pub relay_vrf_modulo_samples: ::core::primitive::u32,
+                    pub n_delay_tranches: ::core::primitive::u32,
+                    pub no_show_slots: ::core::primitive::u32,
+                    pub needed_approvals: ::core::primitive::u32,
+                }
+            }
         }
         pub mod polkadot_runtime_common {
             use super::runtime_types;
+            pub mod assigned_slots {
+                use super::runtime_types;
+                pub mod pallet {
+                    use super::runtime_types;
+                    #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                    pub enum Call {
+                        # [codec (index = 0)] assign_perm_parachain_slot { id : runtime_types :: polkadot_parachain :: primitives :: Id , } , # [codec (index = 1)] assign_temp_parachain_slot { id : runtime_types :: polkadot_parachain :: primitives :: Id , lease_period_start : runtime_types :: polkadot_runtime_common :: assigned_slots :: SlotLeasePeriodStart , } , # [codec (index = 2)] unassign_parachain_slot { id : runtime_types :: polkadot_parachain :: primitives :: Id , } , }
+                    #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                    pub enum Error {
+                        #[codec(index = 0)]
+                        ParaDoesntExist,
+                        #[codec(index = 1)]
+                        NotParathread,
+                        #[codec(index = 2)]
+                        CannotUpgrade,
+                        #[codec(index = 3)]
+                        CannotDowngrade,
+                        #[codec(index = 4)]
+                        SlotAlreadyAssigned,
+                        #[codec(index = 5)]
+                        SlotNotAssigned,
+                        #[codec(index = 6)]
+                        OngoingLeaseExists,
+                        #[codec(index = 7)]
+                        MaxPermanentSlotsExceeded,
+                        #[codec(index = 8)]
+                        MaxTemporarySlotsExceeded,
+                    }
+                    #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                    pub enum Event {
+                        #[codec(index = 0)]
+                        PermanentSlotAssigned(runtime_types::polkadot_parachain::primitives::Id),
+                        #[codec(index = 1)]
+                        TemporarySlotAssigned(runtime_types::polkadot_parachain::primitives::Id),
+                    }
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub struct ParachainTemporarySlot<_0, _1> {
+                    pub manager: _0,
+                    pub period_begin: _1,
+                    pub period_count: _1,
+                    pub last_lease: ::core::option::Option<_1>,
+                    pub lease_count: _1,
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub enum SlotLeasePeriodStart {
+                    #[codec(index = 0)]
+                    Current,
+                    #[codec(index = 1)]
+                    Next,
+                }
+            }
             pub mod auctions {
                 use super::runtime_types;
                 pub mod pallet {
@@ -14976,6 +15870,13 @@ pub mod api {
                         #[codec(index = 7)]
                         poke {
                             index: runtime_types::polkadot_parachain::primitives::Id,
+                        },
+                        #[codec(index = 8)]
+                        contribute_all {
+                            #[codec(compact)]
+                            index: runtime_types::polkadot_parachain::primitives::Id,
+                            signature:
+                                ::core::option::Option<runtime_types::sp_runtime::MultiSignature>,
                         },
                     }
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
@@ -15156,6 +16057,8 @@ pub mod api {
                         ParaLocked,
                         #[codec(index = 11)]
                         NotReserved,
+                        #[codec(index = 12)]
+                        EmptyCode,
                     }
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub enum Event {
@@ -15289,12 +16192,61 @@ pub mod api {
             use super::runtime_types;
             pub mod configuration {
                 use super::runtime_types;
+                pub mod migration {
+                    use super::runtime_types;
+                    pub mod v1 {
+                        use super::runtime_types;
+                        #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                        pub struct HostConfiguration<_0> {
+                            pub max_code_size: _0,
+                            pub max_head_data_size: _0,
+                            pub max_upward_queue_count: _0,
+                            pub max_upward_queue_size: _0,
+                            pub max_upward_message_size: _0,
+                            pub max_upward_message_num_per_candidate: _0,
+                            pub hrmp_max_message_num_per_candidate: _0,
+                            pub validation_upgrade_frequency: _0,
+                            pub validation_upgrade_delay: _0,
+                            pub max_pov_size: _0,
+                            pub max_downward_message_size: _0,
+                            pub ump_service_total_weight: ::core::primitive::u64,
+                            pub hrmp_max_parachain_outbound_channels: _0,
+                            pub hrmp_max_parathread_outbound_channels: _0,
+                            pub hrmp_sender_deposit: ::core::primitive::u128,
+                            pub hrmp_recipient_deposit: ::core::primitive::u128,
+                            pub hrmp_channel_max_capacity: _0,
+                            pub hrmp_channel_max_total_size: _0,
+                            pub hrmp_max_parachain_inbound_channels: _0,
+                            pub hrmp_max_parathread_inbound_channels: _0,
+                            pub hrmp_channel_max_message_size: _0,
+                            pub code_retention_period: _0,
+                            pub parathread_cores: _0,
+                            pub parathread_retries: _0,
+                            pub group_rotation_frequency: _0,
+                            pub chain_availability_period: _0,
+                            pub thread_availability_period: _0,
+                            pub scheduling_lookahead: _0,
+                            pub max_validators_per_core: ::core::option::Option<_0>,
+                            pub max_validators: ::core::option::Option<_0>,
+                            pub dispute_period: _0,
+                            pub dispute_post_conclusion_acceptance_period: _0,
+                            pub dispute_max_spam_slots: _0,
+                            pub dispute_conclusion_by_time_out_period: _0,
+                            pub no_show_slots: _0,
+                            pub n_delay_tranches: _0,
+                            pub zeroth_delay_tranche_width: _0,
+                            pub needed_approvals: _0,
+                            pub relay_vrf_modulo_samples: _0,
+                            pub ump_max_individual_weight: ::core::primitive::u64,
+                        }
+                    }
+                }
                 pub mod pallet {
                     use super::runtime_types;
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub enum Call {
                         #[codec(index = 0)]
-                        set_validation_upgrade_frequency { new: ::core::primitive::u32 },
+                        set_validation_upgrade_cooldown { new: ::core::primitive::u32 },
                         #[codec(index = 1)]
                         set_validation_upgrade_delay { new: ::core::primitive::u32 },
                         #[codec(index = 2)]
@@ -15381,6 +16333,14 @@ pub mod api {
                         set_hrmp_max_message_num_per_candidate { new: ::core::primitive::u32 },
                         #[codec(index = 40)]
                         set_ump_max_individual_weight { new: ::core::primitive::u64 },
+                        #[codec(index = 41)]
+                        set_pvf_checking_enabled { new: ::core::primitive::bool },
+                        #[codec(index = 42)]
+                        set_pvf_voting_ttl { new: ::core::primitive::u32 },
+                        #[codec(index = 43)]
+                        set_minimum_validation_upgrade_delay { new: ::core::primitive::u32 },
+                        #[codec(index = 44)]
+                        set_bypass_consistency_check { new: ::core::primitive::bool },
                     }
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub enum Error {
@@ -15397,7 +16357,7 @@ pub mod api {
                     pub max_upward_message_size: _0,
                     pub max_upward_message_num_per_candidate: _0,
                     pub hrmp_max_message_num_per_candidate: _0,
-                    pub validation_upgrade_frequency: _0,
+                    pub validation_upgrade_cooldown: _0,
                     pub validation_upgrade_delay: _0,
                     pub max_pov_size: _0,
                     pub max_downward_message_size: _0,
@@ -15430,6 +16390,9 @@ pub mod api {
                     pub needed_approvals: _0,
                     pub relay_vrf_modulo_samples: _0,
                     pub ump_max_individual_weight: ::core::primitive::u64,
+                    pub pvf_checking_enabled: ::core::primitive::bool,
+                    pub pvf_voting_ttl: _0,
+                    pub minimum_validation_upgrade_delay: _0,
                 }
             }
             pub mod dmp {
@@ -15570,52 +16533,62 @@ pub mod api {
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub enum Error {
                         #[codec(index = 0)]
-                        WrongBitfieldSize,
+                        UnsortedOrDuplicateValidatorIndices,
                         #[codec(index = 1)]
-                        BitfieldDuplicateOrUnordered,
+                        UnsortedOrDuplicateDisputeStatementSet,
                         #[codec(index = 2)]
-                        ValidatorIndexOutOfBounds,
+                        UnsortedOrDuplicateBackedCandidates,
                         #[codec(index = 3)]
-                        InvalidBitfieldSignature,
+                        UnexpectedRelayParent,
                         #[codec(index = 4)]
-                        UnscheduledCandidate,
+                        WrongBitfieldSize,
                         #[codec(index = 5)]
-                        CandidateScheduledBeforeParaFree,
+                        BitfieldAllZeros,
                         #[codec(index = 6)]
-                        WrongCollator,
+                        BitfieldDuplicateOrUnordered,
                         #[codec(index = 7)]
-                        ScheduledOutOfOrder,
+                        ValidatorIndexOutOfBounds,
                         #[codec(index = 8)]
-                        HeadDataTooLarge,
+                        InvalidBitfieldSignature,
                         #[codec(index = 9)]
-                        PrematureCodeUpgrade,
+                        UnscheduledCandidate,
                         #[codec(index = 10)]
-                        NewCodeTooLarge,
+                        CandidateScheduledBeforeParaFree,
                         #[codec(index = 11)]
-                        CandidateNotInParentContext,
+                        WrongCollator,
                         #[codec(index = 12)]
-                        InvalidGroupIndex,
+                        ScheduledOutOfOrder,
                         #[codec(index = 13)]
-                        InsufficientBacking,
+                        HeadDataTooLarge,
                         #[codec(index = 14)]
-                        InvalidBacking,
+                        PrematureCodeUpgrade,
                         #[codec(index = 15)]
-                        NotCollatorSigned,
+                        NewCodeTooLarge,
                         #[codec(index = 16)]
-                        ValidationDataHashMismatch,
+                        CandidateNotInParentContext,
                         #[codec(index = 17)]
-                        IncorrectDownwardMessageHandling,
+                        InvalidGroupIndex,
                         #[codec(index = 18)]
-                        InvalidUpwardMessages,
+                        InsufficientBacking,
                         #[codec(index = 19)]
-                        HrmpWatermarkMishandling,
+                        InvalidBacking,
                         #[codec(index = 20)]
-                        InvalidOutboundHrmp,
+                        NotCollatorSigned,
                         #[codec(index = 21)]
-                        InvalidValidationCodeHash,
+                        ValidationDataHashMismatch,
                         #[codec(index = 22)]
-                        ParaHeadMismatch,
+                        IncorrectDownwardMessageHandling,
                         #[codec(index = 23)]
+                        InvalidUpwardMessages,
+                        #[codec(index = 24)]
+                        HrmpWatermarkMishandling,
+                        #[codec(index = 25)]
+                        InvalidOutboundHrmp,
+                        #[codec(index = 26)]
+                        InvalidValidationCodeHash,
+                        #[codec(index = 27)]
+                        ParaHeadMismatch,
+                        #[codec(index = 28)]
                         BitfieldReferencesFreedCore,
                     }
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
@@ -15734,6 +16707,22 @@ pub mod api {
                         force_queue_action {
                             para: runtime_types::polkadot_parachain::primitives::Id,
                         },
+                        #[codec(index = 5)]
+                        add_trusted_validation_code {
+                            validation_code:
+                                runtime_types::polkadot_parachain::primitives::ValidationCode,
+                        },
+                        #[codec(index = 6)]
+                        poke_unused_validation_code {
+                            validation_code_hash:
+                                runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                        },
+                        #[codec(index = 7)]
+                        include_pvf_check_statement {
+                            stmt: runtime_types::polkadot_primitives::v2::PvfCheckStatement,
+                            signature:
+                                runtime_types::polkadot_primitives::v0::validator_app::Signature,
+                        },
                     }
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub enum Error {
@@ -15747,6 +16736,20 @@ pub mod api {
                         CannotUpgrade,
                         #[codec(index = 4)]
                         CannotDowngrade,
+                        #[codec(index = 5)]
+                        PvfCheckStatementStale,
+                        #[codec(index = 6)]
+                        PvfCheckStatementFuture,
+                        #[codec(index = 7)]
+                        PvfCheckValidatorIndexOutOfBounds,
+                        #[codec(index = 8)]
+                        PvfCheckInvalidSignature,
+                        #[codec(index = 9)]
+                        PvfCheckDoubleVote,
+                        #[codec(index = 10)]
+                        PvfCheckSubjectInvalid,
+                        #[codec(index = 11)]
+                        PvfCheckDisabled,
                     }
                     #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                     pub enum Event {
@@ -15762,6 +16765,21 @@ pub mod api {
                         ActionQueued(
                             runtime_types::polkadot_parachain::primitives::Id,
                             ::core::primitive::u32,
+                        ),
+                        #[codec(index = 5)]
+                        PvfCheckStarted(
+                            runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                            runtime_types::polkadot_parachain::primitives::Id,
+                        ),
+                        #[codec(index = 6)]
+                        PvfCheckAccepted(
+                            runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                            runtime_types::polkadot_parachain::primitives::Id,
+                        ),
+                        #[codec(index = 7)]
+                        PvfCheckRejected(
+                            runtime_types::polkadot_parachain::primitives::ValidationCodeHash,
+                            runtime_types::polkadot_parachain::primitives::Id,
                         ),
                     }
                 }
@@ -15797,6 +16815,32 @@ pub mod api {
                     pub last_pruned: ::core::option::Option<_0>,
                 }
                 #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub struct PvfCheckActiveVoteState<_0> {
+                    pub votes_accept: ::subxt::bitvec::vec::BitVec<
+                        ::subxt::bitvec::order::Lsb0,
+                        ::core::primitive::u8,
+                    >,
+                    pub votes_reject: ::subxt::bitvec::vec::BitVec<
+                        ::subxt::bitvec::order::Lsb0,
+                        ::core::primitive::u8,
+                    >,
+                    pub age: _0,
+                    pub created_at: _0,
+                    pub causes: ::std::vec::Vec<
+                        runtime_types::polkadot_runtime_parachains::paras::PvfCheckCause<_0>,
+                    >,
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
+                pub enum PvfCheckCause<_0> {
+                    #[codec(index = 0)]
+                    Onboarding(runtime_types::polkadot_parachain::primitives::Id),
+                    #[codec(index = 1)]
+                    Upgrade {
+                        id: runtime_types::polkadot_parachain::primitives::Id,
+                        relay_parent_number: _0,
+                    },
+                }
+                #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
                 pub struct ReplacementTimes<_0> {
                     pub expected_at: _0,
                     pub activated_at: _0,
@@ -15828,6 +16872,10 @@ pub mod api {
                         CandidateConcludedInvalid,
                         #[codec(index = 3)]
                         InherentOverweight,
+                        #[codec(index = 4)]
+                        DisputeStatementsUnsortedOrDuplicates,
+                        #[codec(index = 5)]
+                        DisputeInvalid,
                     }
                 }
             }
@@ -16732,8 +17780,10 @@ pub mod api {
                 #[codec(index = 5)]
                 NoProviders,
                 #[codec(index = 6)]
-                Token(runtime_types::sp_runtime::TokenError),
+                TooManyConsumers,
                 #[codec(index = 7)]
+                Token(runtime_types::sp_runtime::TokenError),
+                #[codec(index = 8)]
                 Arithmetic(runtime_types::sp_runtime::ArithmeticError),
             }
             #[derive(:: subxt :: codec :: Encode, :: subxt :: codec :: Decode)]
@@ -16804,6 +17854,7 @@ pub mod api {
                 pub apis:
                     ::std::vec::Vec<([::core::primitive::u8; 8usize], ::core::primitive::u32)>,
                 pub transaction_version: ::core::primitive::u32,
+                pub state_version: ::core::primitive::u8,
             }
         }
         pub mod westend_runtime {
@@ -16840,6 +17891,8 @@ pub mod api {
                 Vesting(runtime_types::pallet_vesting::pallet::Call),
                 #[codec(index = 20)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Call),
+                #[codec(index = 28)]
+                Preimage(runtime_types::pallet_preimage::pallet::Call),
                 #[codec(index = 21)]
                 Sudo(runtime_types::pallet_sudo::pallet::Call),
                 #[codec(index = 22)]
@@ -16886,6 +17939,8 @@ pub mod api {
                 Auctions(runtime_types::polkadot_runtime_common::auctions::pallet::Call),
                 #[codec(index = 64)]
                 Crowdloan(runtime_types::polkadot_runtime_common::crowdloan::pallet::Call),
+                #[codec(index = 65)]
+                AssignedSlots(runtime_types::polkadot_runtime_common::assigned_slots::pallet::Call),
                 #[codec(index = 99)]
                 XcmPallet(runtime_types::pallet_xcm::pallet::Call),
             }
@@ -16917,6 +17972,8 @@ pub mod api {
                 Vesting(runtime_types::pallet_vesting::pallet::Event),
                 #[codec(index = 20)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Event),
+                #[codec(index = 28)]
+                Preimage(runtime_types::pallet_preimage::pallet::Event),
                 #[codec(index = 21)]
                 Sudo(runtime_types::pallet_sudo::pallet::Event),
                 #[codec(index = 22)]
@@ -16945,6 +18002,10 @@ pub mod api {
                 Auctions(runtime_types::polkadot_runtime_common::auctions::pallet::Event),
                 #[codec(index = 64)]
                 Crowdloan(runtime_types::polkadot_runtime_common::crowdloan::pallet::Event),
+                #[codec(index = 65)]
+                AssignedSlots(
+                    runtime_types::polkadot_runtime_common::assigned_slots::pallet::Event,
+                ),
                 #[codec(index = 99)]
                 XcmPallet(runtime_types::pallet_xcm::pallet::Event),
             }
@@ -17845,7 +18906,7 @@ pub mod api {
                         #[codec(index = 17)]
                         FailedToDecode,
                         #[codec(index = 18)]
-                        TooMuchWeightRequired,
+                        MaxWeightInvalid,
                         #[codec(index = 19)]
                         NotHoldingFees,
                         #[codec(index = 20)]
@@ -18190,6 +19251,9 @@ pub mod api {
         pub fn scheduler(&self) -> scheduler::storage::StorageApi<'a, T> {
             scheduler::storage::StorageApi::new(self.client)
         }
+        pub fn preimage(&self) -> preimage::storage::StorageApi<'a, T> {
+            preimage::storage::StorageApi::new(self.client)
+        }
         pub fn sudo(&self) -> sudo::storage::StorageApi<'a, T> {
             sudo::storage::StorageApi::new(self.client)
         }
@@ -18252,6 +19316,9 @@ pub mod api {
         pub fn crowdloan(&self) -> crowdloan::storage::StorageApi<'a, T> {
             crowdloan::storage::StorageApi::new(self.client)
         }
+        pub fn assigned_slots(&self) -> assigned_slots::storage::StorageApi<'a, T> {
+            assigned_slots::storage::StorageApi::new(self.client)
+        }
         pub fn xcm_pallet(&self) -> xcm_pallet::storage::StorageApi<'a, T> {
             xcm_pallet::storage::StorageApi::new(self.client)
         }
@@ -18307,6 +19374,9 @@ pub mod api {
         }
         pub fn scheduler(&self) -> scheduler::calls::TransactionApi<'a, T> {
             scheduler::calls::TransactionApi::new(self.client)
+        }
+        pub fn preimage(&self) -> preimage::calls::TransactionApi<'a, T> {
+            preimage::calls::TransactionApi::new(self.client)
         }
         pub fn sudo(&self) -> sudo::calls::TransactionApi<'a, T> {
             sudo::calls::TransactionApi::new(self.client)
@@ -18366,6 +19436,9 @@ pub mod api {
         }
         pub fn crowdloan(&self) -> crowdloan::calls::TransactionApi<'a, T> {
             crowdloan::calls::TransactionApi::new(self.client)
+        }
+        pub fn assigned_slots(&self) -> assigned_slots::calls::TransactionApi<'a, T> {
+            assigned_slots::calls::TransactionApi::new(self.client)
         }
         pub fn xcm_pallet(&self) -> xcm_pallet::calls::TransactionApi<'a, T> {
             xcm_pallet::calls::TransactionApi::new(self.client)

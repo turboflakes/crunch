@@ -10,11 +10,11 @@ TODO: Improve the runtimes implementation without the need of replicating the sa
 Download metadata from a substrate node, for use with `subxt` codegen.
 
 ```bash
-cargo run --release -p subxt-cli -- metadata --url https://kusama-rpc.polkadot.io -f bytes > kusama_metadata.scale
+subxt-cli metadata --url https://kusama-rpc.polkadot.io -f bytes > kusama_metadata.scale
 ```
 
 Generate runtime API client code from metadata.
 
 ```bash
-cargo run --release -p subxt-cli -- codegen -f polkadot_metadata.scale | rustfmt --edition=2018 --emit=stdout > polkadot_runtime.rs
+subxt codegen -f polkadot_metadata.scale | rustfmt --edition=2018 --emit=stdout > polkadot_runtime.rs
 ```
