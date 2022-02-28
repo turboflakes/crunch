@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2022-02-28
+
+- Fix summary with a clickable details on top for with `is-short` flag.
+- Update metadata Kusama runtime/9170
+
 ## [0.5.0] - 2022-02-22
 
 ### Added
