@@ -180,7 +180,7 @@ impl From<RawData> for Report {
             )
         };
 
-        report.add_text(format!(
+        report.add_raw_text(format!(
             "<details><summary>{} {}</summary>",
             summary_crunch_desc, summary_next_desc,
         ));
@@ -375,7 +375,7 @@ impl From<RawData> for Report {
 
         report.add_raw_text("___".into());
         report.add_break();
-        report.add_text("</details>".into());
+        report.add_raw_text("</details>".into());
 
         // Log report
         report.log();
