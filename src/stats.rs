@@ -29,7 +29,8 @@ pub fn mean(list: &Vec<f64>) -> f64 {
 
 pub fn standard_deviation(list: &Vec<f64>) -> f64 {
     let m = mean(list);
-    let mut variance: Vec<f64> = list.iter().map(|&score| (score - m).powf(2.0)).collect();
+    let mut variance: Vec<f64> =
+        list.iter().map(|&score| (score - m).powf(2.0)).collect();
     mean(&mut variance).sqrt()
 }
 

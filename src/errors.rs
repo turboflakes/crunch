@@ -28,8 +28,8 @@ use thiserror::Error;
 /// Crunch specific error messages
 #[derive(Error, Debug)]
 pub enum CrunchError {
-    #[error("Substrate_subxt error: {0}")]
-    SubxtError(#[from] subxt::Error),
+    #[error("Subxt error: {0}")]
+    SubxtError(#[from] subxt::BasicError),
     #[error("Codec error: {0}")]
     CodecError(#[from] codec::Error),
     #[error("Utf8 error: {0}")]

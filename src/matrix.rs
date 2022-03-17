@@ -18,7 +18,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
+#![allow(dead_code)]
 use crate::config::CONFIG;
 use crate::errors::MatrixError;
 use crate::runtimes::support::SupportedRuntime;
@@ -243,7 +243,10 @@ impl Matrix {
     }
 
     // Login user, get or create private room and join public room
-    pub async fn authenticate(&mut self, chain: SupportedRuntime) -> Result<(), MatrixError> {
+    pub async fn authenticate(
+        &mut self,
+        chain: SupportedRuntime,
+    ) -> Result<(), MatrixError> {
         if self.disabled {
             return Ok(());
         }
@@ -369,8 +372,9 @@ impl Matrix {
                 let req = CreateRoomRequest {
                     name: format!("{} Crunch Bot (Private)", self.chain),
                     room_alias_name: room.room_alias_name.to_string(),
-                    topic: "Crunch Bot <> Automate staking rewards (flakes) every X hours"
-                        .to_string(),
+                    topic:
+                        "Crunch Bot <> Automate staking rewards (flakes) every X hours"
+                            .to_string(),
                     preset: "trusted_private_chat".to_string(),
                     invite: vec![config.matrix_user],
                     is_direct: true,
@@ -451,7 +455,8 @@ impl Matrix {
         match &self.access_token {
             Some(access_token) => {
                 let client = self.client.clone();
-                let room_id_encoded: String = byte_serialize(room_id.as_bytes()).collect();
+                let room_id_encoded: String =
+                    byte_serialize(room_id.as_bytes()).collect();
                 let res = client
                     .post(format!(
                         "{}/join/{}?access_token={}",
@@ -468,7 +473,10 @@ impl Matrix {
                     }
                     reqwest::StatusCode::TOO_MANY_REQUESTS => {
                         let response = res.json::<ErrorResponse>().await?;
-                        warn!("Matrix {} -> Wait 5 seconds and try again", response.error);
+                        warn!(
+                            "Matrix {} -> Wait 5 seconds and try again",
+                            response.error
+                        );
                         thread::sleep(time::Duration::from_secs(5));
                         return self.join_room(room_id).await;
                     }
@@ -541,7 +549,10 @@ impl Matrix {
                     }
                     reqwest::StatusCode::TOO_MANY_REQUESTS => {
                         let response = res.json::<ErrorResponse>().await?;
-                        warn!("Matrix {} -> Wait 5 seconds and try again", response.error);
+                        warn!(
+                            "Matrix {} -> Wait 5 seconds and try again",
+                            response.error
+                        );
                         thread::sleep(time::Duration::from_secs(5));
                         return self
                             .dispatch_message(room_id, message, formatted_message)

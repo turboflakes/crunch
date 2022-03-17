@@ -70,14 +70,16 @@ impl MessageTrait for Message {
 
 pub async fn create_substrate_node_client(
     config: Config,
-) -> Result<Client<DefaultConfig>, subxt::Error> {
+) -> Result<Client<DefaultConfig>, subxt::BasicError> {
     ClientBuilder::new()
         .set_url(config.substrate_ws_url)
         .build::<DefaultConfig>()
         .await
 }
 
-pub async fn create_or_await_substrate_node_client(config: Config) -> Client<DefaultConfig> {
+pub async fn create_or_await_substrate_node_client(
+    config: Config,
+) -> Client<DefaultConfig> {
     loop {
         match create_substrate_node_client(config.clone()).await {
             Ok(client) => {
@@ -133,11 +135,12 @@ impl Crunch {
 
         let properties = client.properties();
         // Display SS58 addresses based on the connected chain
-        let chain_prefix: ChainPrefix = if let Some(ss58_format) = properties.get("ss58Format") {
-            ss58_format.as_u64().unwrap_or_default().try_into().unwrap()
-        } else {
-            0
-        };
+        let chain_prefix: ChainPrefix =
+            if let Some(ss58_format) = properties.get("ss58Format") {
+                ss58_format.as_u64().unwrap_or_default().try_into().unwrap()
+            } else {
+                0
+            };
         crypto::set_default_ss58_version(crypto::Ss58AddressFormat::custom(chain_prefix));
 
         // Check for supported runtime
@@ -213,9 +216,15 @@ impl Crunch {
 
     async fn run_and_subscribe_era_payout_events(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => polkadot::run_and_subscribe_era_paid_events(self).await,
-            SupportedRuntime::Kusama => kusama::run_and_subscribe_era_paid_events(self).await,
-            SupportedRuntime::Westend => westend::run_and_subscribe_era_paid_events(self).await,
+            SupportedRuntime::Polkadot => {
+                polkadot::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::Kusama => {
+                kusama::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::Westend => {
+                westend::run_and_subscribe_era_paid_events(self).await
+            }
         }
     }
 }
@@ -231,10 +240,13 @@ fn spawn_and_restart_subscription_on_error() {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
                     _ => {
                         error!("{}", e);
-                        let message = format!("On hold for {} min!", config.error_interval);
+                        let message =
+                            format!("On hold for {} min!", config.error_interval);
                         let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
                         c.send_message(&message, &formatted_message).await.unwrap();
-                        thread::sleep(time::Duration::from_secs(60 * config.error_interval));
+                        thread::sleep(time::Duration::from_secs(
+                            60 * config.error_interval,
+                        ));
                         continue;
                     }
                 }
@@ -255,7 +267,8 @@ fn spawn_and_restart_crunch_flakes_on_error() {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
                     _ => {
                         error!("{}", e);
-                        let message = format!("On hold for {} min!", config.error_interval);
+                        let message =
+                            format!("On hold for {} min!", config.error_interval);
                         let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
                         c.send_message(&message, &formatted_message).await.unwrap();
                     }
@@ -284,7 +297,8 @@ pub fn random_wait(max: u64) -> u64 {
     rng.gen_range(0..max)
 }
 
-pub async fn try_fetch_stashes_from_remote_url() -> Result<Option<Vec<String>>, CrunchError> {
+pub async fn try_fetch_stashes_from_remote_url(
+) -> Result<Option<Vec<String>>, CrunchError> {
     let config = CONFIG.clone();
     if config.stashes_url.len() == 0 {
         return Ok(None);

@@ -351,7 +351,8 @@ fn get_config() -> Config {
     match dotenv::from_filename(&config_path).ok() {
         Some(_) => info!("Loading configuration from {} file", &config_path),
         None => {
-            let config_path = env::var("CRUNCH_CONFIG_FILENAME").unwrap_or(".env".to_string());
+            let config_path =
+                env::var("CRUNCH_CONFIG_FILENAME").unwrap_or(".env".to_string());
             if let Some(_) = dotenv::from_filename(&config_path).ok() {
                 info!("Loading configuration from {} file", &config_path);
             }
@@ -420,7 +421,9 @@ fn get_config() -> Config {
                 env::set_var("CRUNCH_MAXIMUM_PAYOUTS", maximum_payouts);
             }
 
-            if let Some(maximum_history_eras) = flakes_matches.value_of("maximum-history-eras") {
+            if let Some(maximum_history_eras) =
+                flakes_matches.value_of("maximum-history-eras")
+            {
                 env::set_var("CRUNCH_MAXIMUM_HISTORY_ERAS", maximum_history_eras);
             }
 
@@ -456,7 +459,9 @@ fn get_config() -> Config {
                 env::set_var("CRUNCH_MATRIX_BOT_USER", matrix_bot_user);
             }
 
-            if let Some(matrix_bot_password) = flakes_matches.value_of("matrix-bot-password") {
+            if let Some(matrix_bot_password) =
+                flakes_matches.value_of("matrix-bot-password")
+            {
                 env::set_var("CRUNCH_MATRIX_BOT_PASSWORD", matrix_bot_password);
             }
 

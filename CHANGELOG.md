@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix skipping finalised blocks by updating `subxt` crate dependency to latest commit `8b19549` - version 0.18.1
+- Review summary description, with the addition of the number of stashes that had the previous era claimed earlier.
+- Update metadata Polkadot runtime/9170
+- Update metadata Westend runtime/9170
+
 ## [0.5.1] - 2022-02-28
 
 - Fix summary with a clickable details on top for with `is-short` flag.

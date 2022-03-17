@@ -50,6 +50,7 @@ pub struct Validator {
     pub controller: Option<AccountId32>,
     pub name: String,
     pub is_active: bool,
+    pub is_previous_era_already_claimed: bool,
     pub claimed: Vec<EraIndex>,
     pub unclaimed: Vec<EraIndex>,
     pub payouts: Vec<Payout>,
@@ -63,6 +64,7 @@ impl Validator {
             controller: None,
             name: "".to_string(),
             is_active: false,
+            is_previous_era_already_claimed: false,
             claimed: Vec::new(),
             unclaimed: Vec::new(),
             payouts: Vec::new(),
@@ -94,6 +96,7 @@ pub struct PayoutSummary {
     pub calls_succeeded: u32,
     pub next_minimum_expected: u32,
     pub total_validators: u32,
+    pub total_validators_previous_era_already_claimed: u32,
 }
 
 #[derive(Debug)]
@@ -157,33 +160,44 @@ impl From<RawData> for Report {
 
         let summary_crunch_desc = if data.summary.calls_succeeded > 0 {
             format!(
-                "<b>{:.0}% crunched</b> ({}) ->",
-                (data.summary.calls_succeeded as f32 / data.summary.calls as f32) * 100.0,
+                "Crunched <b>{}</b> ({:.0}%) → ",
                 data.summary.calls_succeeded,
+                (data.summary.calls_succeeded as f32 / data.summary.calls as f32) * 100.0,
             )
         } else {
             format!("")
         };
 
+        let summary_already_desc =
+            if data.summary.total_validators_previous_era_already_claimed > 0 {
+                format!(
+                    "Earlier claimed <b>{}</b> → ",
+                    data.summary.total_validators_previous_era_already_claimed,
+                )
+            } else {
+                format!("")
+            };
+
         let summary_next_desc = if data.summary.next_minimum_expected > 0 {
             format!(
-                "<b>{:.0}% expecting</b> ({}) rewards {}",
-                (data.summary.next_minimum_expected as f32 / data.summary.total_validators as f32)
-                    * 100.0,
+                "Next era expect <b>{}</b> ({:.0}%) {}",
                 data.summary.next_minimum_expected,
+                (data.summary.next_minimum_expected as f32
+                    / data.summary.total_validators as f32)
+                    * 100.0,
                 Random::Happy,
             )
         } else {
-            format!(
-                "Nothing for <code>crunch</code> next era {}",
-                Random::Grumpy
-            )
+            format!("Next era expect <b>NO</b> rewards {}", Random::Grumpy)
         };
 
         report.add_raw_text(format!(
-            "<details><summary>{} {}</summary>",
-            summary_crunch_desc, summary_next_desc,
+            "<details><summary>{}{}{}</summary>",
+            summary_crunch_desc, summary_already_desc, summary_next_desc,
         ));
+
+        report.add_raw_text("——".to_string());
+
         // Crunch Hello message
         report.add_text(format!("👋 {}!", Random::Hello));
         // Crunch package
@@ -202,7 +216,7 @@ impl From<RawData> for Report {
 
         // Signer
         report.add_text(format!(
-            "<br/>✍️ Signer &middot; <code>{}</code>",
+            "<br>✍️ Signer &middot; <code>{}</code>",
             data.signer.name
         ));
         for warning in data.signer.warnings {
@@ -255,7 +269,8 @@ impl From<RawData> for Report {
                     // Points
                     let reward_amount = format!(
                         "{:.4} {} {}",
-                        (payout.validator_amount_value + payout.nominators_amount_value) as f64
+                        (payout.validator_amount_value + payout.nominators_amount_value)
+                            as f64
                             / 10f64.powi(data.network.token_decimals.into()),
                         data.network.token_symbol,
                         good_performance(
@@ -265,7 +280,7 @@ impl From<RawData> for Report {
                         )
                     );
                     report.add_raw_text(format!(
-                        "🎲 Points {} {} ({:.0}) -> 💸 {}",
+                        "🎲 Points {} {} ({:.0}) → 💸 {}",
                         payout.points.validator,
                         trend(payout.points.validator.into(), payout.points.era_avg),
                         payout.points.era_avg,
@@ -279,10 +294,11 @@ impl From<RawData> for Report {
                         data.network.token_symbol
                     );
                     let stash_amount_percentage = (payout.validator_amount_value as f64
-                        / (payout.validator_amount_value + payout.nominators_amount_value) as f64)
+                        / (payout.validator_amount_value + payout.nominators_amount_value)
+                            as f64)
                         * 100.0;
                     report.add_text(format!(
-                        "🧑‍🚀 {} -> 💸 <b>{}</b> ({:.2}%)",
+                        "🧑‍🚀 {} → 💸 <b>{}</b> ({:.2}%)",
                         validator.name, stash_amount, stash_amount_percentage
                     ));
 
@@ -293,12 +309,16 @@ impl From<RawData> for Report {
                             / 10f64.powi(data.network.token_decimals.into()),
                         data.network.token_symbol
                     );
-                    let nominators_amount_percentage = (payout.nominators_amount_value as f64
-                        / (payout.validator_amount_value + payout.nominators_amount_value) as f64)
+                    let nominators_amount_percentage = (payout.nominators_amount_value
+                        as f64
+                        / (payout.validator_amount_value + payout.nominators_amount_value)
+                            as f64)
                         * 100.0;
                     report.add_text(format!(
-                        "🦸 Nominators ({}) -> 💸 {} ({:.2}%)",
-                        payout.nominators_quantity, nominators_amount, nominators_amount_percentage
+                        "🦸 Nominators ({}) → 💸 {} ({:.2}%)",
+                        payout.nominators_quantity,
+                        nominators_amount,
+                        nominators_amount_percentage
                     ));
 
                     // Block number
@@ -336,7 +356,8 @@ impl From<RawData> for Report {
 
             // Inclusion
             let inclusion_percentage =
-                ((validator.claimed.len() + validator.unclaimed.len()) as f32 / 84.0) * 100.0;
+                ((validator.claimed.len() + validator.unclaimed.len()) as f32 / 84.0)
+                    * 100.0;
             report.add_text(format!(
                 "📒 Inclusion {}/{} ({:.2}%)",
                 validator.claimed.len() + validator.unclaimed.len(),
@@ -363,7 +384,7 @@ impl From<RawData> for Report {
         let config = CONFIG.clone();
         if config.is_mode_era {
             report.add_raw_text(format!(
-                "💤 Until next era <i>{}</i> -> Stay tuned 👀",
+                "💤 Until next era <i>{}</i> → Stay tuned 👀",
                 data.network.active_era + 1
             ));
         } else {
@@ -373,7 +394,7 @@ impl From<RawData> for Report {
             ));
         };
 
-        report.add_raw_text("___".into());
+        report.add_raw_text("——".into());
         report.add_break();
         report.add_raw_text("</details>".into());
 
@@ -399,7 +420,7 @@ fn trend(a: f64, b: f64) -> String {
     if a > b {
         String::from("⬆️")
     } else {
-        String::from("⬇️")
+        String::from("⇩")
     }
 }
 
@@ -452,15 +473,15 @@ impl std::fmt::Display for Random {
             }
             Self::Grumpy => {
                 let v = vec![
-                    "🤔", "😞", "😔", "😟", "😕", "🙁", "😣", "😖", "😫", "😩", "🥺", "😢", "😭",
-                    "😤", "😠", "😡", "🤬",
+                    "🤔", "😞", "😔", "😟", "😕", "🙁", "😣", "😖", "😫", "😩", "🥺",
+                    "😢", "😭", "😤", "😠", "😡", "🤬",
                 ];
                 write!(f, "{}", v[random_index(v.len())])
             }
             Self::Happy => {
                 let v = vec![
-                    "😀", "😃", "😁", "😆", "😅", "😊", "🙂", "😉", "😝", "😜", "😎", "🤩", "🥳",
-                    "😏", "😬",
+                    "😀", "😃", "😁", "😆", "😅", "😊", "🙂", "😉", "😝", "😜", "😎",
+                    "🤩", "🥳", "😏", "😬",
                 ];
                 write!(f, "{}", v[random_index(v.len())])
             }
@@ -489,9 +510,10 @@ impl std::fmt::Display for Random {
             }
             Self::Hello => {
                 let v = vec![
-                    "Hello", "Hey", "Olá", "Hola", "Ciao", "Salut", "Privet", "Nǐ hǎo", "Yā, Yō",
-                    "Hallo", "Oi", "Anyoung", "Ahlan", "Halløj", "Habari", "Hallo", "Yassou",
-                    "Cześć", "Halo", "Hai", "Hai", "Selam", "Hej", "Hei",
+                    "Hello", "Hey", "Olá", "Hola", "Ciao", "Salut", "Privet", "Nǐ hǎo",
+                    "Yā, Yō", "Hallo", "Oi", "Anyoung", "Ahlan", "Halløj", "Habari",
+                    "Hallo", "Yassou", "Cześć", "Halo", "Hai", "Hai", "Selam", "Hej",
+                    "Hei",
                 ];
                 write!(f, "{}", v[random_index(v.len())])
             }
@@ -520,12 +542,13 @@ mod tests {
     #[test]
     fn good_performance_emojis() {
         let v = vec![
-            80.0, 840.0, 920.0, 1580.0, 1160.0, 80.0, 940.0, 40.0, 20.0, 80.0, 60.0, 2680.0,
-            1480.0, 1020.0, 2280.0, 1120.0, 2100.0, 900.0, 1460.0, 1240.0, 940.0, 2380.0, 3420.0,
-            1560.0, 100.0, 1400.0, 180.0, 80.0, 1560.0, 80.0, 40.0, 2720.0, 1660.0, 20.0, 1740.0,
-            1780.0, 2360.0, 960.0, 2420.0, 1700.0, 1080.0, 4840.0, 1160.0, 1620.0, 20.0, 1620.0,
-            1740.0, 1540.0, 100.0, 1240.0, 1260.0, 40.0, 5940.0, 1620.0, 1560.0, 1740.0, 100.0,
-            2760.0, 880.0, 100.0, 1740.0, 1700.0, 4680.0, 1520.0, 2160.0, 1280.0, 2540.0, 3160.0,
+            80.0, 840.0, 920.0, 1580.0, 1160.0, 80.0, 940.0, 40.0, 20.0, 80.0, 60.0,
+            2680.0, 1480.0, 1020.0, 2280.0, 1120.0, 2100.0, 900.0, 1460.0, 1240.0, 940.0,
+            2380.0, 3420.0, 1560.0, 100.0, 1400.0, 180.0, 80.0, 1560.0, 80.0, 40.0,
+            2720.0, 1660.0, 20.0, 1740.0, 1780.0, 2360.0, 960.0, 2420.0, 1700.0, 1080.0,
+            4840.0, 1160.0, 1620.0, 20.0, 1620.0, 1740.0, 1540.0, 100.0, 1240.0, 1260.0,
+            40.0, 5940.0, 1620.0, 1560.0, 1740.0, 100.0, 2760.0, 880.0, 100.0, 1740.0,
+            1700.0, 4680.0, 1520.0, 2160.0, 1280.0, 2540.0, 3160.0,
         ];
         let avg = stats::mean(&v);
         let ci99_9 = stats::confidence_interval_99_9(&v);
