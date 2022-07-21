@@ -26,8 +26,9 @@ url = "2.2.2"
 base64 = "0.13.0"
 rand = "0.8.4"
 # subxt dependencies
-subxt = { git = "https://github.com/paritytech/subxt", rev = "8b19549" }
-async-std = { version = "1.9.0", features = ["attributes", "tokio1"] }
+# subxt = { git = "https://github.com/paritytech/subxt", rev = "8b19549" }
+subxt = { rev = "6d731725", git = "https://github.com/paritytech/subxt" }
+async-std = { version = "1.11.0", features = ["attributes", "tokio1"] }
 env_logger = "0.9.0"
 futures = "0.3.13"
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
