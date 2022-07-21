@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix recursive call in case of batch interrupted
+
 ## [0.5.2] - 2022-03-17
 
 ### Changed

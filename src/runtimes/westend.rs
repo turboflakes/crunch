@@ -95,9 +95,9 @@ pub async fn try_run_batch(
     let mut attempt = match next_attempt {
         Some(na) => {
             if na >= 3 {
-                return Ok(());
+                None
             } else {
-                next_attempt
+                Some(na + 1)
             }
         }
         _ => None,
@@ -384,12 +384,8 @@ pub async fn try_run_batch(
                                     _ => unreachable!(),
                                 };
                             }
-                            // Attempt to run one more time
-                            attempt = if let Some(na) = attempt {
-                                Some(na + 1)
-                            } else {
-                                Some(1)
-                            };
+                            // Attempt to run batch once again
+                            attempt = if attempt.is_none() { Some(1) } else { attempt };
                         }
                     }
                 }
