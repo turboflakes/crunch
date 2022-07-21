@@ -149,10 +149,7 @@ pub async fn try_run_batch(
     let seed = fs::read_to_string(config.seed_path)
         .expect("Something went wrong reading the seed file");
     let seed_account: sr25519::Pair = get_from_seed(&seed, None);
-    let seed_account_signer =
-        PairSigner::<DefaultConfig, PolkadotExtrinsicParams<DefaultConfig>, sr25519::Pair>::new(
-            seed_account.clone(),
-        );
+    let seed_account_signer = PairSigner::<DefaultConfig, sr25519::Pair>::new(seed_account.clone());
     let seed_account_id: AccountId32 = seed_account.public().into();
 
     // Get signer account identity
@@ -258,8 +255,8 @@ pub async fn try_run_batch(
                 let batch_response = api
                     .tx()
                     .utility()
-                    .batch(calls_for_batch_clipped.clone())
-                    .sign_and_submit_then_watch(&seed_account_signer)
+                    .batch(calls_for_batch_clipped.clone())?
+                    .sign_and_submit_then_watch_default(&seed_account_signer)
                     .await?
                     .wait_for_finalized()
                     .await?;

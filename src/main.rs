@@ -48,11 +48,11 @@ fn main() {
         env!("CARGO_PKG_DESCRIPTION")
     );
 
-    if config.only_view {
-        return Crunch::view();
-    }
-    if config.is_mode_era {
-        return Crunch::subscribe();
-    }
+    // if config.only_view {
+    //     return Crunch::view();
+    // }
+    // if config.is_mode_era {
+    //     return Crunch::subscribe();
+    // }
     Crunch::flakes()
 }

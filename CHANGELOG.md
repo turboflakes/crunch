@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2022-07-21
+
 - Fix recursive call in case of batch interrupted
+- Update `subxt v.0.21.0`
+- Update metadata Polkadot runtime/9230
+- Update metadata Kusama runtime/9250
+- Update metadata Westend runtime/9260
 
 ## [0.5.2] - 2022-03-17
 
