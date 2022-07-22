@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2022-07-23
+
+- Fix enable view and subscription modes - these modes were wrongly disabled in the previous released
+
 ## [0.5.3] - 2022-07-21
 
 - Fix recursive call in case of batch interrupted
