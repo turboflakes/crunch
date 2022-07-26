@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2022-07-26
+
+- Update metadata Polkadot runtime/9250
+- Update metadata Kusama runtime/9260
+
 ## [0.5.4] - 2022-07-23
 
 - Fix enable view and subscription modes - these modes were wrongly disabled in the previous released
