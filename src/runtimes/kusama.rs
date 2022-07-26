@@ -91,10 +91,10 @@ pub async fn try_run_batch(
     crunch: &Crunch,
     next_attempt: Option<u8>,
 ) -> Result<(), CrunchError> {
-    // Skip run if it's the 3rd or more attempt
+    // Skip run if it's the 2nd or more attempt
     let mut attempt = match next_attempt {
         Some(na) => {
-            if na >= 3 {
+            if na >= 1 {
                 None
             } else {
                 Some(na + 1)
