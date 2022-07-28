@@ -22,8 +22,8 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    kusama, polkadot,
-    support::{ChainPrefix, SupportedRuntime},
+    aleph_zero_testnet, kusama, polkadot,
+    support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
 use async_std::task;
@@ -33,6 +33,7 @@ use regex::Regex;
 use std::{convert::TryInto, result::Result, thread, time};
 
 use subxt::{
+    rpc::JsonValue,
     sp_core::{crypto, sr25519, Pair as PairT},
     Client, ClientBuilder, DefaultConfig,
 };
@@ -143,13 +144,22 @@ impl Crunch {
             };
         crypto::set_default_ss58_version(crypto::Ss58AddressFormat::custom(chain_prefix));
 
-        // Check for supported runtime
-        let runtime = SupportedRuntime::from(chain_prefix);
+        let chain_token_symbol: ChainTokenSymbol =
+            if let Some(token_symbol) = properties.get("tokenSymbol") {
+                match token_symbol {
+                    JsonValue::String(token_symbol) => token_symbol.to_string(),
+                    _ => unreachable!("Token symbol with wrong type"),
+                }
+            } else {
+                String::from("")
+            };
+        // Check for supported runtime by token symbol
+        let runtime = SupportedRuntime::from(chain_token_symbol.clone());
 
         // Initialize matrix client
         let mut matrix: Matrix = Matrix::new();
         matrix
-            .authenticate(chain_prefix.into())
+            .authenticate(chain_token_symbol.into())
             .await
             .unwrap_or_else(|e| {
                 error!("{}", e);
@@ -203,6 +213,7 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
+            SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
         }
     }
 
@@ -211,6 +222,9 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
             SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
             SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
+            SupportedRuntime::AlephZeroTestnet => {
+                aleph_zero_testnet::try_run_batch(self, None).await
+            }
         }
     }
 
@@ -224,6 +238,9 @@ impl Crunch {
             }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::AlephZeroTestnet => {
+                aleph_zero_testnet::run_and_subscribe_era_paid_events(self).await
             }
         }
     }

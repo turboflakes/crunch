@@ -20,12 +20,14 @@
 // SOFTWARE.
 
 pub type ChainPrefix = u16;
+pub type ChainTokenSymbol = String;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SupportedRuntime {
     Polkadot,
     Kusama,
     Westend,
+    AlephZeroTestnet,
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -39,12 +41,25 @@ impl From<ChainPrefix> for SupportedRuntime {
     }
 }
 
+impl From<ChainTokenSymbol> for SupportedRuntime {
+    fn from(v: ChainTokenSymbol) -> Self {
+        match v.as_str() {
+            "DOT" => Self::Polkadot,
+            "KSM" => Self::Kusama,
+            "WST" => Self::Westend,
+            "TZERO" => Self::AlephZeroTestnet,
+            _ => unimplemented!("Chain prefix not supported"),
+        }
+    }
+}
+
 impl std::fmt::Display for SupportedRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Polkadot => write!(f, "Polkadot"),
             Self::Kusama => write!(f, "Kusama"),
             Self::Westend => write!(f, "Westend"),
+            Self::AlephZeroTestnet => write!(f, "AlephZeroTestnet"),
         }
     }
 }
