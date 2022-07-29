@@ -27,6 +27,7 @@ pub enum SupportedRuntime {
     Polkadot,
     Kusama,
     Westend,
+    AlephZero,
     AlephZeroTestnet,
 }
 
@@ -47,6 +48,7 @@ impl From<ChainTokenSymbol> for SupportedRuntime {
             "DOT" => Self::Polkadot,
             "KSM" => Self::Kusama,
             "WST" => Self::Westend,
+            "AZERO" => Self::AlephZero,
             "TZERO" => Self::AlephZeroTestnet,
             _ => unimplemented!("Chain prefix not supported"),
         }
@@ -59,6 +61,7 @@ impl std::fmt::Display for SupportedRuntime {
             Self::Polkadot => write!(f, "Polkadot"),
             Self::Kusama => write!(f, "Kusama"),
             Self::Westend => write!(f, "Westend"),
+            Self::AlephZero => write!(f, "AlephZero"),
             Self::AlephZeroTestnet => write!(f, "AlephZeroTestnet"),
         }
     }
