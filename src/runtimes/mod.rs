@@ -22,7 +22,7 @@
 #![allow(clippy::all)]
 
 pub mod aleph_zero_testnet;
-pub mod aleph_zero;
+//pub mod aleph_zero;
 pub mod kusama;
 pub mod polkadot;
 pub mod support;
