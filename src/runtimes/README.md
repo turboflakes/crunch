@@ -2,10 +2,12 @@
   - Polkadot
   - Kusama
   - Westend
+  - Aleph Zero testnet
+  - Aleph Zero mainnet (pending)
 
-TODO: Improve the runtimes implementation without the need of replicating the same functions for each runtime. Note that *RuntimeApi* is runtime specific. It gives access to api functions specific for each runtime. 
+TODO: Improve the runtimes implementation without the need of replicating the same functions for each runtime. Note that *RuntimeApi* is runtime specific. It gives access to api functions specific for each runtime.
 
-## Generated files from subxt-cli 
+## Generated files from subxt-cli
 
 Download metadata from a substrate node, for use with `subxt` codegen.
 

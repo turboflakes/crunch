@@ -27,6 +27,7 @@ pub enum SupportedRuntime {
     Polkadot,
     Kusama,
     Westend,
+    // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
     //AlephZero,
     AlephZeroTestnet,
 }
@@ -48,6 +49,7 @@ impl From<ChainTokenSymbol> for SupportedRuntime {
             "DOT" => Self::Polkadot,
             "KSM" => Self::Kusama,
             "WST" => Self::Westend,
+            // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
             //"AZERO" => Self::AlephZero,
             "TZERO" => Self::AlephZeroTestnet,
             _ => unimplemented!("Chain prefix not supported"),
@@ -61,6 +63,7 @@ impl std::fmt::Display for SupportedRuntime {
             Self::Polkadot => write!(f, "Polkadot"),
             Self::Kusama => write!(f, "Kusama"),
             Self::Westend => write!(f, "Westend"),
+            // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
             //Self::AlephZero => write!(f, "AlephZero"),
             Self::AlephZeroTestnet => write!(f, "AlephZeroTestnet"),
         }
