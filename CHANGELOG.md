@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6] - 2022-08-06
+
+### Added
+- Add support for Aleph Zero Testnet
+- Add metadata Aleph Zero Testnet runtime/30
+
 ## [0.5.5] - 2022-07-26
 
 - Reduce number of recursive attempts to only once
