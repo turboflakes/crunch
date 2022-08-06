@@ -25,7 +25,8 @@ use crate::runtimes::{
     aleph_zero_testnet,
     // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
     //aleph_zero,
-    kusama, polkadot,
+    kusama,
+    polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -229,7 +230,9 @@ impl Crunch {
             SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
             // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
             //SupportedRuntime::AlephZero => aleph_zero::try_run_batch(self, None).await,
-            SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::try_run_batch(self, None).await,
+            SupportedRuntime::AlephZeroTestnet => {
+                aleph_zero_testnet::try_run_batch(self, None).await
+            }
         }
     }
 

@@ -373,22 +373,13 @@ fn get_config() -> Config {
             );
         }
         Some("polkadot") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.polkadot.io:443"
-            );
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io:443");
         }
         Some("azero") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://ws.azero.dev:443"
-            );
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.azero.dev:443");
         }
         Some("tzero") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://ws.test.azero.dev:443"
-            );
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.test.azero.dev:443");
         }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {

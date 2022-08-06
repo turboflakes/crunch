@@ -52,7 +52,7 @@ impl From<ChainTokenSymbol> for SupportedRuntime {
             // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
             //"AZERO" => Self::AlephZero,
             "TZERO" => Self::AlephZeroTestnet,
-            _ => unimplemented!("Chain prefix not supported"),
+            _ => unimplemented!("Chain unit not supported"),
         }
     }
 }
