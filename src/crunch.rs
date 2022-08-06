@@ -22,7 +22,10 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    aleph_zero_testnet, kusama, polkadot,
+    aleph_zero_testnet,
+    // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+    //aleph_zero,
+    kusama, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -213,6 +216,8 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
+            // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+            //SupportedRuntime::AlephZero => aleph_zero::inspect(self).await,
             SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
         }
     }
@@ -222,9 +227,9 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
             SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
             SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
-            SupportedRuntime::AlephZeroTestnet => {
-                aleph_zero_testnet::try_run_batch(self, None).await
-            }
+            // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+            //SupportedRuntime::AlephZero => aleph_zero::try_run_batch(self, None).await,
+            SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::try_run_batch(self, None).await,
         }
     }
 
@@ -239,6 +244,10 @@ impl Crunch {
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
             }
+            // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+            //SupportedRuntime::AlephZero => {
+            //    aleph_zero::run_and_subscribe_era_paid_events(self).await
+            //}
             SupportedRuntime::AlephZeroTestnet => {
                 aleph_zero_testnet::run_and_subscribe_era_paid_events(self).await
             }
