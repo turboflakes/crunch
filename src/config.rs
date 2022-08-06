@@ -125,7 +125,7 @@ fn get_config() -> Config {
     .arg(
       Arg::with_name("CHAIN")
           .index(1)
-          .possible_values(&["westend", "kusama", "polkadot"])
+          .possible_values(&["westend", "kusama", "polkadot", "azero", "tzero"])
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -374,6 +374,12 @@ fn get_config() -> Config {
         }
         Some("polkadot") => {
             env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io:443");
+        }
+        Some("azero") => {
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.azero.dev:443");
+        }
+        Some("tzero") => {
+            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.test.azero.dev:443");
         }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {

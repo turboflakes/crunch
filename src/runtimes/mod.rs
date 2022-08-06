@@ -21,6 +21,9 @@
 
 #![allow(clippy::all)]
 
+pub mod aleph_zero_testnet;
+// TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+//pub mod aleph_zero;
 pub mod kusama;
 pub mod polkadot;
 pub mod support;

@@ -20,12 +20,16 @@
 // SOFTWARE.
 
 pub type ChainPrefix = u16;
+pub type ChainTokenSymbol = String;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SupportedRuntime {
     Polkadot,
     Kusama,
     Westend,
+    // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+    //AlephZero,
+    AlephZeroTestnet,
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -39,12 +43,29 @@ impl From<ChainPrefix> for SupportedRuntime {
     }
 }
 
+impl From<ChainTokenSymbol> for SupportedRuntime {
+    fn from(v: ChainTokenSymbol) -> Self {
+        match v.as_str() {
+            "DOT" => Self::Polkadot,
+            "KSM" => Self::Kusama,
+            "WST" => Self::Westend,
+            // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+            //"AZERO" => Self::AlephZero,
+            "TZERO" => Self::AlephZeroTestnet,
+            _ => unimplemented!("Chain unit not supported"),
+        }
+    }
+}
+
 impl std::fmt::Display for SupportedRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Polkadot => write!(f, "Polkadot"),
             Self::Kusama => write!(f, "Kusama"),
             Self::Westend => write!(f, "Westend"),
+            // TODO: enable line(s) below when there is an available meytadata for Aleph Zero mainnet
+            //Self::AlephZero => write!(f, "AlephZero"),
+            Self::AlephZeroTestnet => write!(f, "AlephZeroTestnet"),
         }
     }
 }

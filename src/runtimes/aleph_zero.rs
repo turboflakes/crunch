@@ -45,7 +45,7 @@ use subxt::{
 };
 
 #[subxt::subxt(
-    runtime_metadata_path = "metadata/westend_metadata.scale",
+    runtime_metadata_path = "metadata/aleph_zero_metadata.scale",
     derive_for_all_types = "Clone"
 )]
 mod node_runtime {}
@@ -59,7 +59,7 @@ use node_runtime::{
 pub type Api =
     node_runtime::RuntimeApi<DefaultConfig, PolkadotExtrinsicParams<DefaultConfig>>;
 
-type Call = node_runtime::runtime_types::westend_runtime::Call;
+type Call = node_runtime::runtime_types::aleph_runtime::Call;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
@@ -520,7 +520,11 @@ async fn get_era_index_start(
     } else {
         // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
         // since we still want to show information about inclusion and eras crunched for all history_depth
-        return Ok(era_index - history_depth);
+        if era_index < history_depth {
+            return Ok(0);
+        } else {
+            return Ok(era_index - history_depth);
+        }
     }
 }
 
@@ -737,8 +741,11 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     for stash_str in config.stashes.iter() {
         let stash = AccountId32::from_str(stash_str)?;
         info!("{} * Stash account", stash);
-
-        let start_index = active_era_index - history_depth;
+        let start_index = if active_era_index < history_depth {
+            0
+        } else {
+            active_era_index - history_depth
+        };
         let mut unclaimed: Vec<u32> = Vec::new();
         let mut claimed: Vec<u32> = Vec::new();
 
