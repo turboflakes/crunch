@@ -22,10 +22,7 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    aleph_zero_testnet,
-    aleph_zero,
-    kusama,
-    polkadot,
+    aleph_zero, aleph_zero_testnet, kusama, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
