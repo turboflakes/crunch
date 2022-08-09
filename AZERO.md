@@ -1,8 +1,12 @@
 ﻿# Notes for Aleph Zero users
+<<<<<<< HEAD
 
 Crunch now support both Aleph Zero chains: use `azero` to connect to mainnet and `tzero` to connet to testnet
 
 While Aleph Zero evolves, some functionalities may diverge from the standard substrate framework, thus please have the following topics in mind when configuring Crunch for your Flakes.
+=======
+While Aleph Zero evolves, some functionalities may diverge from the standard substrate framework, thus please have the following topics in mind when configuring Crunch for your networks.
+>>>>>>> 457dba90233e85b83ce8d378c197e56fe62e59da
 
 ## Quick start
 After installation (according to README.md), you can quickly try the connection to the relevant network (i.e. azero or tzero) using the following command:
@@ -11,8 +15,12 @@ After installation (according to README.md), you can quickly try the connection 
 
 If everything goes to plan, you will receive something similar to the following results:
 
+<<<<<<< HEAD
 > [INFO  crunch] crunch v0.5.5 * Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains
 > [INFO  crunch::crunch] Connected to Aleph Zero network using wss://ws.azero.dev:443 * Substrate node Substrate Node v0.4.0-4ab787d-x86_64-linux-gnu
+=======
+> [INFO  crunch] crunch v0.5.5 * Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains [INFO  crunch::crunch] Connected to Aleph Zero network using wss://ws.azero.dev:443 * Substrate node Substrate Node v0.4.0-4ab787d-x86_64-linux-gnu
+>>>>>>> 457dba90233e85b83ce8d378c197e56fe62e59da
 > [ERROR crunch::crunch] matrix bot user '' does not specify the matrix server e.g. '@your-own-crunch-bot-account:matrix.org'
 > [INFO crunch::runtimes::aleph_zero] Inspect stashes -> 5GFCZjWGSHas86192H3yiZZFySLtUW74SdHDqTymBEDUUF7T
 > [INFO crunch::runtimes::aleph_zero] 5GFCZjWGSHas86192H3yiZZFySLtUW74SdHDqTymBEDUUF7T * Stash account
@@ -49,6 +57,13 @@ Also, please note that both testnet and mainnet seems to only accept single call
 
     CRUNCH_MAXIMUM_CALLS=1
 
+<<<<<<< HEAD
 That's it!!
 
 Thanks for using Crunch and enjoy your Flakes!!
+=======
+That's it!!  Thanks for using Crunch and enjoy your Flakes!!
+
+> Written with [StackEdit](https://stackedit.io/).
+
+>>>>>>> 457dba90233e85b83ce8d378c197e56fe62e59da
