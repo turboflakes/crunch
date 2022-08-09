@@ -1,6 +1,6 @@
 ﻿# Notes for Aleph Zero users
 
-Crunch now support both Aleph Zero chains: use `azero` to connect to mainnet and `tzero` to connet to testnet
+Crunch now support both Aleph Zero chains: use `azero` to connect to mainnet and `tzero` to connect to testnet
 
 While Aleph Zero evolves, some functionalities may diverge from the standard substrate framework, thus please have the following topics in mind when configuring Crunch for your Flakes.
 
@@ -25,7 +25,7 @@ Note the error code generated when you have not specified a matrix / Element acc
 ## Element account
 Crunch is most useful when you are able to receive notifications of its results in your devices. Please consider creating one Element account for you and one for your Crunch bot. The details of both accounts can be added to the configuration `.env` file.
 
-> Note: [Element](https://element.io/) is a a free and open-source instant messaging client implementing the [Matrix](https://matrix.org/) protocol.
+> Note: [Element](https://element.io/) is a free and open-source instant messaging client implementing the [Matrix](https://matrix.org/) protocol.
 
 If you prefer not to use the notifications feature at all, just pass the `--disable-matrix` flag to the Crunch command, e.g.:
 
