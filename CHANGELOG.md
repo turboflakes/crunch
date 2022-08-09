@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Update metadata Polkadot runtime/9260
+
 ## [0.5.6] - 2022-08-06
 
 ### Added
