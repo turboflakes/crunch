@@ -155,9 +155,10 @@ pub async fn try_run_batch(
     let seed_account_id: AccountId32 = seed_account.public().into();
 
     // Get signer account identity
-    let signer_name = "someSigner ";
     // TODO: restore when the Identity pallet is added to Aleph Zero
     //let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
+    let signer_name = String::from("SomeSigner");
+
     let mut signer = Signer {
         account: seed_account_id.clone(),
         name: signer_name,
@@ -461,9 +462,9 @@ async fn collect_validators_data(
         v.controller = Some(controller.clone());
 
         // Get validator name
-        v.name = "someFoundationValidator";
         // TODO: restore when the Identity pallet is added to Aleph Zero
         //v.name = get_display_name(&crunch, &stash, None).await?;
+        v.name = String::from("someFoundationValidator");
 
         // Check if validator is in active set
         v.is_active = active_validators.contains(&stash);
