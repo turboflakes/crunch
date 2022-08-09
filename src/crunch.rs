@@ -157,9 +157,6 @@ impl Crunch {
                 String::from("")
             };
 
-        //DEBUG: Print tokenSymbol
-        println!("We found {} as the connected chain's token symbol", chain_token_symbol);
-
         // Check for supported runtime by token symbol
         let runtime = SupportedRuntime::from(chain_token_symbol.clone());
 
