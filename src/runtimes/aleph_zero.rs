@@ -155,7 +155,10 @@ pub async fn try_run_batch(
     let seed_account_id: AccountId32 = seed_account.public().into();
 
     // Get signer account identity
-    let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
+    // TODO: restore when the Identity pallet is added to Aleph Zero
+    //let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
+    let signer_name = account_display(&seed_account_id)?;
+
     let mut signer = Signer {
         account: seed_account_id.clone(),
         name: signer_name,
@@ -459,7 +462,9 @@ async fn collect_validators_data(
         v.controller = Some(controller.clone());
 
         // Get validator name
-        v.name = get_display_name(&crunch, &stash, None).await?;
+        // TODO: restore when the Identity pallet is added to Aleph Zero
+        //v.name = get_display_name(&crunch, &stash, None).await?;
+        v.name = account_display(&stash)?;
 
         // Check if validator is in active set
         v.is_active = active_validators.contains(&stash);
@@ -577,155 +582,162 @@ async fn get_validator_points_info(
     Ok(points)
 }
 
-#[async_recursion]
-async fn get_display_name(
-    crunch: &Crunch,
-    stash: &AccountId32,
-    sub_account_name: Option<String>,
-) -> Result<String, CrunchError> {
-    let client = crunch.client();
-    let api = client.clone().to_runtime_api::<Api>();
-
-    match api.storage().identity().identity_of(stash, None).await? {
-        Some(identity) => {
-            debug!("identity {:?}", identity);
-            let parent = parse_identity_data(identity.info.display);
-            let name = match sub_account_name {
-                Some(child) => format!("{}/{}", parent, child),
-                None => parent,
-            };
-            Ok(name)
-        }
-        None => {
-            if let Some((parent_account, data)) =
-                api.storage().identity().super_of(stash, None).await?
-            {
-                let sub_account_name = parse_identity_data(data);
-                return get_display_name(
-                    &crunch,
-                    &parent_account,
-                    Some(sub_account_name.to_string()),
-                )
-                .await;
-            } else {
-                let s = &stash.to_string();
-                Ok(format!("{}...{}", &s[..6], &s[s.len() - 6..]))
-            }
-        }
-    }
+fn account_display(account: &AccountId32) -> Result<String, CrunchError> {
+    let s = &account.to_string();
+    Ok(format!("{}...{}", &s[..6], &s[s.len() - 6..]))
 }
 
+// TODO: restore when the Identity pallet is added to Aleph Zero
+//#[async_recursion]
+//async fn get_display_name(
+//    crunch: &Crunch,
+//    stash: &AccountId32,
+//    sub_account_name: Option<String>,
+//) -> Result<String, CrunchError> {
+//    let client = crunch.client();
+//    let api = client.clone().to_runtime_api::<Api>();
 //
-fn parse_identity_data(
-    data: node_runtime::runtime_types::pallet_identity::types::Data,
-) -> String {
-    match data {
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw0(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw1(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw2(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw3(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw4(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw5(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw6(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw7(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw8(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw9(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw10(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw11(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw12(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw13(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw14(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw15(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw16(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw17(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw18(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw19(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw20(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw21(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw22(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw23(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw24(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw25(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw26(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw27(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw28(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw29(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw30(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw31(bytes) => {
-            str(bytes.to_vec())
-        }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw32(bytes) => {
-            str(bytes.to_vec())
-        }
-        _ => format!("???"),
-    }
-}
+//    match api.storage().identity().identity_of(stash, None).await? {
+//        Some(identity) => {
+//            debug!("identity {:?}", identity);
+//            let parent = parse_identity_data(identity.info.display);
+//            let name = match sub_account_name {
+//                Some(child) => format!("{}/{}", parent, child),
+//                None => parent,
+//            };
+//            Ok(name)
+//        }
+//        None => {
+//            if let Some((parent_account, data)) =
+//                api.storage().identity().super_of(stash, None).await?
+//            {
+//                let sub_account_name = parse_identity_data(data);
+//                return get_display_name(
+//                    &crunch,
+//                    &parent_account,
+//                    Some(sub_account_name.to_string()),
+//                )
+//                .await;
+//            } else {
+//                let s = &stash.to_string();
+//                Ok(format!("{}...{}", &s[..6], &s[s.len() - 6..]))
+//            }
+//        }
+//    }
+//}
 
-fn str(bytes: Vec<u8>) -> String {
-    format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
-}
+// TODO: restore when the Identity pallet is added to Aleph Zero
+//fn parse_identity_data(
+//    data: node_runtime::runtime_types::pallet_identity::types::Data,
+//) -> String {
+//    match data {
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw0(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw1(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw2(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw3(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw4(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw5(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw6(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw7(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw8(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw9(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw10(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw11(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw12(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw13(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw14(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw15(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw16(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw17(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw18(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw19(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw20(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw21(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw22(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw23(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw24(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw25(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw26(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw27(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw28(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw29(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw30(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw31(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        node_runtime::runtime_types::pallet_identity::types::Data::Raw32(bytes) => {
+//            str(bytes.to_vec())
+//        }
+//        _ => format!("???"),
+//    }
+//}
+
+// TODO: restore when the Identity pallet is added to Aleph Zero
+//fn str(bytes: Vec<u8>) -> String {
+//    format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
+//}
 
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let client = crunch.client();
