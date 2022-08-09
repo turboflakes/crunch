@@ -58,4 +58,4 @@ Also, please note that both testnet and mainnet seems to only accept single call
 
 That's it!!
 
-Thanks for using Crunch and enjoy your Flakes!!
+Thanks for using `Crunch` and enjoy your `Flakes`!!
