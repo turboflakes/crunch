@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.7] - 2022-08-09
+
+- Add support for Aleph Zero Mainnet
+- Add metadata Aleph Zero Mainnet runtime/12
 - Update metadata Polkadot runtime/9260
 - Update metadata Westend runtime/9271
 
