@@ -157,7 +157,7 @@ pub async fn try_run_batch(
     // Get signer account identity
     // TODO: restore when the Identity pallet is added to Aleph Zero
     //let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
-    let signer_name = String::from("SomeSigner");
+    let signer_name = account_display(&seed_account_id)?;
 
     let mut signer = Signer {
         account: seed_account_id.clone(),
@@ -464,7 +464,7 @@ async fn collect_validators_data(
         // Get validator name
         // TODO: restore when the Identity pallet is added to Aleph Zero
         //v.name = get_display_name(&crunch, &stash, None).await?;
-        v.name = String::from("someFoundationValidator");
+        v.name = account_display(&stash)?;
 
         // Check if validator is in active set
         v.is_active = active_validators.contains(&stash);
@@ -580,6 +580,11 @@ async fn get_validator_points_info(
     };
 
     Ok(points)
+}
+
+fn account_display(account: &AccountId32) -> Result<String, CrunchError> {
+    let s = &account.to_string();
+    Ok(format!("{}...{}", &s[..6], &s[s.len() - 6..]))
 }
 
 // TODO: restore when the Identity pallet is added to Aleph Zero
