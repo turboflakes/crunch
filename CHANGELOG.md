@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Update metadata Kusama runtime/9271
+- Update metadata Kusama runtime/9280
+
 ## [0.5.7] - 2022-08-09
 
 - Add support for Aleph Zero Mainnet
