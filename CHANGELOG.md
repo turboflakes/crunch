@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.8] - 2022-08-31
+
 - Update metadata Kusama runtime/9271
 - Update metadata Kusama runtime/9280
+- Update metadata Aleph Zero Testnet runtime/30 [PR 14](https://github.com/turboflakes/crunch/pull/14)
 
 ## [0.5.7] - 2022-08-09
 
