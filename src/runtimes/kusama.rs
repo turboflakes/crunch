@@ -163,14 +163,14 @@ pub async fn try_run_batch(
     };
     debug!("signer {:?}", signer);
 
-    // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
+    // Warn if signer account is running low on funds (if lower than 1000x Existential Deposit)
     let ed = get_existential_deposit(&crunch)?;
     let seed_account_info = api
         .storage()
         .system()
         .account(&seed_account_id, None)
         .await?;
-    if seed_account_info.data.free <= (2 * ed) {
+    if seed_account_info.data.free <= (1000 * ed) {
         signer
             .warnings
             .push("⚡ Signer account is running low on funds ⚡".to_string());
