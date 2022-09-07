@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.9] - 2022-09-07
+
+### Changed
+- Change Kusama low balance warning to 1000 x ed
+- Update metadata Polkadot runtime/9270
+
 ## [0.5.8] - 2022-08-31
 
 - Update metadata Kusama runtime/9271
