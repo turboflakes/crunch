@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.10] - 2022-09-07
+
+### Changed
+
+- Update metadata Kusama runtime/9280
+
 ## [0.5.9] - 2022-09-07
 
 ### Changed

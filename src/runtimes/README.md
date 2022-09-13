@@ -12,6 +12,7 @@ TODO: Improve the runtimes implementation without the need of replicating the sa
 Download metadata from a substrate node, for use with `subxt` codegen.
 
 ```bash
+subxt metadata --url https://westend-rpc.polkadot.io -f bytes > westend_metadata.scale
 subxt metadata --url https://kusama-rpc.polkadot.io -f bytes > kusama_metadata.scale
 subxt metadata --url https://rpc.polkadot.io -f bytes > polkadot_metadata.scale
 ```
