@@ -22,7 +22,7 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    aleph_zero, aleph_zero_testnet, kusama, polkadot,
+    aleph_zero, aleph_zero_testnet, kusama, lagoon, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -216,6 +216,7 @@ impl Crunch {
             SupportedRuntime::Westend => westend::inspect(self).await,
             SupportedRuntime::AlephZero => aleph_zero::inspect(self).await,
             SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
+            SupportedRuntime::Lagoon => lagoon::inspect(self).await,
         }
     }
 
@@ -228,6 +229,7 @@ impl Crunch {
             SupportedRuntime::AlephZeroTestnet => {
                 aleph_zero_testnet::try_run_batch(self, None).await
             }
+            SupportedRuntime::Lagoon => lagoon::try_run_batch(self, None).await,
         }
     }
 
@@ -247,6 +249,9 @@ impl Crunch {
             }
             SupportedRuntime::AlephZeroTestnet => {
                 aleph_zero_testnet::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::Lagoon => {
+                lagoon::run_and_subscribe_era_paid_events(self).await
             }
         }
     }
