@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.11] - 2022-09-07
+
+### New
+
+- Add support for Tidechain's testnet Lagoon [PR15](https://github.com/turboflakes/crunch/pull/15)
+
+### Changed
+
+- Update metadata Polkadot runtime/9280
+
 ## [0.5.10] - 2022-09-07
 
 ### Changed
