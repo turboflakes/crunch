@@ -46,7 +46,6 @@ impl From<ChainPrefix> for SupportedRuntime {
 
 impl From<ChainTokenSymbol> for SupportedRuntime {
     fn from(v: ChainTokenSymbol) -> Self {
-        println!("___{v:?}");
         match v.as_str() {
             "DOT" => Self::Polkadot,
             "KSM" => Self::Kusama,
