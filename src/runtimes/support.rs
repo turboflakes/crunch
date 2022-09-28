@@ -46,10 +46,11 @@ impl From<ChainPrefix> for SupportedRuntime {
 
 impl From<ChainTokenSymbol> for SupportedRuntime {
     fn from(v: ChainTokenSymbol) -> Self {
+        println!("___{v:?}");
         match v.as_str() {
             "DOT" => Self::Polkadot,
             "KSM" => Self::Kusama,
-            "WST" => Self::Westend,
+            "WND" => Self::Westend,
             "AZERO" => Self::AlephZero,
             "TZERO" => Self::AlephZeroTestnet,
             "TDFY" => Self::Lagoon,

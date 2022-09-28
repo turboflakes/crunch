@@ -31,7 +31,6 @@ use crate::report::{
 };
 use crate::stats;
 use async_recursion::async_recursion;
-use codec::Decode;
 use futures::StreamExt;
 use log::{debug, info, warn};
 use std::{
@@ -164,7 +163,8 @@ pub async fn try_run_batch(
     debug!("signer {:?}", signer);
 
     // Warn if signer account is running low on funds (if lower than 1000x Existential Deposit)
-    let ed = get_existential_deposit(&crunch)?;
+    let ed = api.constants().balances().existential_deposit()?;
+
     let seed_account_info = api
         .storage()
         .system()
@@ -523,13 +523,13 @@ async fn get_era_index_start(
     }
 }
 
-fn get_existential_deposit(crunch: &Crunch) -> Result<u128, CrunchError> {
-    let client = crunch.client();
-    let balances_metadata = client.metadata().pallet("Balances")?;
-    let constant_metadata = balances_metadata.constant("ExistentialDeposit")?;
-    let ed = u128::decode(&mut &constant_metadata.value[..])?;
-    Ok(ed)
-}
+// fn get_existential_deposit(crunch: &Crunch) -> Result<u128, CrunchError> {
+//     let client = crunch.client();
+//     let balances_metadata = client.metadata().pallet("Balances")?;
+//     let constant_metadata = balances_metadata.constant("ExistentialDeposit")?;
+//     let ed = u128::decode(&mut &constant_metadata.value[..])?;
+//     Ok(ed)
+// }
 
 async fn get_validator_points_info(
     crunch: &Crunch,
