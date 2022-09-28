@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### WIP
 - support subxt v0.24.0
 
-## [0.5.12] - 2022-09-07
+## [0.5.13] - 2022-09-28
 
 ### Changed
 
