@@ -50,7 +50,8 @@ use subxt::{
 mod node_runtime {}
 
 use node_runtime::{
-    staking::events::EraPaid, staking::events::PayoutStarted, staking::events::Rewarded,
+    runtime_types::sp_core::bounded::bounded_vec::BoundedVec, staking::events::EraPaid,
+    staking::events::PayoutStarted, staking::events::Rewarded,
     system::events::ExtrinsicFailed, utility::events::BatchCompleted,
     utility::events::BatchInterrupted, utility::events::ItemCompleted,
 };
@@ -58,7 +59,7 @@ use node_runtime::{
 pub type Api =
     node_runtime::RuntimeApi<DefaultConfig, PolkadotExtrinsicParams<DefaultConfig>>;
 
-type Call = node_runtime::runtime_types::westend_runtime::Call;
+type Call = node_runtime::runtime_types::westend_runtime::RuntimeCall;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
@@ -297,9 +298,10 @@ pub async fn try_run_batch(
                             // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
                             //
                             debug!("{:?}", ev);
-                            let validator_index_ref =
-                                &mut validators.iter().position(|v| v.stash == ev.1);
-                            era_index = ev.0;
+                            let validator_index_ref = &mut validators
+                                .iter()
+                                .position(|v| v.stash == ev.validator_stash);
+                            era_index = ev.era_index;
                             validator_index = *validator_index_ref;
                             validator_amount_value = 0;
                             nominators_amount_value = 0;
@@ -312,10 +314,10 @@ pub async fn try_run_batch(
                             debug!("{:?}", ev);
                             if let Some(i) = validator_index {
                                 let validator = &mut validators[i];
-                                if ev.0 == validator.stash {
-                                    validator_amount_value = ev.1;
+                                if ev.stash == validator.stash {
+                                    validator_amount_value = ev.amount;
                                 } else {
-                                    nominators_amount_value += ev.1;
+                                    nominators_amount_value += ev.amount;
                                     nominators_quantity += 1;
                                 }
                             }
@@ -476,10 +478,12 @@ async fn collect_validators_data(
                 stash, staking_ledger.claimed_rewards
             );
 
+            // deconstruct claimed rewards
+            let BoundedVec(claimed_rewards) = staking_ledger.claimed_rewards;
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
                 // If reward was already claimed skip it
-                if staking_ledger.claimed_rewards.contains(&e) {
+                if claimed_rewards.contains(&e) {
                     if e == era_index - 1 {
                         v.is_previous_era_already_claimed = true;
                     }
@@ -511,7 +515,7 @@ async fn get_era_index_start(
     let api = client.clone().to_runtime_api::<Api>();
     let config = CONFIG.clone();
 
-    let history_depth: u32 = api.storage().staking().history_depth(None).await?;
+    let history_depth: u32 = api.constants().staking().history_depth()?;
 
     if era_index < cmp::min(config.maximum_history_eras, history_depth) {
         return Ok(0);
@@ -721,7 +725,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
 
     info!("Inspect stashes -> {}", config.stashes.join(","));
-    let history_depth: u32 = api.storage().staking().history_depth(None).await?;
+    let history_depth: u32 = api.constants().staking().history_depth()?;
     let active_era_index = match api.storage().staking().active_era(None).await? {
         Some(active_era_info) => active_era_info.index,
         None => return Err(CrunchError::Other("Active era not available".into())),
@@ -738,10 +742,12 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
             if let Some(ledger_response) =
                 api.storage().staking().ledger(&controller, None).await?
             {
+                // deconstruct claimed rewards
+                let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
                     // If reward was already claimed skip it
-                    if ledger_response.claimed_rewards.contains(&era_index) {
+                    if claimed_rewards.contains(&era_index) {
                         claimed.push(era_index);
                         continue;
                     }
