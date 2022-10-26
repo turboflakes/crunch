@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### WIP
 - support subxt v0.24.0
 
+## [0.5.15] - 2022-10-26
+
+### Changed
+
+- Update metadata Kusama runtime/9300
+- Update metadata Westend runtime/9300
+
 ## [0.5.14] - 2022-10-18
 
 ### Changed
