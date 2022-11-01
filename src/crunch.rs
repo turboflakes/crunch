@@ -22,6 +22,7 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
+    kusama, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -195,8 +196,8 @@ impl Crunch {
 
     async fn inspect(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            // SupportedRuntime::Polkadot => polkadot::inspect(self).await,
-            // SupportedRuntime::Kusama => kusama::inspect(self).await,
+            SupportedRuntime::Polkadot => polkadot::inspect(self).await,
+            SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
             // SupportedRuntime::AlephZero => aleph_zero::inspect(self).await,
             // SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
@@ -207,8 +208,8 @@ impl Crunch {
 
     async fn try_run_batch(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            // SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
-            // SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
+            SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
+            SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
             SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
             // SupportedRuntime::AlephZero => aleph_zero::try_run_batch(self, None).await,
             // SupportedRuntime::AlephZeroTestnet => {
@@ -221,12 +222,12 @@ impl Crunch {
 
     async fn run_and_subscribe_era_paid_events(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            // SupportedRuntime::Polkadot => {
-            //     polkadot::run_and_subscribe_era_paid_events(self).await
-            // }
-            // SupportedRuntime::Kusama => {
-            //     kusama::run_and_subscribe_era_paid_events(self).await
-            // }
+            SupportedRuntime::Polkadot => {
+                polkadot::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::Kusama => {
+                kusama::run_and_subscribe_era_paid_events(self).await
+            }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
             }
