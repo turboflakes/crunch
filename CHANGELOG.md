@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### WIP
-- support subxt v0.24.0
+## [0.6.0] - 2022-11-01
+
+### New
+- Add optional environement variable 'CRUNCH_EXISTENTIAL_DEPOSIT_FACTOR_WARNING' so that the factor value could be configurable per chain. Default value is 2. The recommended values based on the existential deposits is factor 2x for Polkadot and 1000x for Kusama.
+
+### Changed
+- support `subxt` [v0.24.0](https://github.com/paritytech/subxt/releases/tag/v0.24.0)
+- Update metadata Westend runtime/9310
 
 ## [0.5.15] - 2022-10-26
 
