@@ -21,11 +21,11 @@
 use crate::config::CONFIG;
 use log::{info, warn};
 use rand::Rng;
-use subxt::{sp_core::H256, sp_runtime::AccountId32};
+use subxt::{ext::sp_core::H256, ext::sp_runtime::AccountId32};
 
 pub type EraIndex = u32;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Points {
     pub validator: u32,
     pub era_avg: f64,

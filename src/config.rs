@@ -72,6 +72,13 @@ fn default_maximum_calls() -> u32 {
     8
 }
 
+/// provides default value for existential_deposit_factor_warning if CRUNCH_EXISTENTIAL_DEPOSIT_FACTOR_WARNING env var is not set
+/// polkadot 2x
+/// kusama 1000x
+fn default_existential_deposit_factor_warning() -> u32 {
+    2
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     #[serde(default = "default_interval")]
@@ -90,6 +97,8 @@ pub struct Config {
     pub maximum_history_eras: u32,
     #[serde(default = "default_maximum_calls")]
     pub maximum_calls: u32,
+    #[serde(default = "default_existential_deposit_factor_warning")]
+    pub existential_deposit_factor_warning: u32,
     #[serde(default)]
     pub only_view: bool,
     #[serde(default)]
