@@ -22,7 +22,6 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    aleph_zero, aleph_zero_testnet, kusama, lagoon, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -33,9 +32,8 @@ use regex::Regex;
 use std::{convert::TryInto, result::Result, thread, time};
 
 use subxt::{
-    rpc::JsonValue,
-    sp_core::{crypto, sr25519, Pair as PairT},
-    Client, ClientBuilder, DefaultConfig,
+    ext::sp_core::{crypto, sr25519, Pair as PairT},
+    OnlineClient, PolkadotConfig,
 };
 
 pub type ValidatorIndex = Option<usize>;
@@ -71,40 +69,51 @@ impl MessageTrait for Message {
 
 pub async fn create_substrate_node_client(
     config: Config,
-) -> Result<Client<DefaultConfig>, subxt::BasicError> {
-    ClientBuilder::new()
-        .set_url(config.substrate_ws_url)
-        .build::<DefaultConfig>()
-        .await
+) -> Result<OnlineClient<PolkadotConfig>, subxt::Error> {
+    OnlineClient::<PolkadotConfig>::from_url(config.substrate_ws_url).await
 }
 
 pub async fn create_or_await_substrate_node_client(
     config: Config,
-) -> Client<DefaultConfig> {
+) -> (OnlineClient<PolkadotConfig>, SupportedRuntime) {
     loop {
         match create_substrate_node_client(config.clone()).await {
             Ok(client) => {
-                let chain = client
-                    .rpc()
-                    .system_chain()
-                    .await
-                    .unwrap_or_else(|_| "Chain undefined".to_string());
-                let name = client
-                    .rpc()
-                    .system_name()
-                    .await
-                    .unwrap_or_else(|_| "Node name undefined".to_string());
-                let version = client
-                    .rpc()
-                    .system_version()
-                    .await
-                    .unwrap_or_else(|_| "Node version undefined".to_string());
+                let chain = client.rpc().system_chain().await.unwrap_or_default();
+                let name = client.rpc().system_name().await.unwrap_or_default();
+                let version = client.rpc().system_version().await.unwrap_or_default();
+                let properties =
+                    client.rpc().system_properties().await.unwrap_or_default();
+
+                // Display SS58 addresses based on the connected chain
+                let chain_prefix: ChainPrefix =
+                    if let Some(ss58_format) = properties.get("ss58Format") {
+                        ss58_format.as_u64().unwrap_or_default().try_into().unwrap()
+                    } else {
+                        0
+                    };
+
+                crypto::set_default_ss58_version(crypto::Ss58AddressFormat::custom(
+                    chain_prefix,
+                ));
+
+                let chain_token_symbol: ChainTokenSymbol =
+                    if let Some(token_symbol) = properties.get("tokenSymbol") {
+                        use serde_json::Value::String;
+                        match token_symbol {
+                            String(token_symbol) => token_symbol.to_string(),
+                            _ => unreachable!("Token symbol with wrong type"),
+                        }
+                    } else {
+                        String::from("")
+                    };
 
                 info!(
                     "Connected to {} network using {} * Substrate node {} v{}",
                     chain, config.substrate_ws_url, name, version
                 );
-                break client;
+
+                break (client, SupportedRuntime::from(chain_token_symbol));
             }
             Err(e) => {
                 error!("{}", e);
@@ -126,46 +135,21 @@ pub fn get_from_seed(seed: &str, pass: Option<&str>) -> sr25519::Pair {
 
 pub struct Crunch {
     runtime: SupportedRuntime,
-    client: Client<DefaultConfig>,
+    client: OnlineClient<PolkadotConfig>,
     matrix: Matrix,
 }
 
 impl Crunch {
     async fn new() -> Crunch {
-        let client = create_or_await_substrate_node_client(CONFIG.clone()).await;
-
-        let properties = client.properties();
-        // Display SS58 addresses based on the connected chain
-        let chain_prefix: ChainPrefix =
-            if let Some(ss58_format) = properties.get("ss58Format") {
-                ss58_format.as_u64().unwrap_or_default().try_into().unwrap()
-            } else {
-                0
-            };
-        crypto::set_default_ss58_version(crypto::Ss58AddressFormat::custom(chain_prefix));
-
-        let chain_token_symbol: ChainTokenSymbol =
-            if let Some(token_symbol) = properties.get("tokenSymbol") {
-                match token_symbol {
-                    JsonValue::String(token_symbol) => token_symbol.to_string(),
-                    _ => unreachable!("Token symbol with wrong type"),
-                }
-            } else {
-                String::from("")
-            };
-
-        // Check for supported runtime by token symbol
-        let runtime = SupportedRuntime::from(chain_token_symbol.clone());
+        let (client, runtime) =
+            create_or_await_substrate_node_client(CONFIG.clone()).await;
 
         // Initialize matrix client
         let mut matrix: Matrix = Matrix::new();
-        matrix
-            .authenticate(chain_token_symbol.into())
-            .await
-            .unwrap_or_else(|e| {
-                error!("{}", e);
-                Default::default()
-            });
+        matrix.authenticate(runtime).await.unwrap_or_else(|e| {
+            error!("{}", e);
+            Default::default()
+        });
 
         Crunch {
             runtime,
@@ -174,7 +158,7 @@ impl Crunch {
         }
     }
 
-    pub fn client(&self) -> &Client<DefaultConfig> {
+    pub fn client(&self) -> &OnlineClient<PolkadotConfig> {
         &self.client
     }
 
@@ -211,48 +195,51 @@ impl Crunch {
 
     async fn inspect(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => polkadot::inspect(self).await,
-            SupportedRuntime::Kusama => kusama::inspect(self).await,
+            // SupportedRuntime::Polkadot => polkadot::inspect(self).await,
+            // SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
-            SupportedRuntime::AlephZero => aleph_zero::inspect(self).await,
-            SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
-            SupportedRuntime::Lagoon => lagoon::inspect(self).await,
+            // SupportedRuntime::AlephZero => aleph_zero::inspect(self).await,
+            // SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
+            // SupportedRuntime::Lagoon => lagoon::inspect(self).await,
+            _ => unreachable!(),
         }
     }
 
     async fn try_run_batch(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
-            SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
+            // SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
+            // SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
             SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
-            SupportedRuntime::AlephZero => aleph_zero::try_run_batch(self, None).await,
-            SupportedRuntime::AlephZeroTestnet => {
-                aleph_zero_testnet::try_run_batch(self, None).await
-            }
-            SupportedRuntime::Lagoon => lagoon::try_run_batch(self, None).await,
+            // SupportedRuntime::AlephZero => aleph_zero::try_run_batch(self, None).await,
+            // SupportedRuntime::AlephZeroTestnet => {
+            //     aleph_zero_testnet::try_run_batch(self, None).await
+            // }
+            // SupportedRuntime::Lagoon => lagoon::try_run_batch(self, None).await,
+            _ => unreachable!(),
         }
     }
 
-    async fn run_and_subscribe_era_payout_events(&self) -> Result<(), CrunchError> {
+    async fn run_and_subscribe_era_paid_events(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => {
-                polkadot::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::Kusama => {
-                kusama::run_and_subscribe_era_paid_events(self).await
-            }
+            // SupportedRuntime::Polkadot => {
+            //     polkadot::run_and_subscribe_era_paid_events(self).await
+            // }
+            // SupportedRuntime::Kusama => {
+            //     kusama::run_and_subscribe_era_paid_events(self).await
+            // }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
             }
-            SupportedRuntime::AlephZero => {
-                aleph_zero::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::AlephZeroTestnet => {
-                aleph_zero_testnet::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::Lagoon => {
-                lagoon::run_and_subscribe_era_paid_events(self).await
-            }
+            // SupportedRuntime::AlephZero => {
+            //     aleph_zero::run_and_subscribe_era_paid_events(self).await
+            // }
+            // SupportedRuntime::AlephZeroTestnet => {
+            //     aleph_zero_testnet::run_and_subscribe_era_paid_events(self).await
+            // }
+            // SupportedRuntime::Lagoon => {
+            //     lagoon::run_and_subscribe_era_paid_events(self).await
+            // }
+            _ => unreachable!(),
         }
     }
 }
@@ -262,7 +249,7 @@ fn spawn_and_restart_subscription_on_error() {
         let config = CONFIG.clone();
         loop {
             let c: Crunch = Crunch::new().await;
-            if let Err(e) = c.run_and_subscribe_era_payout_events().await {
+            if let Err(e) = c.run_and_subscribe_era_paid_events().await {
                 match e {
                     CrunchError::SubscriptionFinished => warn!("{}", e),
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
