@@ -31,7 +31,6 @@ use crate::report::{
 };
 use crate::stats;
 use async_recursion::async_recursion;
-use codec::Decode;
 use futures::StreamExt;
 use log::{debug, info, warn};
 use std::{
@@ -39,9 +38,10 @@ use std::{
     time,
 };
 use subxt::{
-    sp_core::{sr25519, Pair as PairT},
-    sp_runtime::AccountId32,
-    DefaultConfig, PairSigner, PolkadotExtrinsicParams,
+    ext::sp_core::{sr25519, Pair as PairT},
+    ext::sp_runtime::AccountId32,
+    tx::PairSigner,
+    PolkadotConfig,
 };
 
 #[subxt::subxt(
@@ -51,15 +51,13 @@ use subxt::{
 mod node_runtime {}
 
 use node_runtime::{
-    staking::events::EraPaid, staking::events::PayoutStarted, staking::events::Rewarded,
+    runtime_types::sp_core::bounded::bounded_vec::BoundedVec, staking::events::EraPaid,
+    staking::events::PayoutStarted, staking::events::Rewarded,
     system::events::ExtrinsicFailed, utility::events::BatchCompleted,
     utility::events::BatchInterrupted, utility::events::ItemCompleted,
 };
 
-pub type Api =
-    node_runtime::RuntimeApi<DefaultConfig, PolkadotExtrinsicParams<DefaultConfig>>;
-
-type Call = node_runtime::runtime_types::polkadot_runtime::Call;
+type Call = node_runtime::runtime_types::polkadot_runtime::RuntimeCall;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
@@ -69,8 +67,7 @@ pub async fn run_and_subscribe_era_paid_events(
     // Run once before start subscription
     try_run_batch(&crunch, None).await?;
     info!("Subscribe 'EraPaid' on-chain finalized event");
-    let client = crunch.client().clone();
-    let api = client.to_runtime_api::<Api>();
+    let api = crunch.client().clone();
     let mut sub = api.events().subscribe_finalized().await?;
     while let Some(events) = sub.next().await {
         let events = events?;
@@ -92,6 +89,13 @@ pub async fn try_run_batch(
     crunch: &Crunch,
     next_attempt: Option<u8>,
 ) -> Result<(), CrunchError> {
+    let api = crunch.client().clone();
+
+    // Warn if static metadata is no longer the same as the latest runtime version
+    if node_runtime::validate_codegen(&api).is_err() {
+        warn!("Crunch upgrade might be required soon. Local static metadata differs from current chain runtime version.");
+    }
+
     // Skip run if it's the 2nd or more attempt
     let mut attempt = match next_attempt {
         Some(na) => {
@@ -104,19 +108,20 @@ pub async fn try_run_batch(
         _ => None,
     };
     //
-    let client = crunch.client();
-    let api = client.clone().to_runtime_api::<Api>();
-    let properties = client.properties();
+
     let config = CONFIG.clone();
 
     // Get Network name
-    let chain_name = client.rpc().system_chain().await?;
+    let chain_name = api.rpc().system_chain().await?;
 
     // Get Era index
-    let active_era_index = match api.storage().staking().active_era(None).await? {
+    let active_era_addr = node_runtime::storage().staking().active_era();
+    let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
         Some(info) => info.index,
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
+
+    let properties = api.rpc().system_properties().await?;
 
     // Get Token symbol
     let token_symbol: String = if let Some(token_symbol) = properties.get("tokenSymbol") {
@@ -151,7 +156,7 @@ pub async fn try_run_batch(
         .expect("Something went wrong reading the seed file");
     let seed_account: sr25519::Pair = get_from_seed(&seed, None);
     let seed_account_signer =
-        PairSigner::<DefaultConfig, sr25519::Pair>::new(seed_account.clone());
+        PairSigner::<PolkadotConfig, sr25519::Pair>::new(seed_account.clone());
     let seed_account_id: AccountId32 = seed_account.public().into();
 
     // Get signer account identity
@@ -164,16 +169,21 @@ pub async fn try_run_batch(
     debug!("signer {:?}", signer);
 
     // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
-    let ed = get_existential_deposit(&crunch)?;
-    let seed_account_info = api
-        .storage()
-        .system()
-        .account(&seed_account_id, None)
-        .await?;
-    if seed_account_info.data.free <= (2 * ed) {
-        signer
-            .warnings
-            .push("⚡ Signer account is running low on funds ⚡".to_string());
+    let ed_addr = node_runtime::constants().balances().existential_deposit();
+    let ed = api.constants().at(&ed_addr)?;
+
+    let seed_account_info_addr =
+        node_runtime::storage().system().account(&seed_account_id);
+    if let Some(seed_account_info) =
+        api.storage().fetch(&seed_account_info_addr, None).await?
+    {
+        if seed_account_info.data.free
+            <= (config.existential_deposit_factor_warning as u128 * ed)
+        {
+            signer
+                .warnings
+                .push("⚡ Signer account is running low on funds ⚡".to_string());
+        }
     }
 
     // Add unclaimed eras into payout staker calls
@@ -247,22 +257,26 @@ pub async fn try_run_batch(
                         .unwrap()
                 };
 
-                debug!(
+                warn!(
                     "batch call indexes [{:?} : {:?}]",
                     call_start_index, call_end_index
                 );
 
                 let calls_for_batch_clipped =
                     calls_for_batch[call_start_index..call_end_index].to_vec();
+
+                // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
+                let tx = node_runtime::tx()
+                    .utility()
+                    .batch(calls_for_batch_clipped.clone())
+                    .unvalidated();
+
                 let batch_response = api
                     .tx()
-                    .utility()
-                    .batch(calls_for_batch_clipped.clone())?
-                    .sign_and_submit_then_watch_default(&seed_account_signer)
+                    .sign_and_submit_then_watch_default(&tx, &seed_account_signer)
                     .await?
                     .wait_for_finalized()
                     .await?;
-                debug!("batch_response {:?}", batch_response);
 
                 // Alternately, we could just `fetch_events`, which grabs all of the events like
                 // the above, but does not check for success, and leaves it up to you:
@@ -270,7 +284,7 @@ pub async fn try_run_batch(
 
                 // Get block number
                 let block_number = if let Some(header) =
-                    client.rpc().header(Some(tx_events.block_hash())).await?
+                    api.rpc().header(Some(tx_events.block_hash())).await?
                 {
                     header.number
                 } else {
@@ -287,7 +301,7 @@ pub async fn try_run_batch(
                     )));
                 } else {
                     // Iterate over events to calculate respective reward amounts
-                    for event in tx_events.iter_raw() {
+                    for event in tx_events.iter() {
                         let event = event?;
                         debug!("{:?}", event);
                         if let Some(ev) = event.as_event::<PayoutStarted>()? {
@@ -296,9 +310,10 @@ pub async fn try_run_batch(
                             // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
                             //
                             debug!("{:?}", ev);
-                            let validator_index_ref =
-                                &mut validators.iter().position(|v| v.stash == ev.1);
-                            era_index = ev.0;
+                            let validator_index_ref = &mut validators
+                                .iter()
+                                .position(|v| v.stash == ev.validator_stash);
+                            era_index = ev.era_index;
                             validator_index = *validator_index_ref;
                             validator_amount_value = 0;
                             nominators_amount_value = 0;
@@ -311,10 +326,10 @@ pub async fn try_run_batch(
                             debug!("{:?}", ev);
                             if let Some(i) = validator_index {
                                 let validator = &mut validators[i];
-                                if ev.0 == validator.stash {
-                                    validator_amount_value = ev.1;
+                                if ev.stash == validator.stash {
+                                    validator_amount_value = ev.amount;
                                 } else {
-                                    nominators_amount_value += ev.1;
+                                    nominators_amount_value += ev.amount;
                                     nominators_quantity += 1;
                                 }
                             }
@@ -420,12 +435,12 @@ async fn collect_validators_data(
     crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<Validators, CrunchError> {
-    let client = crunch.client();
-    let api = client.clone().to_runtime_api::<Api>();
+    let api = crunch.client().clone();
     let config = CONFIG.clone();
 
     // Get unclaimed eras for the stash addresses
-    let active_validators = api.storage().session().validators(None).await?;
+    let active_validators_addr = node_runtime::storage().session().validators();
+    let active_validators = api.storage().fetch(&active_validators_addr, None).await?;
     debug!("active_validators {:?}", active_validators);
     let mut validators: Validators = Vec::new();
 
@@ -438,7 +453,8 @@ async fn collect_validators_data(
         let stash = AccountId32::from_str(stash_str)?;
 
         // Check if stash has bonded controller
-        let controller = match api.storage().staking().bonded(&stash, None).await? {
+        let controller_addr = node_runtime::storage().staking().bonded(&stash);
+        let controller = match api.storage().fetch(&controller_addr, None).await? {
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
@@ -461,24 +477,29 @@ async fn collect_validators_data(
         v.name = get_display_name(&crunch, &stash, None).await?;
 
         // Check if validator is in active set
-        v.is_active = active_validators.contains(&stash);
+        v.is_active = if let Some(ref av) = active_validators {
+            av.contains(&stash)
+        } else {
+            false
+        };
 
         // Look for unclaimed eras, starting on current_era - maximum_eras
         let start_index = get_era_index_start(&crunch, era_index).await?;
 
         // Get staking info from ledger
-        if let Some(staking_ledger) =
-            api.storage().staking().ledger(&controller, None).await?
-        {
+        let ledger_addr = node_runtime::storage().staking().ledger(&controller);
+        if let Some(staking_ledger) = api.storage().fetch(&ledger_addr, None).await? {
             debug!(
                 "{} * claimed_rewards: {:?}",
                 stash, staking_ledger.claimed_rewards
             );
 
+            // deconstruct claimed rewards
+            let BoundedVec(claimed_rewards) = staking_ledger.claimed_rewards;
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
                 // If reward was already claimed skip it
-                if staking_ledger.claimed_rewards.contains(&e) {
+                if claimed_rewards.contains(&e) {
                     if e == era_index - 1 {
                         v.is_previous_era_already_claimed = true;
                     }
@@ -486,13 +507,14 @@ async fn collect_validators_data(
                     continue;
                 }
                 // Verify if stash was active in set
-                let exposure = api
-                    .storage()
-                    .staking()
-                    .eras_stakers(&e, &stash, None)
-                    .await?;
-                if exposure.total > 0 {
-                    v.unclaimed.push(e)
+                let eras_stakers_addr =
+                    node_runtime::storage().staking().eras_stakers(&e, &stash);
+                if let Some(exposure) =
+                    api.storage().fetch(&eras_stakers_addr, None).await?
+                {
+                    if exposure.total > 0 {
+                        v.unclaimed.push(e)
+                    }
                 }
             }
         }
@@ -506,11 +528,11 @@ async fn get_era_index_start(
     crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<EraIndex, CrunchError> {
-    let client = crunch.client();
-    let api = client.clone().to_runtime_api::<Api>();
+    let api = crunch.client().clone();
     let config = CONFIG.clone();
 
-    let history_depth: u32 = api.storage().staking().history_depth(None).await?;
+    let history_depth_addr = node_runtime::constants().staking().history_depth();
+    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
     if era_index < cmp::min(config.maximum_history_eras, history_depth) {
         return Ok(0);
@@ -523,53 +545,49 @@ async fn get_era_index_start(
     }
 }
 
-fn get_existential_deposit(crunch: &Crunch) -> Result<u128, CrunchError> {
-    let client = crunch.client();
-    let balances_metadata = client.metadata().pallet("Balances")?;
-    let constant_metadata = balances_metadata.constant("ExistentialDeposit")?;
-    let ed = u128::decode(&mut &constant_metadata.value[..])?;
-    Ok(ed)
-}
-
 async fn get_validator_points_info(
     crunch: &Crunch,
     era_index: EraIndex,
     stash: &AccountId32,
 ) -> Result<Points, CrunchError> {
-    let client = crunch.client();
-    let api = client.clone().to_runtime_api::<Api>();
+    let api = crunch.client().clone();
     // Get era reward points
-    let era_reward_points = api
-        .storage()
+    let era_reward_points_addr = node_runtime::storage()
         .staking()
-        .eras_reward_points(&era_index, None)
-        .await?;
-    let stash_points = match era_reward_points
-        .individual
-        .iter()
-        .find(|(s, _)| *s == *stash)
+        .eras_reward_points(&era_index);
+
+    if let Some(era_reward_points) =
+        api.storage().fetch(&era_reward_points_addr, None).await?
     {
-        Some((_, p)) => *p,
-        None => 0,
-    };
+        let stash_points = match era_reward_points
+            .individual
+            .iter()
+            .find(|(s, _)| *s == *stash)
+        {
+            Some((_, p)) => *p,
+            None => 0,
+        };
 
-    // Calculate average points
-    let mut points: Vec<u32> = era_reward_points
-        .individual
-        .into_iter()
-        .map(|(_, points)| points)
-        .collect();
+        // Calculate average points
+        let mut points: Vec<u32> = era_reward_points
+            .individual
+            .into_iter()
+            .map(|(_, points)| points)
+            .collect();
 
-    let points_f64: Vec<f64> = points.iter().map(|points| *points as f64).collect();
+        let points_f64: Vec<f64> = points.iter().map(|points| *points as f64).collect();
 
-    let points = Points {
-        validator: stash_points,
-        era_avg: stats::mean(&points_f64),
-        ci99_9_interval: stats::confidence_interval_99_9(&points_f64),
-        outlier_limits: stats::iqr_interval(&mut points),
-    };
+        let points = Points {
+            validator: stash_points,
+            era_avg: stats::mean(&points_f64),
+            ci99_9_interval: stats::confidence_interval_99_9(&points_f64),
+            outlier_limits: stats::iqr_interval(&mut points),
+        };
 
-    Ok(points)
+        Ok(points)
+    } else {
+        Ok(Points::default())
+    }
 }
 
 #[async_recursion]
@@ -578,10 +596,10 @@ async fn get_display_name(
     stash: &AccountId32,
     sub_account_name: Option<String>,
 ) -> Result<String, CrunchError> {
-    let client = crunch.client();
-    let api = client.clone().to_runtime_api::<Api>();
+    let api = crunch.client().clone();
 
-    match api.storage().identity().identity_of(stash, None).await? {
+    let identity_of_addr = node_runtime::storage().identity().identity_of(stash);
+    match api.storage().fetch(&identity_of_addr, None).await? {
         Some(identity) => {
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
@@ -592,8 +610,9 @@ async fn get_display_name(
             Ok(name)
         }
         None => {
+            let super_of_addr = node_runtime::storage().identity().super_of(stash);
             if let Some((parent_account, data)) =
-                api.storage().identity().super_of(stash, None).await?
+                api.storage().fetch(&super_of_addr, None).await?
             {
                 let sub_account_name = parse_identity_data(data);
                 return get_display_name(
@@ -723,16 +742,19 @@ fn str(bytes: Vec<u8>) -> String {
 }
 
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
-    let client = crunch.client();
-    let api = client.clone().to_runtime_api::<Api>();
+    let api = crunch.client().clone();
     let config = CONFIG.clone();
 
     info!("Inspect stashes -> {}", config.stashes.join(","));
-    let history_depth: u32 = api.storage().staking().history_depth(None).await?;
-    let active_era_index = match api.storage().staking().active_era(None).await? {
-        Some(active_era_info) => active_era_info.index,
+    let history_depth_addr = node_runtime::constants().staking().history_depth();
+    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
+
+    let active_era_addr = node_runtime::storage().staking().active_era();
+    let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
+        Some(info) => info.index,
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
+
     for stash_str in config.stashes.iter() {
         let stash = AccountId32::from_str(stash_str)?;
         info!("{} * Stash account", stash);
@@ -741,25 +763,30 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         let mut unclaimed: Vec<u32> = Vec::new();
         let mut claimed: Vec<u32> = Vec::new();
 
-        if let Some(controller) = api.storage().staking().bonded(&stash, None).await? {
-            if let Some(ledger_response) =
-                api.storage().staking().ledger(&controller, None).await?
+        let bonded_addr = node_runtime::storage().staking().bonded(&stash);
+        if let Some(controller) = api.storage().fetch(&bonded_addr, None).await? {
+            let ledger_addr = node_runtime::storage().staking().ledger(&controller);
+            if let Some(ledger_response) = api.storage().fetch(&ledger_addr, None).await?
             {
+                // deconstruct claimed rewards
+                let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
                     // If reward was already claimed skip it
-                    if ledger_response.claimed_rewards.contains(&era_index) {
+                    if claimed_rewards.contains(&era_index) {
                         claimed.push(era_index);
                         continue;
                     }
                     // Verify if stash was active in set
-                    let exposure = api
-                        .storage()
+                    let eras_stakers_addr = node_runtime::storage()
                         .staking()
-                        .eras_stakers(&era_index, &stash, None)
-                        .await?;
-                    if exposure.total > 0 {
-                        unclaimed.push(era_index)
+                        .eras_stakers(&era_index, &stash);
+                    if let Some(exposure) =
+                        api.storage().fetch(&eras_stakers_addr, None).await?
+                    {
+                        if exposure.total > 0 {
+                            unclaimed.push(era_index)
+                        }
                     }
                 }
             }

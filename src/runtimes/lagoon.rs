@@ -45,7 +45,7 @@ use subxt::{
 };
 
 #[subxt::subxt(
-    runtime_metadata_path = "metadata/aleph_zero_testnet_metadata.scale",
+    runtime_metadata_path = "metadata/lagoon_metadata.scale",
     derive_for_all_types = "Clone"
 )]
 mod node_runtime {}
@@ -56,7 +56,7 @@ use node_runtime::{
     utility::events::BatchInterrupted, utility::events::ItemCompleted,
 };
 
-type Call = node_runtime::runtime_types::aleph_runtime::Call;
+type Call = node_runtime::runtime_types::lagoon_runtime::Call;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
@@ -159,11 +159,7 @@ pub async fn try_run_batch(
     let seed_account_id: AccountId32 = seed_account.public().into();
 
     // Get signer account identity
-    // TODO: TESTING IN PROGRESS!
-    // TODO: restore when the Identity pallet is added to Aleph Zero
     let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
-    //let signer_name = account_display(&seed_account_id)?;
-
     let mut signer = Signer {
         account: seed_account_id.clone(),
         name: signer_name,
@@ -476,10 +472,7 @@ async fn collect_validators_data(
         v.controller = Some(controller.clone());
 
         // Get validator name
-        // TODO: TESTING IN PROGRESS!
-        // TODO: restore when the Identity pallet is added to Aleph Zero
         v.name = get_display_name(&crunch, &stash, None).await?;
-        //v.name = account_display(&stash)?;
 
         // Check if validator is in active set
         v.is_active = if let Some(ref av) = active_validators {
@@ -599,15 +592,6 @@ async fn get_validator_points_info(
     }
 }
 
-// TODO: TESTING IN PROGRESS!
-// TODO: remove when the Identity pallet is added to Aleph Zero
-//fn account_display(account: &AccountId32) -> Result<String, CrunchError> {
-//    let s = &account.to_string();
-//    Ok(format!("{}...{}", &s[..6], &s[s.len() - 6..]))
-//}
-
-// TODO: TESTING IN PROGRESS!
-// TODO: restore when the Identity pallet is added to Aleph Zero
 #[async_recursion]
 async fn get_display_name(
     crunch: &Crunch,
@@ -647,8 +631,7 @@ async fn get_display_name(
     }
 }
 
-// TODO: TESTING IN PROGRESS!
-// TODO: restore when the Identity pallet is added to Aleph Zero
+//
 fn parse_identity_data(
     data: node_runtime::runtime_types::pallet_identity::types::Data,
 ) -> String {
@@ -756,8 +739,6 @@ fn parse_identity_data(
     }
 }
 
-// TODO: TESTING IN PROGRESS!
-// TODO: restore when the Identity pallet is added to Aleph Zero
 fn str(bytes: Vec<u8>) -> String {
     format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
 }

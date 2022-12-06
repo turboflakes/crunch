@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2022-11-11
+
+### Changed
+
+- Update metadata Polkadot runtime/9300
+- Update metadata Westend runtime/9320
+
+## [0.6.0] - 2022-11-01
+
+### New
+- Add optional environement variable 'CRUNCH_EXISTENTIAL_DEPOSIT_FACTOR_WARNING' so that the factor value could be configurable per chain. Default value is 2. The recommended values based on the existential deposits is factor 2x for Polkadot and 1000x for Kusama.
+
+### Changed
+- support `subxt` [v0.24.0](https://github.com/paritytech/subxt/releases/tag/v0.24.0)
+- Update metadata Westend runtime/9310
+
+## [0.5.15] - 2022-10-26
+
+### Changed
+
+- Update metadata Kusama runtime/9300
+- Update metadata Westend runtime/9300
+
+## [0.5.14] - 2022-10-18
+
+### Changed
+
+- Update metadata Polkadot runtime/9291
+
+## [0.5.13] - 2022-09-28
+
+### Changed
+
+- Update `subxt v0.22.0`
+- Update metadata Kusama runtime/9291
+- Update metadata Westend runtime/9290
+
+## [0.5.11] - 2022-09-07
+
+### New
+
+- Add support for Tidechain's testnet Lagoon [PR15](https://github.com/turboflakes/crunch/pull/15)
+
+### Changed
+
+- Update metadata Polkadot runtime/9280
+
+## [0.5.10] - 2022-09-07
+
+### Changed
+
+- Update metadata Kusama runtime/9280
+
+## [0.5.9] - 2022-09-07
+
+### Changed
+- Change Kusama low balance warning to 1000 x ed
+- Update metadata Polkadot runtime/9270
+
+## [0.5.8] - 2022-08-31
+
+- Update metadata Kusama runtime/9271
+- Update metadata Kusama runtime/9280
+- Update metadata Aleph Zero Testnet runtime/30 [PR 14](https://github.com/turboflakes/crunch/pull/14)
+
+## [0.5.7] - 2022-08-09
+
+- Add support for Aleph Zero Mainnet
+- Add metadata Aleph Zero Mainnet runtime/12
+- Update metadata Polkadot runtime/9260
+- Update metadata Westend runtime/9271
+
+## [0.5.6] - 2022-08-06
+
+### Added
+- Add support for Aleph Zero Testnet
+- Add metadata Aleph Zero Testnet runtime/30
+
 ## [0.5.5] - 2022-07-26
 
 - Reduce number of recursive attempts to only once
