@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.6.2] - 2022-12-06
+
+### Changed
+
+- Update metadata Kusama runtime/9320
+- Update metadata Westend runtime/9330
+
 ## [0.6.1] - 2022-11-11
 
 ### Changed
 
 - Update metadata Polkadot runtime/9300
 - Update metadata Westend runtime/9320
+- Aleph main & test networks [PR 20](https://github.com/turboflakes/crunch/pull/20)
 
 ## [0.6.0] - 2022-11-01
 
