@@ -34,7 +34,14 @@ use async_recursion::async_recursion;
 use futures::StreamExt;
 use log::{debug, info, warn};
 use std::{
-    cmp, convert::TryFrom, convert::TryInto, fs, result::Result, str::FromStr, thread,
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    //cmp,
+    convert::TryFrom,
+    convert::TryInto,
+    fs,
+    result::Result,
+    str::FromStr,
+    thread,
     time,
 };
 use subxt::{
@@ -524,9 +531,14 @@ async fn collect_validators_data(
 }
 
 async fn get_era_index_start(
-    crunch: &Crunch,
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    //crunch: &Crunch,
+    //TODO: and this is the workaround (make argument optional):
+    _crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<EraIndex, CrunchError> {
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    /*
     let api = crunch.client().clone();
     let config = CONFIG.clone();
 
@@ -543,6 +555,19 @@ async fn get_era_index_start(
         return Ok(0);
     } else if config.is_short {
         return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
+    } else {
+        // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
+        // since we still want to show information about inclusion and eras crunched for all history_depth
+        return Ok(era_index - history_depth);
+    }
+    */
+    //TODO: and this is the workaround (use variables from config only):
+    let config = CONFIG.clone();
+    let history_depth: u32 = config.maximum_history_eras;
+    if era_index < history_depth {
+        return Ok(0);
+    } else if config.is_short {
+        return Ok(era_index - history_depth);
     } else {
         // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
         // since we still want to show information about inclusion and eras crunched for all history_depth
@@ -750,6 +775,8 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
 
     info!("Inspect stashes -> {}", config.stashes.join(","));
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    /*
     let history_depth_addr = node_runtime::storage().staking().history_depth();
     let history_depth: u32 = if let Some(history_depth) =
         api.storage().fetch(&history_depth_addr, None).await?
@@ -758,6 +785,9 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     } else {
         0
     };
+    */
+    //TODO: and this is the workaround (use variables from config only) :
+    let history_depth: u32 = config.maximum_history_eras;
 
     let active_era_addr = node_runtime::storage().staking().active_era();
     let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
