@@ -22,7 +22,7 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    aleph_zero, aleph_zero_testnet, kusama, polkadot, lagoon,
+    aleph_zero, aleph_zero_testnet, kusama, lagoon, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -239,8 +239,7 @@ impl Crunch {
             }
             SupportedRuntime::Lagoon => {
                 lagoon::run_and_subscribe_era_paid_events(self).await
-            }
-            // _ => unreachable!(),
+            } // _ => unreachable!(),
         }
     }
 }
