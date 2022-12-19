@@ -68,9 +68,11 @@ pub async fn run_and_subscribe_era_paid_events(
     try_run_batch(&crunch, None).await?;
     info!("Subscribe 'EraPaid' on-chain finalized event");
     let api = crunch.client().clone();
-    let mut sub = api.events().subscribe_finalized().await?;
-    while let Some(events) = sub.next().await {
-        let events = events?;
+    let mut block_sub = api.blocks().subscribe_finalized().await?;
+    while let Some(block) = block_sub.next().await {
+        let block = block?;
+
+        let events = block.events().await?;
 
         // Event --> staking::EraPaid
         if let Some(_event) = events.find_first::<EraPaid>()? {
@@ -81,7 +83,7 @@ pub async fn run_and_subscribe_era_paid_events(
         }
     }
     // If subscription has closed for some reason await and subscribe again
-    Err(CrunchError::SubscriptionFinished)
+    return Err(CrunchError::SubscriptionFinished);
 }
 
 #[async_recursion]
