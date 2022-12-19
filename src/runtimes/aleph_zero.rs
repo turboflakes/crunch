@@ -34,7 +34,14 @@ use async_recursion::async_recursion;
 use futures::StreamExt;
 use log::{debug, info, warn};
 use std::{
-    cmp, convert::TryFrom, convert::TryInto, fs, result::Result, str::FromStr, thread,
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    //cmp,
+    convert::TryFrom,
+    convert::TryInto,
+    fs,
+    result::Result,
+    str::FromStr,
+    thread,
     time,
 };
 use subxt::{
@@ -161,10 +168,7 @@ pub async fn try_run_batch(
     let seed_account_id: AccountId32 = seed_account.public().into();
 
     // Get signer account identity
-    // TODO: TESTING IN PROGRESS!
-    // TODO: restore when the Identity pallet is added to Aleph Zero
     let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
-    //let signer_name = account_display(&seed_account_id)?;
 
     let mut signer = Signer {
         account: seed_account_id.clone(),
@@ -478,10 +482,7 @@ async fn collect_validators_data(
         v.controller = Some(controller.clone());
 
         // Get validator name
-        // TODO: TESTING IN PROGRESS!
-        // TODO: restore when the Identity pallet is added to Aleph Zero
         v.name = get_display_name(&crunch, &stash, None).await?;
-        //v.name = account_display(&stash)?;
 
         // Check if validator is in active set
         v.is_active = if let Some(ref av) = active_validators {
@@ -530,9 +531,14 @@ async fn collect_validators_data(
 }
 
 async fn get_era_index_start(
-    crunch: &Crunch,
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    //crunch: &Crunch,
+    //TODO: and this is the workaround (make argument optional):
+    _crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<EraIndex, CrunchError> {
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    /*
     let api = crunch.client().clone();
     let config = CONFIG.clone();
 
@@ -549,6 +555,19 @@ async fn get_era_index_start(
         return Ok(0);
     } else if config.is_short {
         return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
+    } else {
+        // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
+        // since we still want to show information about inclusion and eras crunched for all history_depth
+        return Ok(era_index - history_depth);
+    }
+    */
+    //TODO: and this is the workaround (use variables from config only):
+    let config = CONFIG.clone();
+    let history_depth: u32 = config.maximum_history_eras;
+    if era_index < history_depth {
+        return Ok(0);
+    } else if config.is_short {
+        return Ok(era_index - history_depth);
     } else {
         // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
         // since we still want to show information about inclusion and eras crunched for all history_depth
@@ -601,15 +620,6 @@ async fn get_validator_points_info(
     }
 }
 
-// TODO: TESTING IN PROGRESS!
-// TODO: remove when the Identity pallet is added to Aleph Zero
-//fn account_display(account: &AccountId32) -> Result<String, CrunchError> {
-//    let s = &account.to_string();
-//    Ok(format!("{}...{}", &s[..6], &s[s.len() - 6..]))
-//}
-
-// TODO: TESTING IN PROGRESS!
-// TODO: restore when the Identity pallet is added to Aleph Zero
 #[async_recursion]
 async fn get_display_name(
     crunch: &Crunch,
@@ -649,8 +659,6 @@ async fn get_display_name(
     }
 }
 
-// TODO: TESTING IN PROGRESS!
-// TODO: restore when the Identity pallet is added to Aleph Zero
 fn parse_identity_data(
     data: node_runtime::runtime_types::pallet_identity::types::Data,
 ) -> String {
@@ -758,8 +766,6 @@ fn parse_identity_data(
     }
 }
 
-// TODO: TESTING IN PROGRESS!
-// TODO: restore when the Identity pallet is added to Aleph Zero
 fn str(bytes: Vec<u8>) -> String {
     format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
 }
@@ -769,6 +775,8 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
 
     info!("Inspect stashes -> {}", config.stashes.join(","));
+    //TODO: This is a temporary comment while subxt's validate_codegen keeps failing
+    /*
     let history_depth_addr = node_runtime::storage().staking().history_depth();
     let history_depth: u32 = if let Some(history_depth) =
         api.storage().fetch(&history_depth_addr, None).await?
@@ -777,6 +785,9 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     } else {
         0
     };
+    */
+    //TODO: and this is the workaround (use variables from config only) :
+    let history_depth: u32 = config.maximum_history_eras;
 
     let active_era_addr = node_runtime::storage().staking().active_era();
     let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
