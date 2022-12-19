@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2022-12-19
+
+### Changed
+- Aleph main & test networks [PR 23](https://github.com/turboflakes/crunch/pull/23)
+
 ## [0.8.0] - 2022-12-15
 
 ### Changed
