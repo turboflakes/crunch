@@ -319,7 +319,7 @@ pub async fn try_fetch_stashes_from_remote_url(
         return Ok(None);
     }
     let response = reqwest::get(&config.stashes_url).await?.text().await?;
-    let v: Vec<String> = response.split('\n').map(|s| s.to_string()).collect();
+    let v: Vec<String> = response.trim().split('\n').map(|s| s.to_string()).collect();
     if v.is_empty() {
         return Ok(None);
     }
