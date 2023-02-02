@@ -22,7 +22,7 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    aleph_zero, aleph_zero_testnet, kusama, lagoon, polkadot,
+    aleph_zero, aleph_zero_testnet, kusama, lagoon, polkadot, joystream,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -202,6 +202,7 @@ impl Crunch {
             SupportedRuntime::AlephZero => aleph_zero::inspect(self).await,
             SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
             SupportedRuntime::Lagoon => lagoon::inspect(self).await,
+            SupportedRuntime::Joystream => joystream::inspect(self).await,
             // _ => unreachable!(),
         }
     }
@@ -216,6 +217,7 @@ impl Crunch {
                 aleph_zero_testnet::try_run_batch(self, None).await
             }
             SupportedRuntime::Lagoon => lagoon::try_run_batch(self, None).await,
+            SupportedRuntime::Joystream => joystream::try_run_batch(self, None).await,
             // _ => unreachable!(),
         }
     }
@@ -239,6 +241,9 @@ impl Crunch {
             }
             SupportedRuntime::Lagoon => {
                 lagoon::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::Joystream => {
+                joystream::run_and_subscribe_era_paid_events(self).await
             } // _ => unreachable!(),
         }
     }

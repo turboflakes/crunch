@@ -30,6 +30,7 @@ pub enum SupportedRuntime {
     AlephZero,
     AlephZeroTestnet,
     Lagoon,
+    Joystream,
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -53,6 +54,7 @@ impl From<ChainTokenSymbol> for SupportedRuntime {
             "AZERO" => Self::AlephZero,
             "TZERO" => Self::AlephZeroTestnet,
             "TDFY" => Self::Lagoon,
+            "JOY" => Self::Joystream,
             _ => unimplemented!("Chain unit not supported"),
         }
     }
@@ -67,6 +69,7 @@ impl std::fmt::Display for SupportedRuntime {
             Self::AlephZero => write!(f, "AlephZero"),
             Self::AlephZeroTestnet => write!(f, "AlephZeroTestnet"),
             Self::Lagoon => write!(f, "Lagoon"),
+            Self::Joystream => write!(f, "Joystream"),
         }
     }
 }

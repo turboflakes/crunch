@@ -25,6 +25,7 @@ pub mod aleph_zero;
 pub mod aleph_zero_testnet;
 pub mod kusama;
 pub mod lagoon;
+pub mod joystream;
 pub mod polkadot;
 pub mod support;
 pub mod westend;
