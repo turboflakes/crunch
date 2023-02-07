@@ -34,7 +34,7 @@ use async_recursion::async_recursion;
 use futures::StreamExt;
 use log::{debug, info, warn};
 use std::{
-    cmp, convert::TryFrom, convert::TryInto, fs, result::Result, str::FromStr, thread,
+    cmp, convert::TryFrom, convert::TryInto, fs, result::Result, vec::Vec, str::FromStr, thread,
     time,
 };
 use subxt::{
@@ -51,13 +51,13 @@ use subxt::{
 mod node_runtime {}
 
 use node_runtime::{
-    runtime_types::sp_core::bounded::bounded_vec::BoundedVec, staking::events::EraPaid,
+    staking::events::EraPaid,
     staking::events::PayoutStarted, staking::events::Rewarded,
     system::events::ExtrinsicFailed, utility::events::BatchCompleted,
     utility::events::BatchInterrupted, utility::events::ItemCompleted,
 };
 
-type Call = node_runtime::runtime_types::joystream_runtime::RuntimeCall;
+type Call = node_runtime::runtime_types::joystream_node_runtime::Call;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
@@ -316,8 +316,8 @@ pub async fn try_run_batch(
                             debug!("{:?}", ev);
                             let validator_index_ref = &mut validators
                                 .iter()
-                                .position(|v| v.stash == ev.validator_stash);
-                            era_index = ev.era_index;
+                                .position(|v| v.stash == ev.1);
+                            era_index = ev.0;
                             validator_index = *validator_index_ref;
                             validator_amount_value = 0;
                             nominators_amount_value = 0;
@@ -330,10 +330,10 @@ pub async fn try_run_batch(
                             debug!("{:?}", ev);
                             if let Some(i) = validator_index {
                                 let validator = &mut validators[i];
-                                if ev.stash == validator.stash {
-                                    validator_amount_value = ev.amount;
+                                if ev.0 == validator.stash {
+                                    validator_amount_value = ev.1;
                                 } else {
-                                    nominators_amount_value += ev.amount;
+                                    nominators_amount_value += ev.1;
                                     nominators_quantity += 1;
                                 }
                             }
@@ -496,7 +496,7 @@ async fn collect_validators_data(
             );
 
             // deconstruct claimed rewards
-            let BoundedVec(claimed_rewards) = staking_ledger.claimed_rewards;
+            let claimed_rewards = staking_ledger.claimed_rewards;
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
                 // If reward was already claimed skip it
@@ -526,10 +526,10 @@ async fn collect_validators_data(
 }
 
 async fn get_era_index_start(
-    crunch: &Crunch,
+    _crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<EraIndex, CrunchError> {
-    let api = crunch.client().clone();
+//    let api = crunch.client().clone();
     let config = CONFIG.clone();
 
 //    let history_depth_addr = node_runtime::constants().staking().history_depth();
@@ -592,11 +592,6 @@ async fn get_validator_points_info(
     }
 }
 
-//
-fn str(bytes: Vec<u8>) -> String {
-    format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
-}
-
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let api = crunch.client().clone();
     let config = CONFIG.clone();
@@ -626,7 +621,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
             if let Some(ledger_response) = api.storage().fetch(&ledger_addr, None).await?
             {
                 // deconstruct claimed rewards
-                let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
+                let claimed_rewards = ledger_response.claimed_rewards;
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
                     // If reward was already claimed skip it
