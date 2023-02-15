@@ -20,7 +20,7 @@ To promote Validators by publicly publish their automated staking rewards to a p
 
 For Nominators in private or public rooms check their chosen Validators rewards performance
 
-For Pool Operators to ensure that all selected validators payout on time so that pool members could claim their rewards.
+For Pool Operators to ensure that all active validators selected - active pool nominees - payout on time. An additional guarantee for Pool members that Pool operatos act in members best interests.
 
 ## Installation
 
