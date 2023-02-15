@@ -20,6 +20,8 @@ To promote Validators by publicly publish their automated staking rewards to a p
 
 For Nominators in private or public rooms check their chosen Validators rewards performance
 
+For Pool Operators to ensure that all selected validators payout on time so that pool members could claim their rewards.
+
 ## Installation
 
 ```bash
