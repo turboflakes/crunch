@@ -871,7 +871,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
             for stash in targets {
                 let eras_stakers_addr = node_runtime::storage()
                     .staking()
-                    .eras_stakers(era_index, &stash);
+                    .eras_stakers(era_index - 1, &stash);
                 if let Some(exposure) =
                     api.storage().fetch(&eras_stakers_addr, None).await?
                 {

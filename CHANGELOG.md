@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2023-02-15
+
+- Fixes active nominees stashes from previous era and not current from version 0.9.2
+
 ## [0.9.2] - 2023-02-15
 
 - Fixes active nominees stashes from version 0.9.1
