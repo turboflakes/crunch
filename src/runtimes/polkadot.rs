@@ -25,6 +25,7 @@ use crate::crunch::{
     NominatorsAmount, ValidatorAmount, ValidatorIndex,
 };
 use crate::errors::CrunchError;
+use crate::pools::{nomination_pool_account, AccountType};
 use crate::report::{
     EraIndex, Network, Payout, PayoutSummary, Points, RawData, Report, Signer, Validator,
     Validators,
@@ -76,13 +77,12 @@ pub async fn run_and_subscribe_era_paid_events(
 
         // Event --> staking::EraPaid
         if let Some(_event) = events.find_first::<EraPaid>()? {
-            let wait: u64 = random_wait(120);
+            let wait: u64 = random_wait(240);
             info!("Waiting {} seconds before run batch", wait);
             thread::sleep(time::Duration::from_secs(wait));
             try_run_batch(&crunch, None).await?;
         }
     }
-
     // If subscription has closed for some reason await and subscribe again
     Err(CrunchError::SubscriptionFinished)
 }
@@ -260,7 +260,7 @@ pub async fn try_run_batch(
                         .unwrap()
                 };
 
-                warn!(
+                debug!(
                     "batch call indexes [{:?} : {:?}]",
                     call_start_index, call_end_index
                 );
@@ -439,18 +439,14 @@ async fn collect_validators_data(
     era_index: EraIndex,
 ) -> Result<Validators, CrunchError> {
     let api = crunch.client().clone();
-    let config = CONFIG.clone();
-
+    
     // Get unclaimed eras for the stash addresses
     let active_validators_addr = node_runtime::storage().session().validators();
     let active_validators = api.storage().fetch(&active_validators_addr, None).await?;
     debug!("active_validators {:?}", active_validators);
     let mut validators: Validators = Vec::new();
 
-    let stashes: Vec<String> = match try_fetch_stashes_from_remote_url().await? {
-        Some(stashes) => stashes,
-        None => config.stashes,
-    };
+    let stashes = get_stashes(&crunch).await?;
 
     for (_i, stash_str) in stashes.iter().enumerate() {
         let stash = AccountId32::from_str(stash_str)?;
@@ -746,9 +742,10 @@ fn str(bytes: Vec<u8>) -> String {
 
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let api = crunch.client().clone();
-    let config = CONFIG.clone();
 
-    info!("Inspect stashes -> {}", config.stashes.join(","));
+    let stashes = get_stashes(&crunch).await?;
+    info!("Inspect {} stashes -> {}", stashes.len(), stashes.join(","));
+
     let history_depth_addr = node_runtime::constants().staking().history_depth();
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
@@ -758,7 +755,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
 
-    for stash_str in config.stashes.iter() {
+    for stash_str in stashes.iter() {
         let stash = AccountId32::from_str(stash_str)?;
         info!("{} * Stash account", stash);
 
@@ -809,4 +806,71 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     }
     info!("Job done!");
     Ok(())
+}
+
+pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
+    let config = CONFIG.clone();
+
+    let mut stashes: Vec<String> = config.stashes;
+    info!("{} stashes loaded from 'config.stashes'", stashes.len());
+
+    if let Some(remotes) = try_fetch_stashes_from_remote_url().await? {
+        stashes.extend(remotes);
+    };
+
+    if let Some(nominees) = try_fetch_stashes_from_pool_ids(&crunch).await? {
+        stashes.extend(nominees);
+    }
+
+    if config.unique_stashes_enabled {
+        // sort and remove duplicates
+        stashes.sort();
+        stashes.dedup();
+    }
+
+    Ok(stashes)
+}
+
+pub async fn try_fetch_stashes_from_pool_ids(
+    crunch: &Crunch,
+) -> Result<Option<Vec<String>>, CrunchError> {
+    let api = crunch.client().clone();
+    let config = CONFIG.clone();
+    if config.pool_ids.len() == 0 {
+        return Ok(None);
+    }
+
+    let mut v: Vec<String> = Vec::new();
+
+    for pool_id in config.pool_ids.iter() {
+        let pool_stash_account = nomination_pool_account(AccountType::Bonded, *pool_id);
+        let nominators_addr = node_runtime::storage()
+            .staking()
+            .nominators(&pool_stash_account);
+        if let Some(nominations) = api.storage().fetch(&nominators_addr, None).await? {
+            // deconstruct targets
+            let BoundedVec(targets) = nominations.targets;
+            v.extend(
+                targets
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>(),
+            );
+        }
+    }
+    if v.is_empty() {
+        return Ok(None);
+    }
+
+    info!(
+        "{} stashes loaded from 'pool-ids': [{}]",
+        v.len(),
+        config
+            .pool_ids
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<String>>()
+            .join(",")
+    );
+    Ok(Some(v))
 }

@@ -23,6 +23,7 @@ mod config;
 mod crunch;
 mod errors;
 mod matrix;
+mod pools;
 mod report;
 mod runtimes;
 mod stats;

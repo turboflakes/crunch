@@ -88,6 +88,10 @@ pub struct Config {
     pub substrate_ws_url: String,
     #[serde(default)]
     pub stashes_url: String,
+    #[serde(default)]
+    pub pool_ids: Vec<u32>,
+    #[serde(default)]
+    pub unique_stashes_enabled: bool,
     #[serde(default = "default_seed_path")]
     pub seed_path: String,
     pub stashes: Vec<String>,
@@ -148,8 +152,7 @@ fn get_config() -> Config {
             .default_value("era")
             .help(
               "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
-            )
-      )
+            ))
       .arg(
         Arg::with_name("seed-path")
           .short("f")
@@ -158,8 +161,7 @@ fn get_config() -> Config {
           .value_name("FILE")
           .help(
             "Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout call.",
-          ),
-      )
+          ))
       .arg(
         Arg::with_name("maximum-payouts")
           .short("m")
@@ -200,22 +202,19 @@ fn get_config() -> Config {
           .long("disable-matrix")
           .help(
             "Disable matrix bot for 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
-          ),
-      )
+          ))
       .arg(
         Arg::with_name("disable-public-matrix-room")
           .long("disable-public-matrix-room")
           .help(
             "Disable notifications to matrix public rooms for 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
-          ),
-      )
+          ))
       .arg(
         Arg::with_name("disable-matrix-bot-display-name")
           .long("disable-matrix-bot-display-name")
           .help(
             "Disable matrix bot display name update for 'crunch flakes'. (e.g. with this flag active 'crunch flakes' will not change the matrix bot user display name)",
-          ),
-        )
+          ))
       .arg(
         Arg::with_name("short")
           .long("short")
@@ -235,8 +234,7 @@ fn get_config() -> Config {
             .default_value("era")
             .help(
               "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
-            )
-      )
+            ))
       .arg(
         Arg::with_name("seed-path")
           .short("f")
@@ -245,8 +243,7 @@ fn get_config() -> Config {
           .value_name("FILE")
           .help(
             "Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout call.",
-          ),
-      )
+          ))
       .arg(
         Arg::with_name("maximum-payouts")
           .short("m")
@@ -287,22 +284,19 @@ fn get_config() -> Config {
           .long("disable-matrix")
           .help(
             "Disable matrix bot for 'crunch rewards'. (e.g. with this flag active 'crunch rewards' will not send messages/notifications about claimed or unclaimed staking rewards to your private or public 'Crunch Bot' rooms) (https://matrix.org/)",
-          ),
-      )
+          ))
       .arg(
         Arg::with_name("disable-public-matrix-room")
           .long("disable-public-matrix-room")
           .help(
             "Disable notifications to matrix public rooms for 'crunch rewards'. (e.g. with this flag active 'crunch rewards' will not send messages/notifications about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)",
-          ),
-      )
+          ))
       .arg(
         Arg::with_name("disable-matrix-bot-display-name")
           .long("disable-matrix-bot-display-name")
           .help(
             "Disable matrix bot display name update for 'crunch rewards'. (e.g. with this flag active 'crunch rewards' will not change the matrix bot user display name)",
-          ),
-        )
+          ))
       .arg(
         Arg::with_name("short")
           .long("short")
@@ -323,16 +317,27 @@ fn get_config() -> Config {
         .takes_value(true)
         .help(
           "Validator stash addresses for which 'crunch view', 'crunch flakes' or 'crunch rewards' will be applied. If needed specify more than one (e.g. stash_1,stash_2,stash_3).",
-        ),
-    )
+        ))
     .arg(
       Arg::with_name("stashes-url")
         .long("stashes-url")
         .takes_value(true)
         .help(
           "Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g. https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).",
-        ),
-    )
+        ))
+    .arg(
+      Arg::with_name("pool-ids")
+        .long("pool-ids")
+        .takes_value(true)
+        .help(
+          "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
+        ))
+    .arg(
+      Arg::with_name("enable-unique-stashes")
+        .long("enable-unique-stashes")
+        .help(
+          "From all given stashes crunch will Sort by stash adddress and Remove duplicates.",
+        ))
     .arg(
       Arg::with_name("substrate-ws-url")
         .short("w")
@@ -340,8 +345,7 @@ fn get_config() -> Config {
         .takes_value(true)
         .help(
           "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
-        ),
-    )
+        ))
     .arg(
       Arg::with_name("config-path")
         .short("c")
@@ -351,8 +355,7 @@ fn get_config() -> Config {
         .default_value(".env")
         .help(
           "Sets a custom config file path. The config file contains 'crunch' configuration variables.",
-        ),
-    )
+        ))
     .get_matches();
 
     // Try to load configuration from file first
@@ -411,6 +414,14 @@ fn get_config() -> Config {
 
     if let Some(stashes) = matches.value_of("stashes") {
         env::set_var("CRUNCH_STASHES", stashes);
+    }
+
+    if let Some(pool_ids) = matches.value_of("pool-ids") {
+        env::set_var("CRUNCH_POOL_IDS", pool_ids);
+    }
+
+    if matches.is_present("enable-unique-stashes") {
+        env::set_var("CRUNCH_UNIQUE_STASHES_ENABLED", "true");
     }
 
     match matches.subcommand() {

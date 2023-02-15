@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### New
+- Add optional flag 'enable-unique-stashes'. From all given stashes `crunch` will sort by stash address and remove duplicates.
+- Add optional flag 'pool-ids' or environement variable 'CRUNCH_POOL_IDS'. `crunch` will try to fetch the nominees of the respective pool id predefined here before triggering the respective payouts.
+
+### Changed
+- Update metadata Polkadot runtime/9360
+- Update metadata Kusama runtime/9370
+- Update metadata Westend runtime/9380
+
+## [0.8.3] - 2023-01-20
+
+### Changed
+- Remove leading and trailing whitespace from remote stashes file
+- Update metadata Polkadot runtime/9340
+- Update metadata Kusama runtime/9360
+- Update metadata Westend runtime/9370
+
 ## [0.8.1] - 2022-12-19
 
 ### Changed

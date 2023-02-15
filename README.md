@@ -56,6 +56,15 @@ Configuration file example: [`.env.example`](https://github.com/turboflakes/crun
 # If needed specify more than one (e.g. stash_1,stash_2,stash_3).
 CRUNCH_STASHES=5GTD7ZeD823BjpmZBCSzBQp7cvHR1Gunq7oDkurZr9zUev2n
 #
+# [CRUNCH_STASHES_URL] Additionally the list of stashes could be defined and available in a remote file.
+# `crunch` will try to fetch the stashes from the endpoint predefined here before triggering the respective payouts
+# Please have a look at the file '.remote.stashes.example' as an example
+CRUNCH_STASHES_URL=https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example
+#
+# [CRUNCH_POOL_IDS] Additionally the list of stashes could be defined from a single or more Nomination Pool Ids.
+# `crunch` will try to fetch the nominees of the respective pool id predefined here before triggering the respective payouts
+CRUNCH_POOL_IDS=10,15
+#
 # [CRUNCH_SUBSTRATE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to
 # connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence
 # than <CHAIN> argument) 
@@ -82,7 +91,8 @@ CRUNCH_MAXIMUM_CALLS=8
 # Crunch Bot (matrix) configuration variables
 CRUNCH_MATRIX_USER=@your-regular-matrix-account:matrix.org
 CRUNCH_MATRIX_BOT_USER=@your-own-crunch-bot-account:matrix.org
-CRUNCH_MATRIX_BOT_PASSWORD=anotthateasypassword
+# NOTE: type the bot password within "" so that any special character could be parsed correctly into a string.
+CRUNCH_MATRIX_BOT_PASSWORD="anotthateasypassword"
 ```
 
 Create a seed private file `.private.seed` inside `crunch-bot` folder and write the private seed phrase of the account responsible to sign the extrinsic payout call as in [`.private.seed.example`](https://github.com/turboflakes/crunch/blob/main/.private.seed.example) (Note: `.private.seed` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch flakes --seed-path ~/crunch-bot/.kusama.private.seed` )
@@ -192,6 +202,41 @@ Note: All flags and options are also available through environment variables if 
 #!/bin/bash
 # if you need a custom crunch check all the options and flags available
 crunch help
+
+USAGE:
+    crunch [FLAGS] [OPTIONS] [CHAIN] [SUBCOMMAND]
+
+FLAGS:
+        --enable-unique-stashes    From all given stashes crunch will Sort by stash adddress and Remove duplicates.
+    -h, --help                     Prints help information
+    -V, --version                  Prints version information
+
+OPTIONS:
+    -c, --config-path <FILE>
+            Sets a custom config file path. The config file contains 'crunch' configuration variables. [default: .env]
+
+        --pool-ids <pool-ids>
+            Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1,
+            pool_id_2).
+    -s, --stashes <stashes>
+            Validator stash addresses for which 'crunch view', 'crunch flakes' or 'crunch rewards' will be applied. If
+            needed specify more than one (e.g. stash_1,stash_2,stash_3).
+        --stashes-url <stashes-url>
+            Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g.
+            https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).
+    -w, --substrate-ws-url <substrate-ws-url>
+            Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io)
+            (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
+
+ARGS:
+    <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [possible values: westend,
+               kusama, polkadot, azero, tzero]
+
+SUBCOMMANDS:
+    flakes     Crunch awesome flakes (rewards) every era, daily or in turbo mode -> 4x faster
+    help       Prints this message or the help of the given subcommand(s)
+    rewards    Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]
+    view       Inspect staking rewards for the given stashes and display claimed and unclaimed eras.
 ```
 
 ```bash
@@ -252,11 +297,11 @@ ARGS:
               hours) [default: era]  [possible values: era, daily, turbo]
 ```
 
-Note: By default `crunch` collects the outstanding payouts from previous eras and group all the extrinsic payout calls in group of 8 or whatever value defined in the flag `maximum-calls` so that a single batch call per group can be made. The collection of all outstanding payouts from previous eras is also limited by 2 other flags. The first being `maximum-payouts` which default value is 4, this flag limits the number of payouts **per stash**. The other one is the `maximum-history-eras` which default is also 4, this flag limits the number of past eras `crunch` will look for unclaimed rewards - but this flag only applies if `short` flag is also used in the configuration. This is done so that `crunch` can run efficiently every era.
+Note: By default `crunch` collects the outstanding payouts from previous eras and group all the extrinsic payout calls in group of 4 or whatever value defined in the flag `maximum-calls` so that a single batch call per group can be made. The collection of all outstanding payouts from previous eras is also limited by 2 other flags. The first being `maximum-payouts` which default value is 4, this flag limits the number of payouts **per stash**. The other one is the `maximum-history-eras` which default is also 4, this flag limits the number of past eras `crunch` will look for unclaimed rewards - but this flag only applies if `short` flag is also used in the configuration. This is done so that `crunch` can run efficiently every era.
 
 With that said, if it's the **first time** you are running `crunch` and you are not sure if you have any unclaimed rewards or if you just want to know for the stash accounts defined in the confguration file (`.env`), which eras from the last 84 have already been claimed or unclaimed, you can simply run `crunch view`.
 
-Note: This option only logs information on the terminal
+Note: The `crunch view` mode only logs information into the terminal.
 
 ```bash
 #!/bin/bash
