@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2023-02-15
+
 ### New
 - Add optional flag 'enable-unique-stashes'. From all given stashes `crunch` will sort by stash address and remove duplicates.
 - Add optional flag 'pool-ids' or environement variable 'CRUNCH_POOL_IDS'. `crunch` will try to fetch the nominees of the respective pool id predefined here before triggering the respective payouts.
