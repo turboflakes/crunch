@@ -92,6 +92,8 @@ pub struct Config {
     pub pool_ids: Vec<u32>,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
+    #[serde(default)]
+    pub all_nominees_payouts_enabled: bool,
     #[serde(default = "default_seed_path")]
     pub seed_path: String,
     pub stashes: Vec<String>,
@@ -339,6 +341,12 @@ fn get_config() -> Config {
           "From all given stashes crunch will Sort by stash adddress and Remove duplicates.",
         ))
     .arg(
+      Arg::with_name("enable-all-nominees-payouts")
+        .long("enable-all-nominees-payouts")
+        .help(
+          "Enable payouts for ALL configured Nomination Pools. (e.g. with this flag active 'crunch' will try to trigger payouts for ALL nominees and not only the active ones - the ones the stake of the Nomination Pool was allocated).",
+        ))
+    .arg(
       Arg::with_name("substrate-ws-url")
         .short("w")
         .long("substrate-ws-url")
@@ -422,6 +430,10 @@ fn get_config() -> Config {
 
     if matches.is_present("enable-unique-stashes") {
         env::set_var("CRUNCH_UNIQUE_STASHES_ENABLED", "true");
+    }
+
+    if matches.is_present("enable-all-nominees-payouts") {
+        env::set_var("CRUNCH_ALL_NOMINEES_PAYOUTS_ENABLED", "true");
     }
 
     match matches.subcommand() {

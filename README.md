@@ -190,6 +190,8 @@ crunch kusama rewards
 crunch polkadot rewards daily
 # or for Westend network and claiming rewards every 6 hours at a specific time
 crunch westend rewards turbo
+# or for Westend network with unique stashes verified and for all configured pools nominees and claiming rewards every era
+crunch westend --enable-unique-stashes --enable-all-nominees-payouts rewards era
 # or try flakes just for fun :)
 crunch flakes
 # to list all options try help
@@ -209,9 +211,13 @@ USAGE:
     crunch [FLAGS] [OPTIONS] [CHAIN] [SUBCOMMAND]
 
 FLAGS:
-        --enable-unique-stashes    From all given stashes crunch will Sort by stash adddress and Remove duplicates.
-    -h, --help                     Prints help information
-    -V, --version                  Prints version information
+        --enable-all-nominees-payouts    Enable payouts for ALL configured Nomination Pools. (e.g. with this flag active
+                                         'crunch' will try to trigger payouts for ALL nominees and not only the active
+                                         ones - the ones the stake of the Nomination Pool was allocated).
+        --enable-unique-stashes          From all given stashes crunch will Sort by stash adddress and Remove
+                                         duplicates.
+    -h, --help                           Prints help information
+    -V, --version                        Prints version information
 
 OPTIONS:
     -c, --config-path <FILE>

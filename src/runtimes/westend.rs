@@ -439,7 +439,7 @@ async fn collect_validators_data(
     era_index: EraIndex,
 ) -> Result<Validators, CrunchError> {
     let api = crunch.client().clone();
-    
+
     // Get unclaimed eras for the stash addresses
     let active_validators_addr = node_runtime::storage().session().validators();
     let active_validators = api.storage().fetch(&active_validators_addr, None).await?;
@@ -840,7 +840,14 @@ pub async fn try_fetch_stashes_from_pool_ids(
         return Ok(None);
     }
 
-    let mut v: Vec<String> = Vec::new();
+    let active_era_addr = node_runtime::storage().staking().active_era();
+    let era_index = match api.storage().fetch(&active_era_addr, None).await? {
+        Some(info) => info.index,
+        None => return Err("Active era not defined".into()),
+    };
+
+    let mut all: Vec<String> = Vec::new();
+    let mut active: Vec<String> = Vec::new();
 
     for pool_id in config.pool_ids.iter() {
         let pool_stash_account = nomination_pool_account(AccountType::Bonded, *pool_id);
@@ -850,21 +857,56 @@ pub async fn try_fetch_stashes_from_pool_ids(
         if let Some(nominations) = api.storage().fetch(&nominators_addr, None).await? {
             // deconstruct targets
             let BoundedVec(targets) = nominations.targets;
-            v.extend(
+            all.extend(
                 targets
                     .iter()
                     .map(|s| s.to_string())
                     .collect::<Vec<String>>(),
             );
+
+            // NOTE_1: Only check active nominees from previous era
+            // By the end of current era crunch will trigger any payout left from previous eras if that is the case.
+            // NOTE_2: Ideally nominees shouldn't have any pending payouts, but is in the best interest of the pool members
+            // that pool operators trigger payouts as a backup at least for the active nominees.
+            for stash in targets {
+                let eras_stakers_addr = node_runtime::storage()
+                    .staking()
+                    .eras_stakers(era_index, &stash);
+                if let Some(exposure) =
+                    api.storage().fetch(&eras_stakers_addr, None).await?
+                {
+                    if let Some(individual) =
+                        exposure.others.iter().find(|x| x.who == pool_stash_account)
+                    {
+                        active.push(individual.who.to_string());
+                    }
+                }
+            }
         }
     }
-    if v.is_empty() {
+    if all.is_empty() && active.is_empty() {
         return Ok(None);
     }
 
+    if config.all_nominees_payouts_enabled {
+        info!(
+            "{} stashes loaded from 'pool-ids': [{}]",
+            all.len(),
+            config
+                .pool_ids
+                .iter()
+                .map(|p| p.to_string())
+                .collect::<Vec<String>>()
+                .join(",")
+        );
+
+        return Ok(Some(all));
+    }
+
+    // Note: by default only active nominees (stashes) are triggered
     info!(
-        "{} stashes loaded from 'pool-ids': [{}]",
-        v.len(),
+        "{} active stashes loaded from 'pool-ids': [{}]",
+        active.len(),
         config
             .pool_ids
             .iter()
@@ -872,5 +914,6 @@ pub async fn try_fetch_stashes_from_pool_ids(
             .collect::<Vec<String>>()
             .join(",")
     );
-    Ok(Some(v))
+
+    Ok(Some(active))
 }
