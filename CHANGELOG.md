@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2023-02-15
+
+### New
+- Add optional flag 'enable-all-nominees-payouts'. Since this version, by default 'crunch' will only trigger payouts for active nominees that the Pool stake allocation was active in the previous era. The presence of this optional flag makes 'crunch' to try and trigger payouts to all nominees regardless if they were active or not.
+
 ## [0.9.0] - 2023-02-15
 
 ### New

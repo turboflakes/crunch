@@ -29,7 +29,7 @@ For Pool Operators to ensure that all selected validators payout on time so that
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.9.0/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.9.1/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
