@@ -1,6 +1,6 @@
 [package]
 name = "crunch"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Paulo <paulo@turboflakes.io>"]
 description = "Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains" 
 edition = "2018"
@@ -28,7 +28,7 @@ rand = "0.8.4"
 # subxt dependencies
 subxt = "0.25.0"
 async-std = { version = "1.11.0", features = ["attributes", "tokio1"] }
-env_logger = "0.9.0"
+env_logger = "0.9.1"
 futures = "0.3.13"
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
 hex = "0.4.3"
