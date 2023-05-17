@@ -394,6 +394,34 @@ subxt metadata --url https://westend-rpc.polkadot.io  -f bytes > westend_metadat
 subxt codegen --url https://westend-rpc.polkadot.io | rustfmt --edition=2018 --emit=stdout > westend_runtime.rs
 ```
 
+## Docker
+
+`crunch` can also be built and run from a Docker container.
+
+Build Image
+
+```bash
+git clone http://github.com/turboflakes/crunch
+cd crunch
+docker build -t localhost/crunch .
+```
+
+Run Container
+
+```bash
+docker run --rm -it localhost/crunch:latest --version
+```
+
+The config and seed files can be mounted from the host. Any options supported by `crunch` can be added.
+
+```bash
+docker run --rm -it \
+  --volume=/etc/crunch/env:/.env:U \
+  --volume=/etc/crunch/private.seed:/.private.seed:U \
+  localhost/crunch:latest \
+    rewards era
+```
+
 ## Inspiration
 
 Similar projects that had influence in crunch design.
