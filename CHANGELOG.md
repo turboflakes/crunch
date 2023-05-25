@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2023-05-25
+
+- Update metadata Kusama runtime/9420
+- Update metadata Westend runtime/9420
+
 ## [0.9.3] - 2023-02-15
 
 - Fixes active nominees stashes from previous era and not current from version 0.9.2
