@@ -27,9 +27,9 @@
 DIRNAME="~/crunch-bot"
 FILENAME="$DIRNAME/crunch"
 
-read -p "Enter the Crunch version that you would like to download (e.g.: 0.5.2): " INPUT_VERSION
+read -p "Enter the Crunch version that you would like to download (e.g.: 0.9.4): " INPUT_VERSION
 if [ "$INPUT_VERSION" = "" ]; then
-                    INPUT_VERSION="0.5.2"
+                    INPUT_VERSION="0.9.4"
 fi
 
 URI="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch"
