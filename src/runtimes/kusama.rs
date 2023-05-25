@@ -52,7 +52,7 @@ use subxt::{
 mod node_runtime {}
 
 use node_runtime::{
-    runtime_types::sp_core::bounded::bounded_vec::BoundedVec, staking::events::EraPaid,
+    runtime_types::bounded_collections::bounded_vec::BoundedVec, staking::events::EraPaid,
     staking::events::PayoutStarted, staking::events::Rewarded,
     system::events::ExtrinsicFailed, utility::events::BatchCompleted,
     utility::events::BatchInterrupted, utility::events::ItemCompleted,
