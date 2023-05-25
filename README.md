@@ -29,7 +29,7 @@ For Pool Operators to ensure that all active validators selected - active pool n
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.9.4/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.9.5/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
