@@ -323,6 +323,14 @@ crunch polkadot view
 
 Note: You can run `crunch` inside a tmux session and leave it, or using something like `systemd` to run `crunch` on server restarts for example. By default `crunch` will wake up every X hours to claim rewards if there are any to claim.
 
+## Common issue on Ubuntu 22.04 when using the crunch binary
+
+Install previous openssl version from:
+```
+wget https://mirror.umd.edu/ubuntu/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.18_amd64.deb
+dpkg -i libssl1.1_1.1.1f-1ubuntu2.18_amd64.deb
+```
+
 ## Development / Build from Source
 
 If you'd like to build from source, first install Rust.
