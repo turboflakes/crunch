@@ -27,9 +27,6 @@ pub enum SupportedRuntime {
     Polkadot,
     Kusama,
     Westend,
-    AlephZero,
-    AlephZeroTestnet,
-    Lagoon,
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -38,7 +35,6 @@ impl From<ChainPrefix> for SupportedRuntime {
             0 => Self::Polkadot,
             2 => Self::Kusama,
             42 => Self::Westend,
-            7007 => Self::Lagoon,
             _ => unimplemented!("Chain prefix not supported"),
         }
     }
@@ -50,9 +46,6 @@ impl From<ChainTokenSymbol> for SupportedRuntime {
             "DOT" => Self::Polkadot,
             "KSM" => Self::Kusama,
             "WND" => Self::Westend,
-            "AZERO" => Self::AlephZero,
-            "TZERO" => Self::AlephZeroTestnet,
-            "TDFY" => Self::Lagoon,
             _ => unimplemented!("Chain unit not supported"),
         }
     }
@@ -64,9 +57,6 @@ impl std::fmt::Display for SupportedRuntime {
             Self::Polkadot => write!(f, "Polkadot"),
             Self::Kusama => write!(f, "Kusama"),
             Self::Westend => write!(f, "Westend"),
-            Self::AlephZero => write!(f, "AlephZero"),
-            Self::AlephZeroTestnet => write!(f, "AlephZeroTestnet"),
-            Self::Lagoon => write!(f, "Lagoon"),
         }
     }
 }
