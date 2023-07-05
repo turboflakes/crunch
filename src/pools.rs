@@ -20,7 +20,7 @@
 // SOFTWARE.
 use hex::ToHex;
 use std::str::FromStr;
-use subxt::ext::sp_runtime::AccountId32;
+use subxt::utils::AccountId32;
 
 /// The type of account being created.
 #[allow(dead_code)]

@@ -40,8 +40,8 @@ use std::{
 };
 use subxt::{
     ext::sp_core::{sr25519, Pair as PairT},
-    ext::sp_runtime::AccountId32,
     tx::PairSigner,
+    utils::AccountId32,
     PolkadotConfig,
 };
 
@@ -52,8 +52,8 @@ use subxt::{
 mod node_runtime {}
 
 use node_runtime::{
-    runtime_types::bounded_collections::bounded_vec::BoundedVec, staking::events::EraPaid,
-    staking::events::PayoutStarted, staking::events::Rewarded,
+    runtime_types::bounded_collections::bounded_vec::BoundedVec,
+    staking::events::EraPaid, staking::events::PayoutStarted, staking::events::Rewarded,
     system::events::ExtrinsicFailed, utility::events::BatchCompleted,
     utility::events::BatchInterrupted, utility::events::ItemCompleted,
 };
@@ -119,7 +119,13 @@ pub async fn try_run_batch(
 
     // Get Era index
     let active_era_addr = node_runtime::storage().staking().active_era();
-    let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
+    let active_era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
         Some(info) => info.index,
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
@@ -177,8 +183,12 @@ pub async fn try_run_batch(
 
     let seed_account_info_addr =
         node_runtime::storage().system().account(&seed_account_id);
-    if let Some(seed_account_info) =
-        api.storage().fetch(&seed_account_info_addr, None).await?
+    if let Some(seed_account_info) = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&seed_account_info_addr)
+        .await?
     {
         if seed_account_info.data.free
             <= (config.existential_deposit_factor_warning as u128 * ed)
@@ -306,7 +316,6 @@ pub async fn try_run_batch(
                     // Iterate over events to calculate respective reward amounts
                     for event in tx_events.iter() {
                         let event = event?;
-                        debug!("{:?}", event);
                         if let Some(ev) = event.as_event::<PayoutStarted>()? {
                             // https://polkadot.js.org/docs/substrate/events#payoutstartedu32-accountid32
                             // PayoutStarted(u32, AccountId32)
@@ -442,18 +451,31 @@ async fn collect_validators_data(
 
     // Get unclaimed eras for the stash addresses
     let active_validators_addr = node_runtime::storage().session().validators();
-    let active_validators = api.storage().fetch(&active_validators_addr, None).await?;
+    let active_validators = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_validators_addr)
+        .await?;
     debug!("active_validators {:?}", active_validators);
     let mut validators: Validators = Vec::new();
 
     let stashes = get_stashes(&crunch).await?;
 
     for (_i, stash_str) in stashes.iter().enumerate() {
-        let stash = AccountId32::from_str(stash_str)?;
+        let stash = AccountId32::from_str(stash_str).map_err(|e| {
+            CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
+        })?;
 
         // Check if stash has bonded controller
         let controller_addr = node_runtime::storage().staking().bonded(&stash);
-        let controller = match api.storage().fetch(&controller_addr, None).await? {
+        let controller = match api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&controller_addr)
+            .await?
+        {
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
@@ -487,7 +509,9 @@ async fn collect_validators_data(
 
         // Get staking info from ledger
         let ledger_addr = node_runtime::storage().staking().ledger(&controller);
-        if let Some(staking_ledger) = api.storage().fetch(&ledger_addr, None).await? {
+        if let Some(staking_ledger) =
+            api.storage().at_latest().await?.fetch(&ledger_addr).await?
+        {
             debug!(
                 "{} * claimed_rewards: {:?}",
                 stash, staking_ledger.claimed_rewards
@@ -508,8 +532,12 @@ async fn collect_validators_data(
                 // Verify if stash was active in set
                 let eras_stakers_addr =
                     node_runtime::storage().staking().eras_stakers(&e, &stash);
-                if let Some(exposure) =
-                    api.storage().fetch(&eras_stakers_addr, None).await?
+                if let Some(exposure) = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&eras_stakers_addr)
+                    .await?
                 {
                     if exposure.total > 0 {
                         v.unclaimed.push(e)
@@ -555,8 +583,12 @@ async fn get_validator_points_info(
         .staking()
         .eras_reward_points(&era_index);
 
-    if let Some(era_reward_points) =
-        api.storage().fetch(&era_reward_points_addr, None).await?
+    if let Some(era_reward_points) = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&era_reward_points_addr)
+        .await?
     {
         let stash_points = match era_reward_points
             .individual
@@ -598,7 +630,13 @@ async fn get_display_name(
     let api = crunch.client().clone();
 
     let identity_of_addr = node_runtime::storage().identity().identity_of(stash);
-    match api.storage().fetch(&identity_of_addr, None).await? {
+    match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&identity_of_addr)
+        .await?
+    {
         Some(identity) => {
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
@@ -610,8 +648,12 @@ async fn get_display_name(
         }
         None => {
             let super_of_addr = node_runtime::storage().identity().super_of(stash);
-            if let Some((parent_account, data)) =
-                api.storage().fetch(&super_of_addr, None).await?
+            if let Some((parent_account, data)) = api
+                .storage()
+                .at_latest()
+                .await?
+                .fetch(&super_of_addr)
+                .await?
             {
                 let sub_account_name = parse_identity_data(data);
                 return get_display_name(
@@ -750,13 +792,21 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
     let active_era_addr = node_runtime::storage().staking().active_era();
-    let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
+    let active_era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
         Some(info) => info.index,
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
 
     for stash_str in stashes.iter() {
-        let stash = AccountId32::from_str(stash_str)?;
+        let stash = AccountId32::from_str(stash_str).map_err(|e| {
+            CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
+        })?;
         info!("{} * Stash account", stash);
 
         let start_index = active_era_index - history_depth;
@@ -764,9 +814,12 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         let mut claimed: Vec<u32> = Vec::new();
 
         let bonded_addr = node_runtime::storage().staking().bonded(&stash);
-        if let Some(controller) = api.storage().fetch(&bonded_addr, None).await? {
+        if let Some(controller) =
+            api.storage().at_latest().await?.fetch(&bonded_addr).await?
+        {
             let ledger_addr = node_runtime::storage().staking().ledger(&controller);
-            if let Some(ledger_response) = api.storage().fetch(&ledger_addr, None).await?
+            if let Some(ledger_response) =
+                api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
                 // deconstruct claimed rewards
                 let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
@@ -781,8 +834,12 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                     let eras_stakers_addr = node_runtime::storage()
                         .staking()
                         .eras_stakers(&era_index, &stash);
-                    if let Some(exposure) =
-                        api.storage().fetch(&eras_stakers_addr, None).await?
+                    if let Some(exposure) = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .fetch(&eras_stakers_addr)
+                        .await?
                     {
                         if exposure.total > 0 {
                             unclaimed.push(era_index)
@@ -841,7 +898,13 @@ pub async fn try_fetch_stashes_from_pool_ids(
     }
 
     let active_era_addr = node_runtime::storage().staking().active_era();
-    let era_index = match api.storage().fetch(&active_era_addr, None).await? {
+    let era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
         Some(info) => info.index,
         None => return Err("Active era not defined".into()),
     };
@@ -854,7 +917,13 @@ pub async fn try_fetch_stashes_from_pool_ids(
         let nominators_addr = node_runtime::storage()
             .staking()
             .nominators(&pool_stash_account);
-        if let Some(nominations) = api.storage().fetch(&nominators_addr, None).await? {
+        if let Some(nominations) = api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&nominators_addr)
+            .await?
+        {
             // deconstruct targets
             let BoundedVec(targets) = nominations.targets;
             all.extend(
@@ -872,8 +941,12 @@ pub async fn try_fetch_stashes_from_pool_ids(
                 let eras_stakers_addr = node_runtime::storage()
                     .staking()
                     .eras_stakers(era_index - 1, &stash);
-                if let Some(exposure) =
-                    api.storage().fetch(&eras_stakers_addr, None).await?
+                if let Some(exposure) = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&eras_stakers_addr)
+                    .await?
                 {
                     if exposure.others.iter().any(|x| x.who == pool_stash_account) {
                         active.push(stash.to_string());

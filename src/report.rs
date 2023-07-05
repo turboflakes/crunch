@@ -21,7 +21,7 @@
 use crate::config::CONFIG;
 use log::{info, warn};
 use rand::Rng;
-use subxt::{ext::sp_core::H256, ext::sp_runtime::AccountId32};
+use subxt::{ext::sp_core::H256, utils::AccountId32};
 
 pub type EraIndex = u32;
 
