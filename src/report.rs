@@ -25,7 +25,7 @@ use subxt::{ext::sp_core::H256, utils::AccountId32};
 
 pub type EraIndex = u32;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Points {
     pub validator: u32,
     pub era_avg: f64,
@@ -33,7 +33,7 @@ pub struct Points {
     pub outlier_limits: (f64, f64),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Payout {
     pub block_number: u32,
     pub extrinsic: H256,
@@ -44,7 +44,7 @@ pub struct Payout {
     pub points: Points,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Validator {
     pub stash: AccountId32,
     pub controller: Option<AccountId32>,
@@ -55,6 +55,7 @@ pub struct Validator {
     pub unclaimed: Vec<EraIndex>,
     pub payouts: Vec<Payout>,
     pub warnings: Vec<String>,
+    pub completed: bool,
 }
 
 impl Validator {
@@ -69,6 +70,7 @@ impl Validator {
             unclaimed: Vec::new(),
             payouts: Vec::new(),
             warnings: Vec::new(),
+            completed: false,
         }
     }
 }
@@ -90,10 +92,11 @@ pub struct Network {
     pub token_decimals: u8,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PayoutSummary {
     pub calls: u32,
     pub calls_succeeded: u32,
+    pub calls_failed: u32,
     pub next_minimum_expected: u32,
     pub total_validators: u32,
     pub total_validators_previous_era_already_claimed: u32,

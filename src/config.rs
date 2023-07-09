@@ -79,6 +79,11 @@ fn default_existential_deposit_factor_warning() -> u32 {
     2
 }
 
+/// provides default value for maximum_pool_members_per_call if CRUNCH_MAXIMUM_POOL_MEMBERS_PER_CALL env var is not set
+fn default_maximum_pool_members_per_call() -> u32 {
+    128
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     #[serde(default = "default_interval")]
@@ -90,6 +95,10 @@ pub struct Config {
     pub stashes_url: String,
     #[serde(default)]
     pub pool_ids: Vec<u32>,
+    #[serde(default)]
+    pub pool_members_compound_enabled: bool,
+    #[serde(default = "default_maximum_pool_members_per_call")]
+    pub maximum_pool_members_per_call: u32,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
     #[serde(default)]
@@ -140,7 +149,7 @@ fn get_config() -> Config {
     .arg(
       Arg::with_name("CHAIN")
           .index(1)
-          .possible_values(&["westend", "kusama", "polkadot", "azero", "tzero"])
+          .possible_values(&["westend", "kusama", "polkadot"])
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -335,6 +344,12 @@ fn get_config() -> Config {
           "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
         ))
     .arg(
+      Arg::with_name("enable-pool-members-compound")
+        .long("enable-pool-members-compound")
+        .help(
+          "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
+        ))
+    .arg(
       Arg::with_name("enable-unique-stashes")
         .long("enable-unique-stashes")
         .help(
@@ -395,12 +410,6 @@ fn get_config() -> Config {
         Some("polkadot") => {
             env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io:443");
         }
-        Some("azero") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.azero.dev:443");
-        }
-        Some("tzero") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.test.azero.dev:443");
-        }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
                 env::set_var("CRUNCH_SUBSTRATE_WS_URL", "ws://127.0.0.1:9944");
@@ -434,6 +443,10 @@ fn get_config() -> Config {
 
     if matches.is_present("enable-all-nominees-payouts") {
         env::set_var("CRUNCH_ALL_NOMINEES_PAYOUTS_ENABLED", "true");
+    }
+
+    if matches.is_present("enable-pool-members-compound") {
+        env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED", "true");
     }
 
     match matches.subcommand() {

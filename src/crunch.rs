@@ -22,7 +22,7 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    kusama, polkadot,
+    // kusama, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
@@ -34,6 +34,8 @@ use std::{convert::TryInto, result::Result, thread, time};
 
 use subxt::{
     ext::sp_core::{crypto, sr25519, Pair as PairT},
+    storage::StorageKey,
+    utils::AccountId32,
     OnlineClient, PolkadotConfig,
 };
 
@@ -196,33 +198,34 @@ impl Crunch {
 
     async fn inspect(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => polkadot::inspect(self).await,
-            SupportedRuntime::Kusama => kusama::inspect(self).await,
+            // SupportedRuntime::Polkadot => polkadot::inspect(self).await,
+            // SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
-            // _ => unreachable!(),
+            _ => unreachable!(),
         }
     }
 
     async fn try_run_batch(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
-            SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
-            SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
-            // _ => unreachable!(),
+            // SupportedRuntime::Polkadot => polkadot::try_crunch(self, None).await,
+            // SupportedRuntime::Kusama => kusama::try_crunch(self, None).await,
+            SupportedRuntime::Westend => westend::try_crunch(self).await,
+            _ => unreachable!(),
         }
     }
 
     async fn run_and_subscribe_era_paid_events(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => {
-                polkadot::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::Kusama => {
-                kusama::run_and_subscribe_era_paid_events(self).await
-            }
+            // SupportedRuntime::Polkadot => {
+            //     polkadot::run_and_subscribe_era_paid_events(self).await
+            // }
+            // SupportedRuntime::Kusama => {
+            //     kusama::run_and_subscribe_era_paid_events(self).await
+            // }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
-            } // _ => unreachable!(),
+            }
+            _ => unreachable!(),
         }
     }
 }
@@ -308,4 +311,10 @@ pub async fn try_fetch_stashes_from_remote_url(
     }
     info!("{} stashes loaded from {}", v.len(), config.stashes_url);
     Ok(Some(v))
+}
+
+pub fn get_account_id_from_storage_key(key: StorageKey) -> AccountId32 {
+    let s = &key.0[key.0.len() - 32..];
+    let v: [u8; 32] = s.try_into().expect("slice with incorrect length");
+    v.into()
 }

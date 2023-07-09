@@ -238,7 +238,7 @@ OPTIONS:
 
 ARGS:
     <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [possible values: westend,
-               kusama, polkadot, azero, tzero]
+               kusama, polkadot]
 
 SUBCOMMANDS:
     flakes     Crunch awesome flakes (rewards) every era, daily or in turbo mode -> 4x faster

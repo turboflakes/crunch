@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## New
+- fetch pool members with permissionless compound rewards
+ 
+## Changed
+- Update subxt v0.29.0
+- use `force_batch`
+- Support only Westend, Kusama, Polkadot (if nedeed other substrate-based chains could easily clone and adapt required changes)
+- Update metadata Kusama runtime/9430
+
 ## [0.9.6] - 2023-06-15
 
 - Update metadata Polkadot runtime/9420
