@@ -79,8 +79,8 @@ fn default_existential_deposit_factor_warning() -> u32 {
     2
 }
 
-/// provides default value for maximum_pool_members_per_call if CRUNCH_MAXIMUM_POOL_MEMBERS_PER_CALL env var is not set
-fn default_maximum_pool_members_per_call() -> u32 {
+/// provides default value for maximum_pool_members_calls if CRUNCH_MAXIMUM_POOL_MEMBERS_CALLS env var is not set
+fn default_maximum_pool_members_calls() -> u32 {
     128
 }
 
@@ -97,8 +97,8 @@ pub struct Config {
     pub pool_ids: Vec<u32>,
     #[serde(default)]
     pub pool_members_compound_enabled: bool,
-    #[serde(default = "default_maximum_pool_members_per_call")]
-    pub maximum_pool_members_per_call: u32,
+    #[serde(default = "default_maximum_pool_members_calls")]
+    pub maximum_pool_members_calls: u32,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
     #[serde(default)]

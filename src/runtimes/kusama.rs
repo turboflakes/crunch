@@ -427,7 +427,8 @@ pub async fn try_run_batch(
         network,
         signer,
         validators,
-        summary,
+        payout_summary,
+        pools_summary,
     };
 
     let report = Report::from(data);
