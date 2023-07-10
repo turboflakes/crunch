@@ -407,18 +407,25 @@ impl From<RawData> for Report {
 
         // Nomination Pools coumpound info
         if config.pool_members_compound_enabled {
-            report.add_raw_text(format!(
-                "♻️ Rewards compounded for {} members from Pools {:?}",
-                data.pools_summary.total_members, config.pool_ids
-            ));
-            for batch in data.pools_summary.batches {
+            if data.pools_summary.total_members > 0 {
                 report.add_raw_text(format!(
-                    "💯 Batch finalized at block #{} 
+                    "♻️ Rewards compounded for {} members from Pools {:?}",
+                    data.pools_summary.total_members, config.pool_ids
+                ));
+                for batch in data.pools_summary.batches {
+                    report.add_raw_text(format!(
+                        "💯 Batch finalized at block #{} 
                     (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
-                    batch.block_number,
-                    data.network.name.to_lowercase().trim().replace(" ", ""),
-                    batch.extrinsic,
-                    batch.extrinsic.to_string()
+                        batch.block_number,
+                        data.network.name.to_lowercase().trim().replace(" ", ""),
+                        batch.extrinsic,
+                        batch.extrinsic.to_string()
+                    ));
+                }
+            } else {
+                report.add_raw_text(format!(
+                    "♻️ No pending rewards from Pools {:?}",
+                    config.pool_ids
                 ));
             }
             report.add_break();

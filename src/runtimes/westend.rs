@@ -41,7 +41,10 @@ use std::{
 };
 use subxt::{
     error::DispatchError,
-    ext::sp_core::{sr25519, Pair as PairT},
+    ext::{
+        codec::Encode,
+        sp_core::{sr25519, Pair as PairT},
+    },
     tx::PairSigner,
     utils::{AccountId32, MultiAddress},
     PolkadotConfig,
@@ -1090,6 +1093,7 @@ pub async fn try_fetch_pool_members_for_compound(
         {
             let member = get_account_id_from_storage_key(key);
             debug!("member: {}", member);
+
             // 2 .Verify if member belongs to the pools configured
             let pool_member_addr = node_runtime::storage()
                 .nomination_pools()
@@ -1102,7 +1106,15 @@ pub async fn try_fetch_pool_members_for_compound(
                 .await?
             {
                 if config.pool_ids.contains(&pool_member.pool_id) {
-                    members.push(member);
+                    // fetch pending rewards
+                    let call_name = format!("NominationPoolsApi_pending_rewards");
+                    let claimable: u128 = api
+                        .rpc()
+                        .state_call(&call_name, Some(&member.encode()), None)
+                        .await?;
+                    if claimable > 0 {
+                        members.push(member);
+                    }
                 }
             }
         }
