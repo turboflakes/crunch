@@ -48,8 +48,8 @@ fn default_interval() -> u64 {
 }
 
 /// provides default value for error interval if CRUNCH_ERROR_INTERVAL env var is not set
-fn default_error_interval() -> u64 {
-    5
+fn default_error_interval() -> u32 {
+    2
 }
 
 /// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
@@ -89,7 +89,7 @@ pub struct Config {
     #[serde(default = "default_interval")]
     pub interval: u64,
     #[serde(default = "default_error_interval")]
-    pub error_interval: u64,
+    pub error_interval: u32,
     pub substrate_ws_url: String,
     #[serde(default)]
     pub stashes_url: String,

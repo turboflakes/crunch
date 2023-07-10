@@ -233,6 +233,7 @@ impl Crunch {
 fn spawn_and_restart_subscription_on_error() {
     let t = task::spawn(async {
         let config = CONFIG.clone();
+        let mut n = 1_u32;
         loop {
             let c: Crunch = Crunch::new().await;
             if let Err(e) = c.run_and_subscribe_era_paid_events().await {
@@ -241,13 +242,12 @@ fn spawn_and_restart_subscription_on_error() {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
                     _ => {
                         error!("{}", e);
-                        let message =
-                            format!("On hold for {} min!", config.error_interval);
-                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
+                        let sleep_min = u32::pow(config.error_interval, n);
+                        let message = format!("On hold for {} min!", sleep_min);
+                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", sleep_min);
                         c.send_message(&message, &formatted_message).await.unwrap();
-                        thread::sleep(time::Duration::from_secs(
-                            60 * config.error_interval,
-                        ));
+                        thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
+                        n += 1;
                         continue;
                     }
                 }
@@ -261,20 +261,22 @@ fn spawn_and_restart_subscription_on_error() {
 fn spawn_and_restart_crunch_flakes_on_error() {
     let t = task::spawn(async {
         let config = CONFIG.clone();
+        let mut n = 1_u32;
         loop {
             let c: Crunch = Crunch::new().await;
             if let Err(e) = c.try_run_batch().await {
+                let sleep_min = u32::pow(config.error_interval, n);
                 match e {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
                     _ => {
                         error!("{}", e);
-                        let message =
-                            format!("On hold for {} min!", config.error_interval);
-                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
+                        let message = format!("On hold for {} min!", sleep_min);
+                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", sleep_min);
                         c.send_message(&message, &formatted_message).await.unwrap();
                     }
                 }
-                thread::sleep(time::Duration::from_secs(60 * config.error_interval));
+                thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
+                n += 1;
                 continue;
             };
             thread::sleep(time::Duration::from_secs(config.interval));
