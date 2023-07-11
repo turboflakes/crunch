@@ -21,7 +21,7 @@
 
 use crate::config::CONFIG;
 use crate::crunch::{
-    get_account_id_from_storage_key, get_from_seed, random_wait,
+    get_account_id_from_storage_key, get_from_seed, random_wait, try_fetch_onet_data,
     try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
     ValidatorIndex,
 };
@@ -145,11 +145,16 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     }
 
     // Try run payouts in batches
-    let (validators, payout_summary) =
+    let (mut validators, payout_summary) =
         try_run_batch_payouts(&crunch, &seed_account_signer).await?;
 
     // Try run members in batches
     let pools_summary = try_run_batch_pool_members(&crunch, &seed_account_signer).await?;
+
+    // Try fetch ONE-T grade data
+    for mut v in &mut validators {
+        v.onet = try_fetch_onet_data(v.stash.clone()).await?;
+    }
 
     // Get Network name
     let chain_name = api.rpc().system_chain().await?;

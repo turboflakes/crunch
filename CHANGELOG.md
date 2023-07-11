@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## New
-- fetch pool members with permissionless compound rewards
- 
+- batch pool members with permissionless compound rewards defined
+- fetch ONE-T grades
+
 ## Changed
 - Update subxt v0.29.0
 - use `force_batch`
+- change `error_interval` to base pow function
 - Support only Westend, Kusama, Polkadot (if nedeed other substrate-based chains could easily clone and adapt required changes)
 - Update metadata Kusama runtime/9430
 

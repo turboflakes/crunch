@@ -22,14 +22,15 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    // kusama, polkadot,
+    kusama, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
 use async_std::task;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use rand::Rng;
 use regex::Regex;
+use serde::Deserialize;
 use std::{convert::TryInto, result::Result, thread, time};
 
 use subxt::{
@@ -198,34 +199,33 @@ impl Crunch {
 
     async fn inspect(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            // SupportedRuntime::Polkadot => polkadot::inspect(self).await,
-            // SupportedRuntime::Kusama => kusama::inspect(self).await,
+            SupportedRuntime::Polkadot => polkadot::inspect(self).await,
+            SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
-            _ => unreachable!(),
+            // _ => unreachable!(),
         }
     }
 
     async fn try_run_batch(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            // SupportedRuntime::Polkadot => polkadot::try_crunch(self, None).await,
-            // SupportedRuntime::Kusama => kusama::try_crunch(self, None).await,
+            SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
+            SupportedRuntime::Kusama => kusama::try_crunch(self).await,
             SupportedRuntime::Westend => westend::try_crunch(self).await,
-            _ => unreachable!(),
+            // _ => unreachable!(),
         }
     }
 
     async fn run_and_subscribe_era_paid_events(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            // SupportedRuntime::Polkadot => {
-            //     polkadot::run_and_subscribe_era_paid_events(self).await
-            // }
-            // SupportedRuntime::Kusama => {
-            //     kusama::run_and_subscribe_era_paid_events(self).await
-            // }
+            SupportedRuntime::Polkadot => {
+                polkadot::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::Kusama => {
+                kusama::run_and_subscribe_era_paid_events(self).await
+            }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
-            }
-            _ => unreachable!(),
+            } // _ => unreachable!(),
         }
     }
 }
@@ -313,6 +313,55 @@ pub async fn try_fetch_stashes_from_remote_url(
     }
     info!("{} stashes loaded from {}", v.len(), config.stashes_url);
     Ok(Some(v))
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct OnetData {
+    pub address: String,
+    pub grade: String,
+    pub authority_inclusion: f64,
+    pub para_authority_inclusion: f64,
+    pub sessions: Vec<u32>,
+}
+
+pub async fn try_fetch_onet_data(
+    stash: AccountId32,
+) -> Result<Option<OnetData>, CrunchError> {
+    let config = CONFIG.clone();
+    if !config.onet_api_enabled || config.onet_api_url.len() == 0 {
+        return Ok(None);
+    }
+    let url = format!(
+        "{}/api/v1/validators/{}/grade?number_last_sessions={}",
+        config.onet_api_url, stash, config.onet_number_last_sessions
+    );
+    debug!("Crunch <> ONE-T grade loaded from {}", url);
+    let client = reqwest::Client::new();
+    match client
+        .get(&url)
+        .header("X-API-KEY", config.onet_api_key)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            match response.status() {
+                reqwest::StatusCode::OK => {
+                    match response.json::<OnetData>().await {
+                        Ok(parsed) => return Ok(Some(parsed)),
+                        Err(e) => error!(
+                            "Unable to parse ONE-T response for stash {} error: {:?}",
+                            stash, e
+                        ),
+                    };
+                }
+                other => {
+                    warn!("Unexpected code {:?} from ONE-T url {}", other, url);
+                }
+            };
+        }
+        Err(e) => error!("{:?}", e),
+    };
+    Ok(None)
 }
 
 pub fn get_account_id_from_storage_key(key: StorageKey) -> AccountId32 {

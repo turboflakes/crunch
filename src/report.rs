@@ -18,7 +18,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::config::CONFIG;
+use crate::{config::CONFIG, crunch::OnetData};
 use log::{info, warn};
 use rand::Rng;
 use subxt::{ext::sp_core::H256, utils::AccountId32};
@@ -61,6 +61,7 @@ pub struct Validator {
     pub unclaimed: Vec<EraIndex>,
     pub payouts: Vec<Payout>,
     pub warnings: Vec<String>,
+    pub onet: Option<OnetData>,
 }
 
 impl Validator {
@@ -75,6 +76,7 @@ impl Validator {
             unclaimed: Vec::new(),
             payouts: Vec::new(),
             warnings: Vec::new(),
+            onet: None,
         }
     }
 }
@@ -400,6 +402,19 @@ impl From<RawData> for Report {
                     validator.claimed.len() + validator.unclaimed.len(),
                     claimed_percentage
                 ));
+            }
+
+            // ONE-T stats
+            if let Some(onet) = validator.onet {
+                let para_inclusion = ((config.onet_number_last_sessions as f64
+                    * onet.para_authority_inclusion)
+                    .ceil()) as u32;
+                if para_inclusion > 0 {
+                    report.add_raw_text(format!(
+                        "🎓 Grade from {}/{} sessions: <b>{}</b>",
+                        para_inclusion, config.onet_number_last_sessions, onet.grade
+                    ));
+                }
             }
         }
 

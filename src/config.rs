@@ -84,6 +84,21 @@ fn default_maximum_pool_members_calls() -> u32 {
     128
 }
 
+/// provides default value for onet_api_url if CRUNCH_ONET_API_URL env var is not set
+fn default_onet_api_url() -> String {
+    "https://kusama-onet-api-beta.turboflakes.io".into()
+}
+
+/// provides default value for onet_api_url if CRUNCH_ONET_API_KEY env var is not set
+fn default_onet_api_key() -> String {
+    "crunch-101".into()
+}
+
+/// provides default value for onet_api_url if CRUNCH_ONET_NUMBER_LAST_SESSIONS env var is not set
+fn default_onet_number_last_sessions() -> u32 {
+    6
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     #[serde(default = "default_interval")]
@@ -124,6 +139,15 @@ pub struct Config {
     pub is_short: bool,
     #[serde(default)]
     pub is_mode_era: bool,
+    // ONE-T integration
+    #[serde(default)]
+    pub onet_api_enabled: bool,
+    #[serde(default = "default_onet_api_url")]
+    pub onet_api_url: String,
+    #[serde(default = "default_onet_api_key")]
+    pub onet_api_key: String,
+    #[serde(default = "default_onet_number_last_sessions")]
+    pub onet_number_last_sessions: u32,
     // matrix configuration
     #[serde(default)]
     pub matrix_user: String,
@@ -235,6 +259,25 @@ fn get_config() -> Config {
           .long("error-interval")
           .takes_value(true)
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
+      .arg(
+        Arg::with_name("pool-ids")
+          .long("pool-ids")
+          .takes_value(true)
+          .help(
+            "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
+          ))
+      .arg(
+        Arg::with_name("enable-pool-members-compound")
+          .long("enable-pool-members-compound")
+          .help(
+            "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
+          ))
+      .arg(
+        Arg::with_name("enable-onet-api")
+          .long("enable-onet-api")
+          .help(
+            "Allow 'crunch' to fetch grades for every stash from ONE-T API.",
+          ))
     )
     .subcommand(SubCommand::with_name("rewards")
       .about("Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]")
@@ -317,6 +360,25 @@ fn get_config() -> Config {
           .long("error-interval")
           .takes_value(true)
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
+      .arg(
+        Arg::with_name("pool-ids")
+          .long("pool-ids")
+          .takes_value(true)
+          .help(
+            "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
+          ))
+      .arg(
+        Arg::with_name("enable-pool-members-compound")
+          .long("enable-pool-members-compound")
+          .help(
+            "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
+          ))
+      .arg(
+        Arg::with_name("enable-onet-api")
+          .long("enable-onet-api")
+          .help(
+            "Allow 'crunch' to fetch grades for every stash from ONE-T API.",
+          ))
     )
     .subcommand(SubCommand::with_name("view")
       .about("Inspect staking rewards for the given stashes and display claimed and unclaimed eras.")
@@ -335,19 +397,6 @@ fn get_config() -> Config {
         .takes_value(true)
         .help(
           "Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g. https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).",
-        ))
-    .arg(
-      Arg::with_name("pool-ids")
-        .long("pool-ids")
-        .takes_value(true)
-        .help(
-          "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
-        ))
-    .arg(
-      Arg::with_name("enable-pool-members-compound")
-        .long("enable-pool-members-compound")
-        .help(
-          "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
         ))
     .arg(
       Arg::with_name("enable-unique-stashes")
@@ -445,10 +494,6 @@ fn get_config() -> Config {
         env::set_var("CRUNCH_ALL_NOMINEES_PAYOUTS_ENABLED", "true");
     }
 
-    if matches.is_present("enable-pool-members-compound") {
-        env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED", "true");
-    }
-
     match matches.subcommand() {
         ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
             match flakes_matches.value_of("MODE").unwrap() {
@@ -518,6 +563,14 @@ fn get_config() -> Config {
 
             if let Some(error_interval) = flakes_matches.value_of("error-interval") {
                 env::set_var("CRUNCH_ERROR_INTERVAL", error_interval);
+            }
+
+            if flakes_matches.is_present("enable-pool-members-compound") {
+                env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED", "true");
+            }
+
+            if flakes_matches.is_present("enable-onet-api") {
+                env::set_var("CRUNCH_ONET_API_ENABLED", "true");
             }
         }
         ("view", Some(_)) => {
