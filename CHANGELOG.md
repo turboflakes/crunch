@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2023-07-11
+
 ## New
 - batch pool members with permissionless compound rewards defined
 - fetch ONE-T grades

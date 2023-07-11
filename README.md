@@ -29,7 +29,7 @@ For Pool Operators to ensure that all active validators selected - active pool n
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.9.6/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.10.0/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
@@ -67,6 +67,10 @@ CRUNCH_STASHES_URL=https://raw.githubusercontent.com/turboflakes/crunch/main/.re
 # `crunch` will try to fetch the nominees of the respective pool id predefined here before triggering the respective payouts
 CRUNCH_POOL_IDS=10,15
 #
+# [CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED] This allows 'crunch' to compound rewards for every member that belongs to the pools 
+# previously selected by CRUNCH_POOL_IDS. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.
+#CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED=true
+#
 # [CRUNCH_SUBSTRATE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to
 # connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence
 # than <CHAIN> argument) 
@@ -95,6 +99,12 @@ CRUNCH_MATRIX_USER=@your-regular-matrix-account:matrix.org
 CRUNCH_MATRIX_BOT_USER=@your-own-crunch-bot-account:matrix.org
 # NOTE: type the bot password within "" so that any special character could be parsed correctly into a string.
 CRUNCH_MATRIX_BOT_PASSWORD="anotthateasypassword"
+#
+# ONE-T configuration variables
+CRUNCH_ONET_API_ENABLED=true
+CRUNCH_ONET_API_URL=https://kusama-onet-api-beta.turboflakes.io
+CRUNCH_ONET_API_KEY=crunch-101
+CRUNCH_ONET_NUMBER_LAST_SESSIONS=6
 ```
 
 Create a seed private file `.private.seed` inside `crunch-bot` folder and write the private seed phrase of the account responsible to sign the extrinsic payout call as in [`.private.seed.example`](https://github.com/turboflakes/crunch/blob/main/.private.seed.example) (Note: `.private.seed` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch flakes --seed-path ~/crunch-bot/.kusama.private.seed` )
@@ -192,6 +202,10 @@ crunch polkadot rewards daily
 crunch westend rewards turbo
 # or for Westend network with unique stashes verified and for all configured pools nominees and claiming rewards every era
 crunch westend --enable-unique-stashes --enable-all-nominees-payouts rewards era
+# or to auto-compound members rewards of nomination pools you operate
+crunch kusama rewards --enable-pool-members-compound
+# or to know which ONE-T grade a validator got from the last 6 sessions
+crunch kusama rewards --enable-onet-api
 # or try flakes just for fun :)
 crunch flakes
 # to list all options try help
@@ -267,6 +281,10 @@ FLAGS:
         --disable-public-matrix-room         Disable notifications to matrix public rooms for 'crunch rewards'. (e.g.
                                              with this flag active 'crunch rewards' will not send messages/notifications
                                              about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)
+        --enable-onet-api                    Allow 'crunch' to fetch grades for every stash from ONE-T API.
+        --enable-pool-members-compound       Allow 'crunch' to compound rewards for every member that belongs to the
+                                             pools previously selected by '--pool-ids' option. Note that members have to
+                                             have their permissions set as PermissionlessCompound or PermissionlessAll.
     -h, --help                               Prints help information
         --short                              Display only essential information (e.g. with this flag active 'crunch
                                              rewards' will only send essential messages/notifications about claimed
@@ -294,6 +312,9 @@ OPTIONS:
             Maximum number of unclaimed eras for which an extrinsic payout will be submitted. (e.g. a value of 4 means
             that if there are unclaimed eras in the last 84 the maximum unclaimed payout calls for each stash address
             will be 4).
+        --pool-ids <pool-ids>
+            Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1,
+            pool_id_2).
     -f, --seed-path <FILE>
             Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout
             call.
