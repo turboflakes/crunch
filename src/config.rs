@@ -48,8 +48,8 @@ fn default_interval() -> u64 {
 }
 
 /// provides default value for error interval if CRUNCH_ERROR_INTERVAL env var is not set
-fn default_error_interval() -> u64 {
-    5
+fn default_error_interval() -> u32 {
+    2
 }
 
 /// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
@@ -79,17 +79,41 @@ fn default_existential_deposit_factor_warning() -> u32 {
     2
 }
 
+/// provides default value for maximum_pool_members_calls if CRUNCH_MAXIMUM_POOL_MEMBERS_CALLS env var is not set
+fn default_maximum_pool_members_calls() -> u32 {
+    128
+}
+
+/// provides default value for onet_api_url if CRUNCH_ONET_API_URL env var is not set
+fn default_onet_api_url() -> String {
+    "https://kusama-onet-api-beta.turboflakes.io".into()
+}
+
+/// provides default value for onet_api_url if CRUNCH_ONET_API_KEY env var is not set
+fn default_onet_api_key() -> String {
+    "crunch-101".into()
+}
+
+/// provides default value for onet_api_url if CRUNCH_ONET_NUMBER_LAST_SESSIONS env var is not set
+fn default_onet_number_last_sessions() -> u32 {
+    6
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     #[serde(default = "default_interval")]
     pub interval: u64,
     #[serde(default = "default_error_interval")]
-    pub error_interval: u64,
+    pub error_interval: u32,
     pub substrate_ws_url: String,
     #[serde(default)]
     pub stashes_url: String,
     #[serde(default)]
     pub pool_ids: Vec<u32>,
+    #[serde(default)]
+    pub pool_members_compound_enabled: bool,
+    #[serde(default = "default_maximum_pool_members_calls")]
+    pub maximum_pool_members_calls: u32,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
     #[serde(default)]
@@ -115,6 +139,15 @@ pub struct Config {
     pub is_short: bool,
     #[serde(default)]
     pub is_mode_era: bool,
+    // ONE-T integration
+    #[serde(default)]
+    pub onet_api_enabled: bool,
+    #[serde(default = "default_onet_api_url")]
+    pub onet_api_url: String,
+    #[serde(default = "default_onet_api_key")]
+    pub onet_api_key: String,
+    #[serde(default = "default_onet_number_last_sessions")]
+    pub onet_number_last_sessions: u32,
     // matrix configuration
     #[serde(default)]
     pub matrix_user: String,
@@ -140,7 +173,7 @@ fn get_config() -> Config {
     .arg(
       Arg::with_name("CHAIN")
           .index(1)
-          .possible_values(&["westend", "kusama", "polkadot", "azero", "tzero"])
+          .possible_values(&["westend", "kusama", "polkadot"])
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -226,6 +259,25 @@ fn get_config() -> Config {
           .long("error-interval")
           .takes_value(true)
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
+      .arg(
+        Arg::with_name("pool-ids")
+          .long("pool-ids")
+          .takes_value(true)
+          .help(
+            "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
+          ))
+      .arg(
+        Arg::with_name("enable-pool-members-compound")
+          .long("enable-pool-members-compound")
+          .help(
+            "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
+          ))
+      .arg(
+        Arg::with_name("enable-onet-api")
+          .long("enable-onet-api")
+          .help(
+            "Allow 'crunch' to fetch grades for every stash from ONE-T API.",
+          ))
     )
     .subcommand(SubCommand::with_name("rewards")
       .about("Claim staking rewards for unclaimed eras once a day or four times a day [default subcommand]")
@@ -308,6 +360,25 @@ fn get_config() -> Config {
           .long("error-interval")
           .takes_value(true)
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
+      .arg(
+        Arg::with_name("pool-ids")
+          .long("pool-ids")
+          .takes_value(true)
+          .help(
+            "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
+          ))
+      .arg(
+        Arg::with_name("enable-pool-members-compound")
+          .long("enable-pool-members-compound")
+          .help(
+            "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
+          ))
+      .arg(
+        Arg::with_name("enable-onet-api")
+          .long("enable-onet-api")
+          .help(
+            "Allow 'crunch' to fetch grades for every stash from ONE-T API.",
+          ))
     )
     .subcommand(SubCommand::with_name("view")
       .about("Inspect staking rewards for the given stashes and display claimed and unclaimed eras.")
@@ -326,13 +397,6 @@ fn get_config() -> Config {
         .takes_value(true)
         .help(
           "Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g. https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).",
-        ))
-    .arg(
-      Arg::with_name("pool-ids")
-        .long("pool-ids")
-        .takes_value(true)
-        .help(
-          "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
         ))
     .arg(
       Arg::with_name("enable-unique-stashes")
@@ -394,12 +458,6 @@ fn get_config() -> Config {
         }
         Some("polkadot") => {
             env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io:443");
-        }
-        Some("azero") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.azero.dev:443");
-        }
-        Some("tzero") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://ws.test.azero.dev:443");
         }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
@@ -505,6 +563,14 @@ fn get_config() -> Config {
 
             if let Some(error_interval) = flakes_matches.value_of("error-interval") {
                 env::set_var("CRUNCH_ERROR_INTERVAL", error_interval);
+            }
+
+            if flakes_matches.is_present("enable-pool-members-compound") {
+                env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED", "true");
+            }
+
+            if flakes_matches.is_present("enable-onet-api") {
+                env::set_var("CRUNCH_ONET_API_ENABLED", "true");
             }
         }
         ("view", Some(_)) => {

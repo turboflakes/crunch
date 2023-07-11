@@ -18,14 +18,14 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::config::CONFIG;
+use crate::{config::CONFIG, crunch::OnetData};
 use log::{info, warn};
 use rand::Rng;
-use subxt::{ext::sp_core::H256, ext::sp_runtime::AccountId32};
+use subxt::{ext::sp_core::H256, utils::AccountId32};
 
 pub type EraIndex = u32;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Points {
     pub validator: u32,
     pub era_avg: f64,
@@ -33,7 +33,7 @@ pub struct Points {
     pub outlier_limits: (f64, f64),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Payout {
     pub block_number: u32,
     pub extrinsic: H256,
@@ -44,7 +44,13 @@ pub struct Payout {
     pub points: Points,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub struct Batch {
+    pub block_number: u32,
+    pub extrinsic: H256,
+}
+
+#[derive(Debug, Clone)]
 pub struct Validator {
     pub stash: AccountId32,
     pub controller: Option<AccountId32>,
@@ -55,6 +61,7 @@ pub struct Validator {
     pub unclaimed: Vec<EraIndex>,
     pub payouts: Vec<Payout>,
     pub warnings: Vec<String>,
+    pub onet: Option<OnetData>,
 }
 
 impl Validator {
@@ -69,6 +76,7 @@ impl Validator {
             unclaimed: Vec::new(),
             payouts: Vec::new(),
             warnings: Vec::new(),
+            onet: None,
         }
     }
 }
@@ -90,13 +98,23 @@ pub struct Network {
     pub token_decimals: u8,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PayoutSummary {
     pub calls: u32,
     pub calls_succeeded: u32,
+    pub calls_failed: u32,
     pub next_minimum_expected: u32,
     pub total_validators: u32,
     pub total_validators_previous_era_already_claimed: u32,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct NominationPoolsSummary {
+    pub calls: u32,
+    pub calls_succeeded: u32,
+    pub calls_failed: u32,
+    pub total_members: u32,
+    pub batches: Vec<Batch>,
 }
 
 #[derive(Debug)]
@@ -104,7 +122,8 @@ pub struct RawData {
     pub network: Network,
     pub signer: Signer,
     pub validators: Validators,
-    pub summary: PayoutSummary,
+    pub payout_summary: PayoutSummary,
+    pub pools_summary: NominationPoolsSummary,
 }
 
 type Body = Vec<String>;
@@ -156,34 +175,41 @@ impl Report {
 impl From<RawData> for Report {
     /// Converts a Crunch `RawData` into a [`Report`].
     fn from(data: RawData) -> Report {
+        let config = CONFIG.clone();
         let mut report = Report::new();
 
-        let summary_crunch_desc = if data.summary.calls_succeeded > 0 {
+        let summary_crunch_desc = if data.payout_summary.calls_succeeded > 0 {
             format!(
                 "Crunched <b>{}</b> ({:.0}%) → ",
-                data.summary.calls_succeeded,
-                (data.summary.calls_succeeded as f32 / data.summary.calls as f32) * 100.0,
+                data.payout_summary.calls_succeeded,
+                (data.payout_summary.calls_succeeded as f32
+                    / data.payout_summary.calls as f32)
+                    * 100.0,
             )
         } else {
             format!("")
         };
 
-        let summary_already_desc =
-            if data.summary.total_validators_previous_era_already_claimed > 0 {
-                format!(
-                    "Earlier claimed <b>{}</b> → ",
-                    data.summary.total_validators_previous_era_already_claimed,
-                )
-            } else {
-                format!("")
-            };
+        let summary_already_desc = if data
+            .payout_summary
+            .total_validators_previous_era_already_claimed
+            > 0
+        {
+            format!(
+                "Earlier claimed <b>{}</b> → ",
+                data.payout_summary
+                    .total_validators_previous_era_already_claimed,
+            )
+        } else {
+            format!("")
+        };
 
-        let summary_next_desc = if data.summary.next_minimum_expected > 0 {
+        let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {
             format!(
                 "Next era expect <b>{}</b> ({:.0}%) {}",
-                data.summary.next_minimum_expected,
-                (data.summary.next_minimum_expected as f32
-                    / data.summary.total_validators as f32)
+                data.payout_summary.next_minimum_expected,
+                (data.payout_summary.next_minimum_expected as f32
+                    / data.payout_summary.total_validators as f32)
                     * 100.0,
                 Random::Happy,
             )
@@ -377,11 +403,49 @@ impl From<RawData> for Report {
                     claimed_percentage
                 ));
             }
+
+            // ONE-T stats
+            if let Some(onet) = validator.onet {
+                let para_inclusion = ((config.onet_number_last_sessions as f64
+                    * onet.para_authority_inclusion)
+                    .ceil()) as u32;
+                if para_inclusion > 0 {
+                    report.add_raw_text(format!(
+                        "🎓 Grade from {}/{} sessions: <b>{}</b>",
+                        para_inclusion, config.onet_number_last_sessions, onet.grade
+                    ));
+                }
+            }
         }
 
         report.add_break();
 
-        let config = CONFIG.clone();
+        // Nomination Pools coumpound info
+        if config.pool_members_compound_enabled {
+            if data.pools_summary.total_members > 0 {
+                report.add_raw_text(format!(
+                    "♻️ Rewards compounded for {} members from Pools {:?}",
+                    data.pools_summary.total_members, config.pool_ids
+                ));
+                for batch in data.pools_summary.batches {
+                    report.add_raw_text(format!(
+                        "💯 Batch finalized at block #{} 
+                    (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
+                        batch.block_number,
+                        data.network.name.to_lowercase().trim().replace(" ", ""),
+                        batch.extrinsic,
+                        batch.extrinsic.to_string()
+                    ));
+                }
+            } else {
+                report.add_raw_text(format!(
+                    "♻️ No pending rewards from Pools {:?}",
+                    config.pool_ids
+                ));
+            }
+            report.add_break();
+        }
+
         if config.is_mode_era {
             report.add_raw_text(format!(
                 "💤 Until next era <i>{}</i> → Stay tuned 👀",

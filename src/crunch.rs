@@ -22,18 +22,21 @@ use crate::config::{Config, CONFIG};
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    aleph_zero, aleph_zero_testnet, kusama, lagoon, polkadot,
+    kusama, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
     westend,
 };
 use async_std::task;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use rand::Rng;
 use regex::Regex;
+use serde::Deserialize;
 use std::{convert::TryInto, result::Result, thread, time};
 
 use subxt::{
     ext::sp_core::{crypto, sr25519, Pair as PairT},
+    storage::StorageKey,
+    utils::AccountId32,
     OnlineClient, PolkadotConfig,
 };
 
@@ -199,23 +202,15 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
-            SupportedRuntime::AlephZero => aleph_zero::inspect(self).await,
-            SupportedRuntime::AlephZeroTestnet => aleph_zero_testnet::inspect(self).await,
-            SupportedRuntime::Lagoon => lagoon::inspect(self).await,
             // _ => unreachable!(),
         }
     }
 
     async fn try_run_batch(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => polkadot::try_run_batch(self, None).await,
-            SupportedRuntime::Kusama => kusama::try_run_batch(self, None).await,
-            SupportedRuntime::Westend => westend::try_run_batch(self, None).await,
-            SupportedRuntime::AlephZero => aleph_zero::try_run_batch(self, None).await,
-            SupportedRuntime::AlephZeroTestnet => {
-                aleph_zero_testnet::try_run_batch(self, None).await
-            }
-            SupportedRuntime::Lagoon => lagoon::try_run_batch(self, None).await,
+            SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
+            SupportedRuntime::Kusama => kusama::try_crunch(self).await,
+            SupportedRuntime::Westend => westend::try_crunch(self).await,
             // _ => unreachable!(),
         }
     }
@@ -230,15 +225,6 @@ impl Crunch {
             }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::AlephZero => {
-                aleph_zero::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::AlephZeroTestnet => {
-                aleph_zero_testnet::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::Lagoon => {
-                lagoon::run_and_subscribe_era_paid_events(self).await
             } // _ => unreachable!(),
         }
     }
@@ -247,6 +233,7 @@ impl Crunch {
 fn spawn_and_restart_subscription_on_error() {
     let t = task::spawn(async {
         let config = CONFIG.clone();
+        let mut n = 1_u32;
         loop {
             let c: Crunch = Crunch::new().await;
             if let Err(e) = c.run_and_subscribe_era_paid_events().await {
@@ -255,13 +242,12 @@ fn spawn_and_restart_subscription_on_error() {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
                     _ => {
                         error!("{}", e);
-                        let message =
-                            format!("On hold for {} min!", config.error_interval);
-                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
+                        let sleep_min = u32::pow(config.error_interval, n);
+                        let message = format!("On hold for {} min!", sleep_min);
+                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", sleep_min);
                         c.send_message(&message, &formatted_message).await.unwrap();
-                        thread::sleep(time::Duration::from_secs(
-                            60 * config.error_interval,
-                        ));
+                        thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
+                        n += 1;
                         continue;
                     }
                 }
@@ -275,20 +261,22 @@ fn spawn_and_restart_subscription_on_error() {
 fn spawn_and_restart_crunch_flakes_on_error() {
     let t = task::spawn(async {
         let config = CONFIG.clone();
+        let mut n = 1_u32;
         loop {
             let c: Crunch = Crunch::new().await;
             if let Err(e) = c.try_run_batch().await {
+                let sleep_min = u32::pow(config.error_interval, n);
                 match e {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
                     _ => {
                         error!("{}", e);
-                        let message =
-                            format!("On hold for {} min!", config.error_interval);
-                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", config.error_interval);
+                        let message = format!("On hold for {} min!", sleep_min);
+                        let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", sleep_min);
                         c.send_message(&message, &formatted_message).await.unwrap();
                     }
                 }
-                thread::sleep(time::Duration::from_secs(60 * config.error_interval));
+                thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
+                n += 1;
                 continue;
             };
             thread::sleep(time::Duration::from_secs(config.interval));
@@ -325,4 +313,59 @@ pub async fn try_fetch_stashes_from_remote_url(
     }
     info!("{} stashes loaded from {}", v.len(), config.stashes_url);
     Ok(Some(v))
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct OnetData {
+    pub address: String,
+    pub grade: String,
+    pub authority_inclusion: f64,
+    pub para_authority_inclusion: f64,
+    pub sessions: Vec<u32>,
+}
+
+pub async fn try_fetch_onet_data(
+    stash: AccountId32,
+) -> Result<Option<OnetData>, CrunchError> {
+    let config = CONFIG.clone();
+    if !config.onet_api_enabled || config.onet_api_url.len() == 0 {
+        return Ok(None);
+    }
+    let url = format!(
+        "{}/api/v1/validators/{}/grade?number_last_sessions={}",
+        config.onet_api_url, stash, config.onet_number_last_sessions
+    );
+    debug!("Crunch <> ONE-T grade loaded from {}", url);
+    let client = reqwest::Client::new();
+    match client
+        .get(&url)
+        .header("X-API-KEY", config.onet_api_key)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            match response.status() {
+                reqwest::StatusCode::OK => {
+                    match response.json::<OnetData>().await {
+                        Ok(parsed) => return Ok(Some(parsed)),
+                        Err(e) => error!(
+                            "Unable to parse ONE-T response for stash {} error: {:?}",
+                            stash, e
+                        ),
+                    };
+                }
+                other => {
+                    warn!("Unexpected code {:?} from ONE-T url {}", other, url);
+                }
+            };
+        }
+        Err(e) => error!("{:?}", e),
+    };
+    Ok(None)
+}
+
+pub fn get_account_id_from_storage_key(key: StorageKey) -> AccountId32 {
+    let s = &key.0[key.0.len() - 32..];
+    let v: [u8; 32] = s.try_into().expect("slice with incorrect length");
+    v.into()
 }

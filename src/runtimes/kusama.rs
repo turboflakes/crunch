@@ -21,14 +21,15 @@
 
 use crate::config::CONFIG;
 use crate::crunch::{
-    get_from_seed, random_wait, try_fetch_stashes_from_remote_url, Crunch,
-    NominatorsAmount, ValidatorAmount, ValidatorIndex,
+    get_account_id_from_storage_key, get_from_seed, random_wait, try_fetch_onet_data,
+    try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
+    ValidatorIndex,
 };
 use crate::errors::CrunchError;
 use crate::pools::{nomination_pool_account, AccountType};
 use crate::report::{
-    EraIndex, Network, Payout, PayoutSummary, Points, RawData, Report, Signer, Validator,
-    Validators,
+    Batch, EraIndex, Network, NominationPoolsSummary, Payout, PayoutSummary, Points,
+    RawData, Report, Signer, Validator, Validators,
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -39,34 +40,47 @@ use std::{
     time,
 };
 use subxt::{
-    ext::sp_core::{sr25519, Pair as PairT},
-    ext::sp_runtime::AccountId32,
+    error::DispatchError,
+    ext::{
+        codec::Encode,
+        sp_core::{sr25519, Pair as PairT},
+    },
     tx::PairSigner,
+    utils::{AccountId32, MultiAddress},
     PolkadotConfig,
 };
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/kusama_metadata.scale",
-    derive_for_all_types = "Clone"
+    derive_for_all_types = "Clone, PartialEq"
 )]
 mod node_runtime {}
 
 use node_runtime::{
-    runtime_types::bounded_collections::bounded_vec::BoundedVec, staking::events::EraPaid,
-    staking::events::PayoutStarted, staking::events::Rewarded,
-    system::events::ExtrinsicFailed, utility::events::BatchCompleted,
-    utility::events::BatchInterrupted, utility::events::ItemCompleted,
+    runtime_types::bounded_collections::bounded_vec::BoundedVec,
+    runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
+    staking::events::EraPaid,
+    staking::events::PayoutStarted,
+    staking::events::Rewarded,
+    system::events::ExtrinsicFailed,
+    utility::events::BatchCompleted,
+    utility::events::BatchCompletedWithErrors,
+    utility::events::BatchInterrupted,
+    utility::events::ItemCompleted,
+    utility::events::ItemFailed,
 };
 
 type Call = node_runtime::runtime_types::kusama_runtime::RuntimeCall;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
+type NominationPoolsCall =
+    node_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
     crunch: &Crunch,
 ) -> Result<(), CrunchError> {
     info!("Inspect and `crunch` unclaimed payout rewards");
     // Run once before start subscription
-    try_run_batch(&crunch, None).await?;
+    try_crunch(&crunch).await?;
     info!("Subscribe 'EraPaid' on-chain finalized event");
     let api = crunch.client().clone();
     let mut block_sub = api.blocks().subscribe_finalized().await?;
@@ -80,46 +94,80 @@ pub async fn run_and_subscribe_era_paid_events(
             let wait: u64 = random_wait(240);
             info!("Waiting {} seconds before run batch", wait);
             thread::sleep(time::Duration::from_secs(wait));
-            try_run_batch(&crunch, None).await?;
+            try_crunch(&crunch).await?;
         }
     }
     // If subscription has closed for some reason await and subscribe again
     Err(CrunchError::SubscriptionFinished)
 }
 
-#[async_recursion]
-pub async fn try_run_batch(
-    crunch: &Crunch,
-    next_attempt: Option<u8>,
-) -> Result<(), CrunchError> {
+pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
+    let config = CONFIG.clone();
     let api = crunch.client().clone();
 
-    // Warn if static metadata is no longer the same as the latest runtime version
-    if node_runtime::validate_codegen(&api).is_err() {
-        warn!("Crunch upgrade might be required soon. Local static metadata differs from current chain runtime version.");
+    // Load seed account
+    let seed = fs::read_to_string(config.seed_path)
+        .expect("Something went wrong reading the seed file");
+    let seed_account: sr25519::Pair = get_from_seed(&seed, None);
+    let seed_account_signer =
+        PairSigner::<PolkadotConfig, sr25519::Pair>::new(seed_account.clone());
+    let seed_account_id: AccountId32 = seed_account.public().into();
+
+    // Get signer account identity
+    let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
+    let mut signer = Signer {
+        account: seed_account_id.clone(),
+        name: signer_name,
+        warnings: Vec::new(),
+    };
+    debug!("signer {:?}", signer);
+
+    // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
+    let ed_addr = node_runtime::constants().balances().existential_deposit();
+    let ed = api.constants().at(&ed_addr)?;
+
+    let seed_account_info_addr =
+        node_runtime::storage().system().account(&seed_account_id);
+    if let Some(seed_account_info) = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&seed_account_info_addr)
+        .await?
+    {
+        if seed_account_info.data.free
+            <= (config.existential_deposit_factor_warning as u128 * ed)
+        {
+            signer
+                .warnings
+                .push("⚡ Signer account is running low on funds ⚡".to_string());
+        }
     }
 
-    // Skip run if it's the 2nd or more attempt
-    let mut attempt = match next_attempt {
-        Some(na) => {
-            if na >= 1 {
-                None
-            } else {
-                Some(na + 1)
-            }
-        }
-        _ => None,
-    };
-    //
+    // Try run payouts in batches
+    let (mut validators, payout_summary) =
+        try_run_batch_payouts(&crunch, &seed_account_signer).await?;
 
-    let config = CONFIG.clone();
+    // Try run members in batches
+    let pools_summary = try_run_batch_pool_members(&crunch, &seed_account_signer).await?;
+
+    // Try fetch ONE-T grade data
+    for mut v in &mut validators {
+        v.onet = try_fetch_onet_data(v.stash.clone()).await?;
+    }
 
     // Get Network name
     let chain_name = api.rpc().system_chain().await?;
 
     // Get Era index
     let active_era_addr = node_runtime::storage().staking().active_era();
-    let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
+    let active_era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
         Some(info) => info.index,
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
@@ -154,40 +202,180 @@ pub async fn try_run_batch(
     };
     debug!("network {:?}", network);
 
-    // Load seed account
-    let seed = fs::read_to_string(config.seed_path)
-        .expect("Something went wrong reading the seed file");
-    let seed_account: sr25519::Pair = get_from_seed(&seed, None);
-    let seed_account_signer =
-        PairSigner::<PolkadotConfig, sr25519::Pair>::new(seed_account.clone());
-    let seed_account_id: AccountId32 = seed_account.public().into();
-
-    // Get signer account identity
-    let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
-    let mut signer = Signer {
-        account: seed_account_id.clone(),
-        name: signer_name,
-        warnings: Vec::new(),
+    let data = RawData {
+        network,
+        signer,
+        validators,
+        payout_summary,
+        pools_summary,
     };
-    debug!("signer {:?}", signer);
 
-    // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
-    let ed_addr = node_runtime::constants().balances().existential_deposit();
-    let ed = api.constants().at(&ed_addr)?;
+    let report = Report::from(data);
+    crunch
+        .send_message(&report.message(), &report.formatted_message())
+        .await?;
 
-    let seed_account_info_addr =
-        node_runtime::storage().system().account(&seed_account_id);
-    if let Some(seed_account_info) =
-        api.storage().fetch(&seed_account_info_addr, None).await?
-    {
-        if seed_account_info.data.free
-            <= (config.existential_deposit_factor_warning as u128 * ed)
-        {
-            signer
-                .warnings
-                .push("⚡ Signer account is running low on funds ⚡".to_string());
+    Ok(())
+}
+
+pub async fn try_run_batch_pool_members(
+    crunch: &Crunch,
+    signer: &PairSigner<PolkadotConfig, sr25519::Pair>,
+) -> Result<NominationPoolsSummary, CrunchError> {
+    let config = CONFIG.clone();
+    let api = crunch.client().clone();
+
+    let mut calls_for_batch: Vec<Call> = vec![];
+    let mut summary: NominationPoolsSummary = Default::default();
+
+    if let Some(members) = try_fetch_pool_members_for_compound(&crunch).await? {
+        //
+        for member in &members {
+            //
+            let call = Call::NominationPools(NominationPoolsCall::bond_extra_other {
+                member: MultiAddress::Id(member.clone()),
+                extra: BondExtra::Rewards,
+            });
+            calls_for_batch.push(call);
+            summary.calls += 1;
+        }
+        summary.total_members = members.len() as u32;
+    }
+
+    if calls_for_batch.len() > 0 {
+        // TODO check batch call weight or maximum_calls [default: 8]
+        //
+        // Calculate the number of extrinsics (iteractions) based on the maximum number of calls per batch
+        // and the number of calls to be sent
+        //
+        let maximum_batch_calls = (calls_for_batch.len() as f32
+            / config.maximum_pool_members_calls as f32)
+            .ceil() as u32;
+        let mut iteration = Some(0);
+        while let Some(x) = iteration {
+            if x == maximum_batch_calls {
+                iteration = None;
+            } else {
+                let call_start_index: usize =
+                    (x * config.maximum_pool_members_calls).try_into().unwrap();
+                let call_end_index: usize = if config.maximum_pool_members_calls
+                    > calls_for_batch[call_start_index..].len() as u32
+                {
+                    ((x * config.maximum_pool_members_calls)
+                        + calls_for_batch[call_start_index..].len() as u32)
+                        .try_into()
+                        .unwrap()
+                } else {
+                    ((x * config.maximum_pool_members_calls)
+                        + config.maximum_pool_members_calls)
+                        .try_into()
+                        .unwrap()
+                };
+
+                debug!(
+                    "batch pool_members_calls indexes [{:?} : {:?}]",
+                    call_start_index, call_end_index
+                );
+
+                let calls_for_batch_clipped =
+                    calls_for_batch[call_start_index..call_end_index].to_vec();
+
+                // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
+                let tx = node_runtime::tx()
+                    .utility()
+                    .force_batch(calls_for_batch_clipped.clone())
+                    .unvalidated();
+
+                let batch_response = api
+                    .tx()
+                    .sign_and_submit_then_watch_default(&tx, signer)
+                    .await?
+                    .wait_for_finalized()
+                    .await?;
+
+                let tx_events = batch_response.fetch_events().await?;
+
+                // Get block number
+                let block_number = if let Some(header) =
+                    api.rpc().header(Some(tx_events.block_hash())).await?
+                {
+                    header.number
+                } else {
+                    0
+                };
+
+                // Iterate over events to calculate respective reward amounts
+                for event in tx_events.iter() {
+                    let event = event?;
+                    if let Some(_ev) = event.as_event::<ItemCompleted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#itemcompleted
+                        // summary: A single item within a Batch of dispatches has completed with no error.
+                        //
+                        summary.calls_succeeded += 1;
+                    } else if let Some(_ev) = event.as_event::<ItemFailed>()? {
+                        // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
+                        // summary: A single item within a Batch of dispatches has completed with error.
+                        //
+                        summary.calls_failed += 1;
+                    } else if let Some(_ev) = event.as_event::<BatchCompleted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#batchcompleted
+                        // summary: Batch of dispatches completed fully with no error.
+                        info!(
+                            "Nomination Pools Compound Batch Completed ({} calls)",
+                            calls_for_batch_clipped.len()
+                        );
+                        let b = Batch {
+                            block_number,
+                            extrinsic: tx_events.extrinsic_hash(),
+                        };
+                        summary.batches.push(b);
+                    } else if let Some(_ev) =
+                        event.as_event::<BatchCompletedWithErrors>()?
+                    {
+                        // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
+                        // summary: Batch of dispatches completed but has errors.
+                        info!(
+                            "Nomination Pools Compound Batch Completed with errors ({} calls)",
+                            calls_for_batch_clipped.len()
+                        );
+                        let b = Batch {
+                            block_number,
+                            extrinsic: tx_events.extrinsic_hash(),
+                        };
+                        summary.batches.push(b);
+                    }
+                }
+                iteration = Some(x + 1);
+            }
         }
     }
+
+    Ok(summary)
+}
+
+pub async fn try_run_batch_payouts(
+    crunch: &Crunch,
+    signer: &PairSigner<PolkadotConfig, sr25519::Pair>,
+) -> Result<(Validators, PayoutSummary), CrunchError> {
+    let config = CONFIG.clone();
+    let api = crunch.client().clone();
+    // Warn if static metadata is no longer the same as the latest runtime version
+    if node_runtime::validate_codegen(&api).is_err() {
+        warn!("Crunch upgrade might be required soon. Local static metadata differs from current chain runtime version.");
+    }
+
+    // Get Era index
+    let active_era_addr = node_runtime::storage().staking().active_era();
+    let active_era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
+        Some(info) => info.index,
+        None => return Err(CrunchError::Other("Active era not available".into())),
+    };
 
     // Add unclaimed eras into payout staker calls
     let mut calls_for_batch: Vec<Call> = vec![];
@@ -219,12 +407,6 @@ pub async fn try_run_batch(
             summary.next_minimum_expected += 1;
         }
     }
-    summary.total_validators = validators.len() as u32;
-    summary.total_validators_previous_era_already_claimed = validators
-        .iter()
-        .map(|v| v.claimed.contains(&(active_era_index - 1)) as u32)
-        .reduce(|a, b| a + b)
-        .unwrap_or_default();
 
     if calls_for_batch.len() > 0 {
         // TODO check batch call weight or maximum_calls [default: 8]
@@ -271,12 +453,12 @@ pub async fn try_run_batch(
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
                 let tx = node_runtime::tx()
                     .utility()
-                    .batch(calls_for_batch_clipped.clone())
+                    .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
 
                 let batch_response = api
                     .tx()
-                    .sign_and_submit_then_watch_default(&tx, &seed_account_signer)
+                    .sign_and_submit_then_watch_default(&tx, signer)
                     .await?
                     .wait_for_finalized()
                     .await?;
@@ -294,144 +476,147 @@ pub async fn try_run_batch(
                     0
                 };
 
-                let failed_event = tx_events.find_first::<ExtrinsicFailed>()?;
-
-                if let Some(ev) = failed_event {
-                    // TODO: repeat the batch call?  Or just log an error
-                    return Err(CrunchError::Other(format!(
-                        "Extrinsic failed: {:?}",
-                        ev
-                    )));
-                } else {
-                    // Iterate over events to calculate respective reward amounts
-                    for event in tx_events.iter() {
-                        let event = event?;
-                        debug!("{:?}", event);
-                        if let Some(ev) = event.as_event::<PayoutStarted>()? {
-                            // https://polkadot.js.org/docs/substrate/events#payoutstartedu32-accountid32
-                            // PayoutStarted(u32, AccountId32)
-                            // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
-                            //
-                            debug!("{:?}", ev);
-                            let validator_index_ref = &mut validators
-                                .iter()
-                                .position(|v| v.stash == ev.validator_stash);
-                            era_index = ev.era_index;
-                            validator_index = *validator_index_ref;
-                            validator_amount_value = 0;
-                            nominators_amount_value = 0;
-                            nominators_quantity = 0;
-                        } else if let Some(ev) = event.as_event::<Rewarded>()? {
-                            // https://polkadot.js.org/docs/substrate/events#rewardedaccountid32-u128
-                            // Rewarded(AccountId32, u128)
-                            // summary: An account has been rewarded for their signed submission being finalized
-                            //
-                            debug!("{:?}", ev);
-                            if let Some(i) = validator_index {
-                                let validator = &mut validators[i];
-                                if ev.stash == validator.stash {
-                                    validator_amount_value = ev.amount;
-                                } else {
-                                    nominators_amount_value += ev.amount;
-                                    nominators_quantity += 1;
-                                }
+                // Iterate over events to calculate respective reward amounts
+                for event in tx_events.iter() {
+                    let event = event?;
+                    if let Some(_ev) = event.as_event::<ExtrinsicFailed>()? {
+                        let dispatch_error = DispatchError::decode_from(
+                            event.field_bytes(),
+                            api.metadata(),
+                        )?;
+                        return Err(dispatch_error.into());
+                    } else if let Some(ev) = event.as_event::<PayoutStarted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#payoutstartedu32-accountid32
+                        // PayoutStarted(u32, AccountId32)
+                        // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
+                        //
+                        debug!("{:?}", ev);
+                        let validator_index_ref = &mut validators
+                            .iter()
+                            .position(|v| v.stash == ev.validator_stash);
+                        era_index = ev.era_index;
+                        validator_index = *validator_index_ref;
+                        validator_amount_value = 0;
+                        nominators_amount_value = 0;
+                        nominators_quantity = 0;
+                    } else if let Some(ev) = event.as_event::<Rewarded>()? {
+                        // https://polkadot.js.org/docs/substrate/events#rewardedaccountid32-u128
+                        // Rewarded(AccountId32, u128)
+                        // summary: An account has been rewarded for their signed submission being finalized
+                        //
+                        debug!("{:?}", ev);
+                        if let Some(i) = validator_index {
+                            let validator = &mut validators[i];
+                            if ev.stash == validator.stash {
+                                validator_amount_value = ev.amount;
+                            } else {
+                                nominators_amount_value += ev.amount;
+                                nominators_quantity += 1;
                             }
-                        } else if let Some(_ev) = event.as_event::<ItemCompleted>()? {
-                            // https://polkadot.js.org/docs/substrate/events#itemcompleted
-                            // summary: A single item within a Batch of dispatches has completed with no error.
-                            //
-                            if let Some(i) = validator_index {
-                                let validator = &mut validators[i];
-                                // Add era to claimed vec
-                                validator.claimed.push(era_index);
-                                // Fetch stash points
-                                let points = get_validator_points_info(
-                                    &crunch,
-                                    era_index,
-                                    &validator.stash,
-                                )
-                                .await?;
+                        }
+                    } else if let Some(_ev) = event.as_event::<ItemCompleted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#itemcompleted
+                        // summary: A single item within a Batch of dispatches has completed with no error.
+                        //
+                        if let Some(i) = validator_index {
+                            let validator = &mut validators[i];
+                            // Add era to claimed vec
+                            validator.claimed.push(era_index);
+                            // Fetch stash points
+                            let points = get_validator_points_info(
+                                &crunch,
+                                era_index,
+                                &validator.stash,
+                            )
+                            .await?;
 
-                                let p = Payout {
-                                    block_number,
-                                    extrinsic: tx_events.extrinsic_hash(),
-                                    era_index,
-                                    validator_amount_value,
-                                    nominators_amount_value,
-                                    nominators_quantity,
-                                    points,
-                                };
-                                validator.payouts.push(p);
-                                summary.calls_succeeded += 1;
-                            }
-                        } else if let Some(_ev) = event.as_event::<BatchCompleted>()? {
-                            // https://polkadot.js.org/docs/substrate/events#batchcompleted
-                            // summary: Batch of dispatches completed fully with no error.
-                            info!("Batch Completed for Era {}", network.active_era);
-                            attempt = None;
-                        } else if let Some(ev) = event.as_event::<BatchInterrupted>()? {
-                            // https://polkadot.js.org/docs/substrate/events#batchinterruptedu32-spruntimedispatcherror
-                            // summary: Batch of dispatches did not complete fully. Index of first failing dispatch given, as well as the error.
-                            //
-                            // Fix: https://github.com/turboflakes/crunch/issues/4
-                            // Most likely the batch was interrupted because of an AlreadyClaimed era
-                            // BatchInterrupted { index: 0, error: Module { index: 6, error: 14 } }
-                            warn!("{:?}", ev);
-                            if let Call::Staking(call) = &calls_for_batch_clipped
-                                [usize::try_from(ev.index).unwrap()]
-                            {
-                                match &call {
-                                    StakingCall::payout_stakers {
-                                        validator_stash,
-                                        ..
-                                    } => {
-                                        warn!("validator_stash: {:?}", validator_stash);
-                                        let validator_index = &mut validators
-                                            .iter()
-                                            .position(|v| v.stash == *validator_stash);
+                            let p = Payout {
+                                block_number,
+                                extrinsic: tx_events.extrinsic_hash(),
+                                era_index,
+                                validator_amount_value,
+                                nominators_amount_value,
+                                nominators_quantity,
+                                points,
+                            };
+                            validator.payouts.push(p);
+                            summary.calls_succeeded += 1;
+                        }
+                    } else if let Some(_ev) = event.as_event::<ItemFailed>()? {
+                        // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
+                        // summary: A single item within a Batch of dispatches has completed with error.
+                        //
+                        summary.calls_failed += 1;
+                    } else if let Some(_ev) = event.as_event::<BatchCompleted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#batchcompleted
+                        // summary: Batch of dispatches completed fully with no error.
+                        info!(
+                            "Batch Completed ({} calls)",
+                            calls_for_batch_clipped.len()
+                        );
+                    } else if let Some(_ev) =
+                        event.as_event::<BatchCompletedWithErrors>()?
+                    {
+                        // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
+                        // summary: Batch of dispatches completed but has errors.
+                        info!(
+                            "Batch Completed with errors ({} calls)",
+                            calls_for_batch_clipped.len()
+                        );
+                    } else if let Some(ev) = event.as_event::<BatchInterrupted>()? {
+                        // NOTE: Deprecate with force_batch
+                        //
+                        // https://polkadot.js.org/docs/substrate/events#batchinterruptedu32-spruntimedispatcherror
+                        // summary: Batch of dispatches did not complete fully. Index of first failing dispatch given, as well as the error.
+                        //
+                        // Fix: https://github.com/turboflakes/crunch/issues/4
+                        // Most likely the batch was interrupted because of an AlreadyClaimed era
+                        // BatchInterrupted { index: 0, error: Module { index: 6, error: 14 } }
+                        warn!("{:?}", ev);
+                        if let Call::Staking(call) =
+                            &calls_for_batch_clipped[usize::try_from(ev.index).unwrap()]
+                        {
+                            match &call {
+                                StakingCall::payout_stakers {
+                                    validator_stash, ..
+                                } => {
+                                    warn!(
+                                        "Batch interrupted at stash: {:?}",
+                                        validator_stash
+                                    );
+                                    let validator_index = &mut validators
+                                        .iter()
+                                        .position(|v| v.stash == *validator_stash);
 
-                                        if let Some(i) = *validator_index {
-                                            let validator = &mut validators[i];
-                                            // TODO: decode DispatchError to a readable format
-                                            validator.warnings.push(
-                                                "⚡ Batch interrupted ⚡".to_string(),
-                                            );
-                                        }
+                                    if let Some(i) = *validator_index {
+                                        let validator = &mut validators[i];
+                                        // TODO: decode DispatchError to a readable format
+                                        validator
+                                            .warnings
+                                            .push("⚡ Batch interrupted ⚡".to_string());
                                     }
-                                    _ => unreachable!(),
-                                };
-                            }
-                            // Attempt to run batch once again
-                            attempt = if attempt.is_none() { Some(1) } else { attempt };
+                                }
+                                _ => unreachable!(),
+                            };
                         }
                     }
                 }
+
                 iteration = Some(x + 1);
             }
         }
     }
 
-    // Prepare notification report
     debug!("validators {:?}", validators);
 
-    let data = RawData {
-        network,
-        signer,
-        validators,
-        summary,
-    };
-
-    let report = Report::from(data);
-    crunch
-        .send_message(&report.message(), &report.formatted_message())
-        .await?;
-
-    // Note: If there's anything to attempt, call recursively try_run_batch one more time
-    if let None = attempt {
-        Ok(())
-    } else {
-        return try_run_batch(&crunch, attempt).await;
-    }
+    // Prepare summary report
+    summary.total_validators = validators.len() as u32;
+    summary.total_validators_previous_era_already_claimed = validators
+        .iter()
+        .map(|v| v.claimed.contains(&(active_era_index - 1)) as u32)
+        .reduce(|a, b| a + b)
+        .unwrap_or_default();
+    Ok((validators, summary))
 }
 
 async fn collect_validators_data(
@@ -442,18 +627,31 @@ async fn collect_validators_data(
 
     // Get unclaimed eras for the stash addresses
     let active_validators_addr = node_runtime::storage().session().validators();
-    let active_validators = api.storage().fetch(&active_validators_addr, None).await?;
+    let active_validators = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_validators_addr)
+        .await?;
     debug!("active_validators {:?}", active_validators);
     let mut validators: Validators = Vec::new();
 
     let stashes = get_stashes(&crunch).await?;
 
     for (_i, stash_str) in stashes.iter().enumerate() {
-        let stash = AccountId32::from_str(stash_str)?;
+        let stash = AccountId32::from_str(stash_str).map_err(|e| {
+            CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
+        })?;
 
         // Check if stash has bonded controller
         let controller_addr = node_runtime::storage().staking().bonded(&stash);
-        let controller = match api.storage().fetch(&controller_addr, None).await? {
+        let controller = match api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&controller_addr)
+            .await?
+        {
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
@@ -487,7 +685,9 @@ async fn collect_validators_data(
 
         // Get staking info from ledger
         let ledger_addr = node_runtime::storage().staking().ledger(&controller);
-        if let Some(staking_ledger) = api.storage().fetch(&ledger_addr, None).await? {
+        if let Some(staking_ledger) =
+            api.storage().at_latest().await?.fetch(&ledger_addr).await?
+        {
             debug!(
                 "{} * claimed_rewards: {:?}",
                 stash, staking_ledger.claimed_rewards
@@ -508,8 +708,12 @@ async fn collect_validators_data(
                 // Verify if stash was active in set
                 let eras_stakers_addr =
                     node_runtime::storage().staking().eras_stakers(&e, &stash);
-                if let Some(exposure) =
-                    api.storage().fetch(&eras_stakers_addr, None).await?
+                if let Some(exposure) = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&eras_stakers_addr)
+                    .await?
                 {
                     if exposure.total > 0 {
                         v.unclaimed.push(e)
@@ -555,8 +759,12 @@ async fn get_validator_points_info(
         .staking()
         .eras_reward_points(&era_index);
 
-    if let Some(era_reward_points) =
-        api.storage().fetch(&era_reward_points_addr, None).await?
+    if let Some(era_reward_points) = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&era_reward_points_addr)
+        .await?
     {
         let stash_points = match era_reward_points
             .individual
@@ -598,7 +806,13 @@ async fn get_display_name(
     let api = crunch.client().clone();
 
     let identity_of_addr = node_runtime::storage().identity().identity_of(stash);
-    match api.storage().fetch(&identity_of_addr, None).await? {
+    match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&identity_of_addr)
+        .await?
+    {
         Some(identity) => {
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
@@ -610,8 +824,12 @@ async fn get_display_name(
         }
         None => {
             let super_of_addr = node_runtime::storage().identity().super_of(stash);
-            if let Some((parent_account, data)) =
-                api.storage().fetch(&super_of_addr, None).await?
+            if let Some((parent_account, data)) = api
+                .storage()
+                .at_latest()
+                .await?
+                .fetch(&super_of_addr)
+                .await?
             {
                 let sub_account_name = parse_identity_data(data);
                 return get_display_name(
@@ -750,13 +968,21 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
     let active_era_addr = node_runtime::storage().staking().active_era();
-    let active_era_index = match api.storage().fetch(&active_era_addr, None).await? {
+    let active_era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
         Some(info) => info.index,
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
 
     for stash_str in stashes.iter() {
-        let stash = AccountId32::from_str(stash_str)?;
+        let stash = AccountId32::from_str(stash_str).map_err(|e| {
+            CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
+        })?;
         info!("{} * Stash account", stash);
 
         let start_index = active_era_index - history_depth;
@@ -764,9 +990,12 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         let mut claimed: Vec<u32> = Vec::new();
 
         let bonded_addr = node_runtime::storage().staking().bonded(&stash);
-        if let Some(controller) = api.storage().fetch(&bonded_addr, None).await? {
+        if let Some(controller) =
+            api.storage().at_latest().await?.fetch(&bonded_addr).await?
+        {
             let ledger_addr = node_runtime::storage().staking().ledger(&controller);
-            if let Some(ledger_response) = api.storage().fetch(&ledger_addr, None).await?
+            if let Some(ledger_response) =
+                api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
                 // deconstruct claimed rewards
                 let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
@@ -781,8 +1010,12 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                     let eras_stakers_addr = node_runtime::storage()
                         .staking()
                         .eras_stakers(&era_index, &stash);
-                    if let Some(exposure) =
-                        api.storage().fetch(&eras_stakers_addr, None).await?
+                    if let Some(exposure) = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .fetch(&eras_stakers_addr)
+                        .await?
                     {
                         if exposure.total > 0 {
                             unclaimed.push(era_index)
@@ -831,6 +1064,70 @@ pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
     Ok(stashes)
 }
 
+pub async fn try_fetch_pool_members_for_compound(
+    crunch: &Crunch,
+) -> Result<Option<Vec<AccountId32>>, CrunchError> {
+    let config = CONFIG.clone();
+    if config.pool_ids.len() == 0 || !config.pool_members_compound_enabled {
+        return Ok(None);
+    }
+
+    let api = crunch.client().clone();
+
+    let mut members: Vec<AccountId32> = Vec::new();
+
+    // 1. get all members with permissions set as [PermissionlessCompound, PermissionlessAll]
+
+    let permissions_addr = node_runtime::storage()
+        .nomination_pools()
+        .claim_permissions_root();
+
+    let mut results = api
+        .storage()
+        .at_latest()
+        .await?
+        .iter(permissions_addr, 10)
+        .await?;
+
+    while let Some((key, value)) = results.next().await? {
+        if [
+            ClaimPermission::PermissionlessCompound,
+            ClaimPermission::PermissionlessAll,
+        ]
+        .contains(&value)
+        {
+            let member = get_account_id_from_storage_key(key);
+            debug!("member: {}", member);
+
+            // 2 .Verify if member belongs to the pools configured
+            let pool_member_addr = node_runtime::storage()
+                .nomination_pools()
+                .pool_members(&member);
+            if let Some(pool_member) = api
+                .storage()
+                .at_latest()
+                .await?
+                .fetch(&pool_member_addr)
+                .await?
+            {
+                if config.pool_ids.contains(&pool_member.pool_id) {
+                    // fetch pending rewards
+                    let call_name = format!("NominationPoolsApi_pending_rewards");
+                    let claimable: u128 = api
+                        .rpc()
+                        .state_call(&call_name, Some(&member.encode()), None)
+                        .await?;
+                    if claimable > 0 {
+                        members.push(member);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Some(members))
+}
+
 pub async fn try_fetch_stashes_from_pool_ids(
     crunch: &Crunch,
 ) -> Result<Option<Vec<String>>, CrunchError> {
@@ -841,7 +1138,13 @@ pub async fn try_fetch_stashes_from_pool_ids(
     }
 
     let active_era_addr = node_runtime::storage().staking().active_era();
-    let era_index = match api.storage().fetch(&active_era_addr, None).await? {
+    let era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
         Some(info) => info.index,
         None => return Err("Active era not defined".into()),
     };
@@ -854,7 +1157,13 @@ pub async fn try_fetch_stashes_from_pool_ids(
         let nominators_addr = node_runtime::storage()
             .staking()
             .nominators(&pool_stash_account);
-        if let Some(nominations) = api.storage().fetch(&nominators_addr, None).await? {
+        if let Some(nominations) = api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&nominators_addr)
+            .await?
+        {
             // deconstruct targets
             let BoundedVec(targets) = nominations.targets;
             all.extend(
@@ -872,8 +1181,12 @@ pub async fn try_fetch_stashes_from_pool_ids(
                 let eras_stakers_addr = node_runtime::storage()
                     .staking()
                     .eras_stakers(era_index - 1, &stash);
-                if let Some(exposure) =
-                    api.storage().fetch(&eras_stakers_addr, None).await?
+                if let Some(exposure) = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&eras_stakers_addr)
+                    .await?
                 {
                     if exposure.others.iter().any(|x| x.who == pool_stash_account) {
                         active.push(stash.to_string());

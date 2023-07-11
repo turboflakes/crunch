@@ -20,7 +20,7 @@ subxt metadata --url wss://rpc.polkadot.io:443 -f bytes > polkadot_metadata.scal
 Generate runtime API client code from metadata.
 
 ```bash
-subxt codegen -f westend_metadata.scale | rustfmt --edition=2018 --emit=stdout > westend_metadata.rs
-subxt codegen -f kusama_metadata.scale | rustfmt --edition=2018 --emit=stdout > kusama_runtime.rs
-subxt codegen -f polkadot_metadata.scale | rustfmt --edition=2018 --emit=stdout > polkadot_runtime.rs
+subxt codegen --url wss://westend-rpc.polkadot.io:443 | rustfmt --edition=2018 --emit=stdout > westend_metadata.rs
+subxt codegen --url wss://kusama-rpc.polkadot.io:443 | rustfmt --edition=2018 --emit=stdout > kusama_runtime.rs
+subxt codegen --url wss://rpc.polkadot.io:443 | rustfmt --edition=2018 --emit=stdout > polkadot_runtime.rs
 ```
