@@ -1117,7 +1117,7 @@ pub async fn try_fetch_pool_members_for_compound(
                         .rpc()
                         .state_call(&call_name, Some(&member.encode()), None)
                         .await?;
-                    if claimable > 0 {
+                    if claimable > config.pool_members_compound_threshold {
                         members.push(member);
                     }
                 }
@@ -1133,7 +1133,10 @@ pub async fn try_fetch_stashes_from_pool_ids(
 ) -> Result<Option<Vec<String>>, CrunchError> {
     let api = crunch.client().clone();
     let config = CONFIG.clone();
-    if config.pool_ids.len() == 0 {
+    if config.pool_ids.len() == 0
+        || (!config.pool_active_nominees_payout_enabled
+            && !config.pool_all_nominees_payout_enabled)
+    {
         return Ok(None);
     }
 
@@ -1199,7 +1202,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
         return Ok(None);
     }
 
-    if config.all_nominees_payouts_enabled {
+    if config.pool_all_nominees_payout_enabled {
         info!(
             "{} stashes loaded from 'pool-ids': [{}]",
             all.len(),

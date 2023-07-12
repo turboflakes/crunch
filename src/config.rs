@@ -79,6 +79,11 @@ fn default_existential_deposit_factor_warning() -> u32 {
     2
 }
 
+/// provides default value for members_compound_threshold if CRUNCH_POOL_MEMBERS_COMPOUND_THRESHOLD env var is not set
+fn default_pool_members_compound_threshold() -> u128 {
+    1000000
+}
+
 /// provides default value for maximum_pool_members_calls if CRUNCH_MAXIMUM_POOL_MEMBERS_CALLS env var is not set
 fn default_maximum_pool_members_calls() -> u32 {
     128
@@ -111,13 +116,17 @@ pub struct Config {
     #[serde(default)]
     pub pool_ids: Vec<u32>,
     #[serde(default)]
+    pub pool_active_nominees_payout_enabled: bool,
+    #[serde(default)]
+    pub pool_all_nominees_payout_enabled: bool,
+    #[serde(default)]
     pub pool_members_compound_enabled: bool,
+    #[serde(default = "default_pool_members_compound_threshold")]
+    pub pool_members_compound_threshold: u128,
     #[serde(default = "default_maximum_pool_members_calls")]
     pub maximum_pool_members_calls: u32,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
-    #[serde(default)]
-    pub all_nominees_payouts_enabled: bool,
     #[serde(default = "default_seed_path")]
     pub seed_path: String,
     pub stashes: Vec<String>,
@@ -273,6 +282,25 @@ fn get_config() -> Config {
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
+        Arg::with_name("enable-pool-members-compound-threshold")
+          .long("enable-pool-members-compound-threshold")
+          .takes_value(true)
+          .help(
+            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
+          ))
+      .arg(
+        Arg::with_name("enable-active-nominees-payouts")
+          .long("enable-active-nominees-payouts")
+          .help(
+            "Enable payouts only for ACTIVE nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts only for the ACTIVE nominees and not all).",
+          ))
+      .arg(
+        Arg::with_name("enable-all-nominees-payouts")
+          .long("enable-all-nominees-payouts")
+          .help(
+            "Enable payouts for ALL the nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts for ALL nominees and not only the active ones - the ones the stake of the Nomination Pool was allocated).",
+          ))
+      .arg(
         Arg::with_name("enable-onet-api")
           .long("enable-onet-api")
           .help(
@@ -374,6 +402,25 @@ fn get_config() -> Config {
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
+        Arg::with_name("enable-pool-members-compound-threshold")
+          .long("enable-pool-members-compound-threshold")
+          .takes_value(true)
+          .help(
+            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
+          ))
+      .arg(
+        Arg::with_name("enable-active-nominees-payouts")
+          .long("enable-active-nominees-payouts")
+          .help(
+            "Enable payouts only for ACTIVE nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts only for the ACTIVE nominees and not all).",
+          ))
+      .arg(
+        Arg::with_name("enable-all-nominees-payouts")
+          .long("enable-all-nominees-payouts")
+          .help(
+            "Enable payouts for ALL the nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts for ALL nominees and not only the active ones - the ones the stake of the Nomination Pool was allocated).",
+          ))
+      .arg(
         Arg::with_name("enable-onet-api")
           .long("enable-onet-api")
           .help(
@@ -403,12 +450,6 @@ fn get_config() -> Config {
         .long("enable-unique-stashes")
         .help(
           "From all given stashes crunch will Sort by stash adddress and Remove duplicates.",
-        ))
-    .arg(
-      Arg::with_name("enable-all-nominees-payouts")
-        .long("enable-all-nominees-payouts")
-        .help(
-          "Enable payouts for ALL configured Nomination Pools. (e.g. with this flag active 'crunch' will try to trigger payouts for ALL nominees and not only the active ones - the ones the stake of the Nomination Pool was allocated).",
         ))
     .arg(
       Arg::with_name("substrate-ws-url")
@@ -490,10 +531,6 @@ fn get_config() -> Config {
         env::set_var("CRUNCH_UNIQUE_STASHES_ENABLED", "true");
     }
 
-    if matches.is_present("enable-all-nominees-payouts") {
-        env::set_var("CRUNCH_ALL_NOMINEES_PAYOUTS_ENABLED", "true");
-    }
-
     match matches.subcommand() {
         ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
             match flakes_matches.value_of("MODE").unwrap() {
@@ -567,6 +604,20 @@ fn get_config() -> Config {
 
             if flakes_matches.is_present("enable-pool-members-compound") {
                 env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED", "true");
+            }
+
+            if let Some(threshold) =
+                flakes_matches.value_of("enable-pool-members-compound-threshold")
+            {
+                env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_THRESHOLD", threshold);
+            }
+
+            if flakes_matches.is_present("enable-active-nominees-payouts") {
+                env::set_var("CRUNCH_ACTIVE_NOMINEES_PAYOUTS_ENABLED", "true");
+            }
+
+            if flakes_matches.is_present("enable-all-nominees-payouts") {
+                env::set_var("CRUNCH_ALL_NOMINEES_PAYOUTS_ENABLED", "true");
             }
 
             if flakes_matches.is_present("enable-onet-api") {
