@@ -79,8 +79,8 @@ fn default_existential_deposit_factor_warning() -> u32 {
     2
 }
 
-/// provides default value for members_compound_threshold if CRUNCH_POOL_MEMBERS_COMPOUND_THRESHOLD env var is not set
-fn default_pool_members_compound_threshold() -> u128 {
+/// provides default value for pool_compound_threshold if CRUNCH_POOL_COMPOUND_THRESHOLD env var is not set
+fn default_pool_compound_threshold() -> u64 {
     1000000
 }
 
@@ -121,8 +121,10 @@ pub struct Config {
     pub pool_all_nominees_payout_enabled: bool,
     #[serde(default)]
     pub pool_members_compound_enabled: bool,
-    #[serde(default = "default_pool_members_compound_threshold")]
-    pub pool_members_compound_threshold: u128,
+    #[serde(default)]
+    pub pool_operator_compound_enabled: bool,
+    #[serde(default = "default_pool_compound_threshold")]
+    pub pool_compound_threshold: u64,
     #[serde(default = "default_maximum_pool_members_calls")]
     pub maximum_pool_members_calls: u32,
     #[serde(default)]
@@ -276,27 +278,33 @@ fn get_config() -> Config {
             "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
           ))
       .arg(
+        Arg::with_name("enable-pool-compound-threshold")
+          .long("enable-pool-compound-threshold")
+          .takes_value(true)
+          .help(
+            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
+          ))
+      .arg(
         Arg::with_name("enable-pool-members-compound")
           .long("enable-pool-members-compound")
           .help(
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
-        Arg::with_name("enable-pool-members-compound-threshold")
-          .long("enable-pool-members-compound-threshold")
-          .takes_value(true)
+        Arg::with_name("enable-pool-operator-compound")
+          .long("enable-pool-members-compound")
           .help(
-            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
+            "Allow 'crunch' to compound rewards for the pool operator member that belongs to the pools previously selected by '--pool-ids' option. Note that the operator member account have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
-        Arg::with_name("enable-active-nominees-payouts")
-          .long("enable-active-nominees-payouts")
+        Arg::with_name("enable-pool-active-nominees-payout")
+          .long("enable-pool-active-nominees-payout")
           .help(
             "Enable payouts only for ACTIVE nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts only for the ACTIVE nominees and not all).",
           ))
       .arg(
-        Arg::with_name("enable-all-nominees-payouts")
-          .long("enable-all-nominees-payouts")
+        Arg::with_name("enable-pool-all-nominees-payout")
+          .long("enable-pool-all-nominees-payout")
           .help(
             "Enable payouts for ALL the nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts for ALL nominees and not only the active ones - the ones the stake of the Nomination Pool was allocated).",
           ))
@@ -389,11 +397,18 @@ fn get_config() -> Config {
           .takes_value(true)
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
       .arg(
-        Arg::with_name("pool-ids")
-          .long("pool-ids")
+        Arg::with_name("enable-pool-compound-threshold")
+          .long("enable-pool-compound-threshold")
           .takes_value(true)
           .help(
-            "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
+            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
+          ))
+      .arg(
+        Arg::with_name("enable-pool-compound-threshold")
+          .long("enable-pool-compound-threshold")
+          .takes_value(true)
+          .help(
+            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
           ))
       .arg(
         Arg::with_name("enable-pool-members-compound")
@@ -402,21 +417,20 @@ fn get_config() -> Config {
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
-        Arg::with_name("enable-pool-members-compound-threshold")
-          .long("enable-pool-members-compound-threshold")
-          .takes_value(true)
+        Arg::with_name("enable-pool-operator-compound")
+          .long("enable-pool-members-compound")
           .help(
-            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
+            "Allow 'crunch' to compound rewards for the pool operator member that belongs to the pools previously selected by '--pool-ids' option. Note that the operator member account have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
-        Arg::with_name("enable-active-nominees-payouts")
-          .long("enable-active-nominees-payouts")
+        Arg::with_name("enable-pool-active-nominees-payout")
+          .long("enable-pool-active-nominees-payout")
           .help(
             "Enable payouts only for ACTIVE nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts only for the ACTIVE nominees and not all).",
           ))
       .arg(
-        Arg::with_name("enable-all-nominees-payouts")
-          .long("enable-all-nominees-payouts")
+        Arg::with_name("enable-pool-all-nominees-payout")
+          .long("enable-pool-all-nominees-payout")
           .help(
             "Enable payouts for ALL the nominees assigned to the Nomination Pools defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to trigger payouts for ALL nominees and not only the active ones - the ones the stake of the Nomination Pool was allocated).",
           ))
@@ -523,10 +537,6 @@ fn get_config() -> Config {
         env::set_var("CRUNCH_STASHES", stashes);
     }
 
-    if let Some(pool_ids) = matches.value_of("pool-ids") {
-        env::set_var("CRUNCH_POOL_IDS", pool_ids);
-    }
-
     if matches.is_present("enable-unique-stashes") {
         env::set_var("CRUNCH_UNIQUE_STASHES_ENABLED", "true");
     }
@@ -602,22 +612,26 @@ fn get_config() -> Config {
                 env::set_var("CRUNCH_ERROR_INTERVAL", error_interval);
             }
 
+            if let Some(pool_ids) = flakes_matches.value_of("pool-ids") {
+                env::set_var("CRUNCH_POOL_IDS", pool_ids);
+            }
+
+            if let Some(threshold) =
+                flakes_matches.value_of("enable-pool-compound-threshold")
+            {
+                env::set_var("CRUNCH_POOL_COMPOUND_THRESHOLD", threshold);
+            }
+
             if flakes_matches.is_present("enable-pool-members-compound") {
                 env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED", "true");
             }
 
-            if let Some(threshold) =
-                flakes_matches.value_of("enable-pool-members-compound-threshold")
-            {
-                env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_THRESHOLD", threshold);
+            if flakes_matches.is_present("enable-pool-active-nominees-payout") {
+                env::set_var("CRUNCH_POOL_ACTIVE_NOMINEES_PAYOUT_ENABLED", "true");
             }
 
-            if flakes_matches.is_present("enable-active-nominees-payouts") {
-                env::set_var("CRUNCH_ACTIVE_NOMINEES_PAYOUTS_ENABLED", "true");
-            }
-
-            if flakes_matches.is_present("enable-all-nominees-payouts") {
-                env::set_var("CRUNCH_ALL_NOMINEES_PAYOUTS_ENABLED", "true");
+            if flakes_matches.is_present("enable-pool-all-nominees-payout") {
+                env::set_var("CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED", "true");
             }
 
             if flakes_matches.is_present("enable-onet-api") {

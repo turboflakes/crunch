@@ -1117,7 +1117,7 @@ pub async fn try_fetch_pool_members_for_compound(
                         .rpc()
                         .state_call(&call_name, Some(&member.encode()), None)
                         .await?;
-                    if claimable > config.pool_members_compound_threshold {
+                    if claimable > config.pool_compound_threshold.into() {
                         members.push(member);
                     }
                 }

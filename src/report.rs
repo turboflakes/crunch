@@ -194,6 +194,7 @@ impl From<RawData> for Report {
             .payout_summary
             .total_validators_previous_era_already_claimed
             > 0
+            && data.payout_summary.calls_succeeded == 0
         {
             format!(
                 "Earlier claimed <b>{}</b> → ",
