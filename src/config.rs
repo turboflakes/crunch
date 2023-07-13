@@ -292,7 +292,7 @@ fn get_config() -> Config {
           ))
       .arg(
         Arg::with_name("enable-pool-operator-compound")
-          .long("enable-pool-members-compound")
+          .long("enable-pool-operator-compound")
           .help(
             "Allow 'crunch' to compound rewards for the pool operator member that belongs to the pools previously selected by '--pool-ids' option. Note that the operator member account have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
@@ -397,11 +397,11 @@ fn get_config() -> Config {
           .takes_value(true)
           .help("Interval value (in minutes) from which 'crunch' will restart again in case of a critical error."))
       .arg(
-        Arg::with_name("enable-pool-compound-threshold")
-          .long("enable-pool-compound-threshold")
+        Arg::with_name("pool-ids")
+          .long("pool-ids")
           .takes_value(true)
           .help(
-            "Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are include in the auto-compound batch)",
+            "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
           ))
       .arg(
         Arg::with_name("enable-pool-compound-threshold")
@@ -418,7 +418,7 @@ fn get_config() -> Config {
           ))
       .arg(
         Arg::with_name("enable-pool-operator-compound")
-          .long("enable-pool-members-compound")
+          .long("enable-pool-operator-compound")
           .help(
             "Allow 'crunch' to compound rewards for the pool operator member that belongs to the pools previously selected by '--pool-ids' option. Note that the operator member account have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
@@ -620,6 +620,10 @@ fn get_config() -> Config {
                 flakes_matches.value_of("enable-pool-compound-threshold")
             {
                 env::set_var("CRUNCH_POOL_COMPOUND_THRESHOLD", threshold);
+            }
+
+            if flakes_matches.is_present("enable-pool-operator-compound") {
+                env::set_var("CRUNCH_POOL_OPERATOR_COMPOUND_ENABLED", "true");
             }
 
             if flakes_matches.is_present("enable-pool-members-compound") {

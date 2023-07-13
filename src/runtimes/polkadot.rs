@@ -1064,11 +1064,72 @@ pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
     Ok(stashes)
 }
 
+pub async fn try_fetch_pool_operators_for_compound(
+    crunch: &Crunch,
+) -> Result<Option<Vec<AccountId32>>, CrunchError> {
+    let config = CONFIG.clone();
+
+    if config.pool_ids.len() == 0 && !config.pool_operator_compound_enabled {
+        return Ok(None);
+    }
+
+    let api = crunch.client().clone();
+
+    let mut members: Vec<AccountId32> = Vec::new();
+
+    for pool_id in &config.pool_ids {
+        let bonded_pool_addr = node_runtime::storage()
+            .nomination_pools()
+            .bonded_pools(pool_id);
+        if let Some(pool) = api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&bonded_pool_addr)
+            .await?
+        {
+            let permissions_addr = node_runtime::storage()
+                .nomination_pools()
+                .claim_permissions(pool.roles.depositor.clone());
+
+            if let Some(permissions) = api
+                .storage()
+                .at_latest()
+                .await?
+                .fetch(&permissions_addr)
+                .await?
+            {
+                if [
+                    ClaimPermission::PermissionlessCompound,
+                    ClaimPermission::PermissionlessAll,
+                ]
+                .contains(&permissions)
+                {
+                    // fetch pending rewards
+                    let call_name = format!("NominationPoolsApi_pending_rewards");
+                    let claimable: u128 = api
+                        .rpc()
+                        .state_call(
+                            &call_name,
+                            Some(&pool.roles.depositor.clone().encode()),
+                            None,
+                        )
+                        .await?;
+                    if claimable > config.pool_compound_threshold.into() {
+                        members.push(pool.roles.depositor.clone());
+                    }
+                }
+            }
+        }
+    }
+    Ok(Some(members))
+}
+
 pub async fn try_fetch_pool_members_for_compound(
     crunch: &Crunch,
 ) -> Result<Option<Vec<AccountId32>>, CrunchError> {
     let config = CONFIG.clone();
-    if config.pool_ids.len() == 0 || !config.pool_members_compound_enabled {
+    if config.pool_ids.len() == 0 && !config.pool_members_compound_enabled {
         return Ok(None);
     }
 
@@ -1077,7 +1138,6 @@ pub async fn try_fetch_pool_members_for_compound(
     let mut members: Vec<AccountId32> = Vec::new();
 
     // 1. get all members with permissions set as [PermissionlessCompound, PermissionlessAll]
-
     let permissions_addr = node_runtime::storage()
         .nomination_pools()
         .claim_permissions_root();
