@@ -29,7 +29,7 @@ For Pool Operators to ensure that all active validators selected - active pool n
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.10.0/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.10.1/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
@@ -51,8 +51,9 @@ vi /crunch-bot/.env
 Configuration file example: [`.env.example`](https://github.com/turboflakes/crunch/blob/main/.env.example)
 
 ```bash
+# ----------------------------------------------------------------
 # crunch CLI configuration variables 
-#
+# ----------------------------------------------------------------
 # [CRUNCH_STASHES] Validator stash addresses for which 'crunch flakes', 'crunch rewards'
 # or 'crunch view' will be applied. 
 # If needed specify more than one (e.g. stash_1,stash_2,stash_3).
@@ -62,14 +63,6 @@ CRUNCH_STASHES=5GTD7ZeD823BjpmZBCSzBQp7cvHR1Gunq7oDkurZr9zUev2n
 # `crunch` will try to fetch the stashes from the endpoint predefined here before triggering the respective payouts
 # Please have a look at the file '.remote.stashes.example' as an example
 CRUNCH_STASHES_URL=https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example
-#
-# [CRUNCH_POOL_IDS] Additionally the list of stashes could be defined from a single or more Nomination Pool Ids.
-# `crunch` will try to fetch the nominees of the respective pool id predefined here before triggering the respective payouts
-CRUNCH_POOL_IDS=10,15
-#
-# [CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED] This allows 'crunch' to compound rewards for every member that belongs to the pools 
-# previously selected by CRUNCH_POOL_IDS. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.
-#CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED=true
 #
 # [CRUNCH_SUBSTRATE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to
 # connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence
@@ -93,18 +86,48 @@ CRUNCH_MAXIMUM_CALLS=8
 # [CRUNCH_SEED_PATH] File path containing the private seed phrase to Sign the extrinsic 
 # payout call. [default: .private.seed]
 #CRUNCH_SEED_PATH=.private.seed.example
-#
-# Crunch Bot (matrix) configuration variables
+# ----------------------------------------------------------------
+# Matrix configuration variables
+# ----------------------------------------------------------------
 CRUNCH_MATRIX_USER=@your-regular-matrix-account:matrix.org
 CRUNCH_MATRIX_BOT_USER=@your-own-crunch-bot-account:matrix.org
 # NOTE: type the bot password within "" so that any special character could be parsed correctly into a string.
 CRUNCH_MATRIX_BOT_PASSWORD="anotthateasypassword"
-#
+# ----------------------------------------------------------------
 # ONE-T configuration variables
+# ----------------------------------------------------------------
 CRUNCH_ONET_API_ENABLED=true
 CRUNCH_ONET_API_URL=https://kusama-onet-api-beta.turboflakes.io
 CRUNCH_ONET_API_KEY=crunch-101
 CRUNCH_ONET_NUMBER_LAST_SESSIONS=6
+# ----------------------------------------------------------------
+# Nomination Pools configuration variables
+# ----------------------------------------------------------------
+# [CRUNCH_POOL_IDS] Additionally the list of stashes could be defined from a single or more Nomination Pool Ids.
+# `crunch` will try to fetch the nominees of the respective pool id predefined here before triggering the respective payouts
+CRUNCH_POOL_IDS=10,15
+#
+# [CRUNCH_POOL_COMPOUND_THRESHOLD] Define minimum pending rewards threshold in PLANCKS. 
+# Note: only pending rewards above the threshold are included in the auto-compound batch.
+CRUNCH_POOL_COMPOUND_THRESHOLD=100000000000
+#
+# [CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED] Enable auto-compound rewards for every member that belongs to the pools 
+# previously selected by CRUNCH_POOL_IDS. Note that members have to have their permissions 
+# set as PermissionlessCompound or PermissionlessAll.
+#CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED=true
+#
+# [CRUNCH_POOL_ONLY_OPERATOR_COMPOUND_ENABLED] Enable auto-compound rewards for the pool operator member that belongs to the pools 
+# previously selected by CRUNCH_POOL_IDS. Note that operator member account have to have their permissions 
+# set as PermissionlessCompound or PermissionlessAll.
+CRUNCH_POOL_ONLY_OPERATOR_COMPOUND_ENABLED=true
+#
+# [CRUNCH_POOL_ACTIVE_NOMINEES_PAYOUT_ENABLED] Enable payouts only for ACTIVE nominees assigned to the pools 
+# previously selected by CRUNCH_POOL_IDS.
+#CRUNCH_POOL_ACTIVE_NOMINEES_PAYOUT_ENABLED=true
+#
+# [CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED] Enable payouts for ALL nominees assigned to the pools 
+# previously selected by CRUNCH_POOL_IDS.
+#CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED=true
 ```
 
 Create a seed private file `.private.seed` inside `crunch-bot` folder and write the private seed phrase of the account responsible to sign the extrinsic payout call as in [`.private.seed.example`](https://github.com/turboflakes/crunch/blob/main/.private.seed.example) (Note: `.private.seed` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch flakes --seed-path ~/crunch-bot/.kusama.private.seed` )
@@ -225,21 +248,14 @@ USAGE:
     crunch [FLAGS] [OPTIONS] [CHAIN] [SUBCOMMAND]
 
 FLAGS:
-        --enable-all-nominees-payouts    Enable payouts for ALL configured Nomination Pools. (e.g. with this flag active
-                                         'crunch' will try to trigger payouts for ALL nominees and not only the active
-                                         ones - the ones the stake of the Nomination Pool was allocated).
-        --enable-unique-stashes          From all given stashes crunch will Sort by stash adddress and Remove
-                                         duplicates.
-    -h, --help                           Prints help information
-    -V, --version                        Prints version information
+        --enable-unique-stashes    From all given stashes crunch will Sort by stash adddress and Remove duplicates.
+    -h, --help                     Prints help information
+    -V, --version                  Prints version information
 
 OPTIONS:
     -c, --config-path <FILE>
             Sets a custom config file path. The config file contains 'crunch' configuration variables. [default: .env]
 
-        --pool-ids <pool-ids>
-            Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1,
-            pool_id_2).
     -s, --stashes <stashes>
             Validator stash addresses for which 'crunch view', 'crunch flakes' or 'crunch rewards' will be applied. If
             needed specify more than one (e.g. stash_1,stash_2,stash_3).
@@ -270,32 +286,50 @@ USAGE:
     crunch rewards [FLAGS] [OPTIONS] [MODE]
 
 FLAGS:
-        --debug                              Prints debug information verbosely.
-        --disable-matrix                     Disable matrix bot for 'crunch rewards'. (e.g. with this flag active
-                                             'crunch rewards' will not send messages/notifications about claimed or
-                                             unclaimed staking rewards to your private or public 'Crunch Bot' rooms)
-                                             (https://matrix.org/)
-        --disable-matrix-bot-display-name    Disable matrix bot display name update for 'crunch rewards'. (e.g. with
-                                             this flag active 'crunch rewards' will not change the matrix bot user
-                                             display name)
-        --disable-public-matrix-room         Disable notifications to matrix public rooms for 'crunch rewards'. (e.g.
-                                             with this flag active 'crunch rewards' will not send messages/notifications
-                                             about claimed or unclaimed staking rewards to any public 'Crunch Bot' room)
-        --enable-onet-api                    Allow 'crunch' to fetch grades for every stash from ONE-T API.
-        --enable-pool-members-compound       Allow 'crunch' to compound rewards for every member that belongs to the
-                                             pools previously selected by '--pool-ids' option. Note that members have to
-                                             have their permissions set as PermissionlessCompound or PermissionlessAll.
-    -h, --help                               Prints help information
-        --short                              Display only essential information (e.g. with this flag active 'crunch
-                                             rewards' will only send essential messages/notifications about claimed
-                                             rewards)
-    -V, --version                            Prints version information
+        --debug                                 Prints debug information verbosely.
+        --disable-matrix                        Disable matrix bot for 'crunch rewards'. (e.g. with this flag active
+                                                'crunch rewards' will not send messages/notifications about claimed or
+                                                unclaimed staking rewards to your private or public 'Crunch Bot' rooms)
+                                                (https://matrix.org/)
+        --disable-matrix-bot-display-name       Disable matrix bot display name update for 'crunch rewards'. (e.g. with
+                                                this flag active 'crunch rewards' will not change the matrix bot user
+                                                display name)
+        --disable-public-matrix-room            Disable notifications to matrix public rooms for 'crunch rewards'. (e.g.
+                                                with this flag active 'crunch rewards' will not send
+                                                messages/notifications about claimed or unclaimed staking rewards to any
+                                                public 'Crunch Bot' room)
+        --enable-onet-api                       Allow 'crunch' to fetch grades for every stash from ONE-T API.
+        --enable-pool-active-nominees-payout    Enable payouts only for ACTIVE nominees assigned to the Nomination Pools
+                                                defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to
+                                                trigger payouts only for the ACTIVE nominees and not all).
+        --enable-pool-all-nominees-payout       Enable payouts for ALL the nominees assigned to the Nomination Pools
+                                                defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to
+                                                trigger payouts for ALL nominees and not only the active ones - the ones
+                                                the stake of the Nomination Pool was allocated).
+        --enable-pool-members-compound          Allow 'crunch' to compound rewards for every member that belongs to the
+                                                pools previously selected by '--pool-ids' option. Note that members have
+                                                to have their permissions set as PermissionlessCompound or
+                                                PermissionlessAll.
+        --enable-pool-only-operator-compound    Allow 'crunch' to compound rewards for the pool operator member that
+                                                belongs to the pools previously selected by '--pool-ids' option. Note
+                                                that the operator member account have to have their permissions set as
+                                                PermissionlessCompound or PermissionlessAll.
+    -h, --help                                  Prints help information
+        --short                                 Display only essential information (e.g. with this flag active 'crunch
+                                                rewards' will only send essential messages/notifications about claimed
+                                                rewards)
+    -V, --version                               Prints version information
 
 OPTIONS:
+        --enable-pool-compound-threshold <enable-pool-compound-threshold>
+            Define minimum pending rewards threshold in PLANCKS. (e.g. Only pending rewards above the threshold are
+            include in the auto-compound batch)
         --error-interval <error-interval>
             Interval value (in minutes) from which 'crunch' will restart again in case of a critical error.
 
-        --matrix-bot-password <matrix-bot-password>      Password for the 'Crunch Bot' matrix user sign in.
+        --matrix-bot-password <matrix-bot-password>
+            Password for the 'Crunch Bot' matrix user sign in.
+
         --matrix-bot-user <matrix-bot-user>
             Your new 'Crunch Bot' matrix user. e.g. '@your-own-crunch-bot-account:matrix.org' this user account will be
             your 'Crunch Bot' which will be responsible to send messages/notifications to your private or public 'Crunch
@@ -303,7 +337,9 @@ OPTIONS:
         --matrix-user <matrix-user>
             Your regular matrix user. e.g. '@your-regular-matrix-account:matrix.org' this user account will receive
             notifications from your other 'Crunch Bot' matrix account.
-        --maximum-calls <maximum-calls>                  Maximum number of calls in a single batch. [default: 8]
+        --maximum-calls <maximum-calls>
+            Maximum number of calls in a single batch. [default: 8]
+
         --maximum-history-eras <maximum-history-eras>
             Maximum number of history eras for which crunch will look for unclaimed rewards. The maximum value supported
             is the one defined by the constant history_depth - usually 84 - (e.g. a value of 4 means that crunch will
