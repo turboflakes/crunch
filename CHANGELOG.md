@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.10.0] - 2023-07-11
+## [0.10.1] - 2023-07-14
 
 ## New
+- introducing option `--enable-pool-only-operator-compound` to allow for permissionless compound rewards of pool operators only
+- introducing flag `--enable-pool-compound-threshold` to allow a threshold to be set. Only rewads higher than the threshold are triggered for compound.
+
+## change
+- NOTE: option and respective flags have been renamed:
+ `--enable-all-nominees-payouts` -> `--enable-pool-all-nominees-payout`
+ `--enable-active-nominees-payout` -> `--enable-pool-active-nominees-payout`
+ `CRUNCH_ALL_NOMINEES_PAYOUTS_ENABLED` -> `CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED`
+ `CRUNCH_ACTIVE_NOMINEES_PAYOUT_ENABLED` -> `CRUNCH_POOL_ACTIVE_NOMINEES_PAYOUT_ENABLED`
+
+## [0.10.0] - 2023-07-11
+
+## change
 - batch pool members with permissionless compound rewards defined
 - fetch ONE-T grades
 
