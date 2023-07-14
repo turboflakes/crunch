@@ -422,10 +422,12 @@ impl From<RawData> for Report {
         report.add_break();
 
         // Nomination Pools coumpound info
-        if config.pool_members_compound_enabled {
+        if config.pool_members_compound_enabled
+            || config.pool_only_operator_compound_enabled
+        {
             if data.pools_summary.total_members > 0 {
                 report.add_raw_text(format!(
-                    "♻️ Rewards compounded for {} members from Pools {:?}",
+                    "♻️ {} members rewards compounded from pools {:?}",
                     data.pools_summary.total_members, config.pool_ids
                 ));
                 for batch in data.pools_summary.batches {

@@ -81,7 +81,7 @@ fn default_existential_deposit_factor_warning() -> u32 {
 
 /// provides default value for pool_compound_threshold if CRUNCH_POOL_COMPOUND_THRESHOLD env var is not set
 fn default_pool_compound_threshold() -> u64 {
-    1000000
+    100000000000
 }
 
 /// provides default value for maximum_pool_members_calls if CRUNCH_MAXIMUM_POOL_MEMBERS_CALLS env var is not set
@@ -122,7 +122,7 @@ pub struct Config {
     #[serde(default)]
     pub pool_members_compound_enabled: bool,
     #[serde(default)]
-    pub pool_operator_compound_enabled: bool,
+    pub pool_only_operator_compound_enabled: bool,
     #[serde(default = "default_pool_compound_threshold")]
     pub pool_compound_threshold: u64,
     #[serde(default = "default_maximum_pool_members_calls")]
@@ -291,8 +291,8 @@ fn get_config() -> Config {
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
-        Arg::with_name("enable-pool-operator-compound")
-          .long("enable-pool-operator-compound")
+        Arg::with_name("enable-pool-only-operator-compound")
+          .long("enable-pool-only-operator-compound")
           .help(
             "Allow 'crunch' to compound rewards for the pool operator member that belongs to the pools previously selected by '--pool-ids' option. Note that the operator member account have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
@@ -417,8 +417,8 @@ fn get_config() -> Config {
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
-        Arg::with_name("enable-pool-operator-compound")
-          .long("enable-pool-operator-compound")
+        Arg::with_name("enable-pool-only-operator-compound")
+          .long("enable-pool-only-operator-compound")
           .help(
             "Allow 'crunch' to compound rewards for the pool operator member that belongs to the pools previously selected by '--pool-ids' option. Note that the operator member account have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
@@ -622,8 +622,8 @@ fn get_config() -> Config {
                 env::set_var("CRUNCH_POOL_COMPOUND_THRESHOLD", threshold);
             }
 
-            if flakes_matches.is_present("enable-pool-operator-compound") {
-                env::set_var("CRUNCH_POOL_OPERATOR_COMPOUND_ENABLED", "true");
+            if flakes_matches.is_present("enable-pool-only-operator-compound") {
+                env::set_var("CRUNCH_POOL_ONLY_OPERATOR_COMPOUND_ENABLED", "true");
             }
 
             if flakes_matches.is_present("enable-pool-members-compound") {

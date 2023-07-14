@@ -1069,7 +1069,7 @@ pub async fn try_fetch_pool_operators_for_compound(
 ) -> Result<Option<Vec<AccountId32>>, CrunchError> {
     let config = CONFIG.clone();
 
-    if config.pool_ids.len() == 0 && !config.pool_operator_compound_enabled {
+    if config.pool_ids.len() == 0 && !config.pool_only_operator_compound_enabled {
         return Ok(None);
     }
 
@@ -1129,8 +1129,15 @@ pub async fn try_fetch_pool_members_for_compound(
     crunch: &Crunch,
 ) -> Result<Option<Vec<AccountId32>>, CrunchError> {
     let config = CONFIG.clone();
-    if config.pool_ids.len() == 0 && !config.pool_members_compound_enabled {
+    if config.pool_ids.len() == 0
+        && !config.pool_only_operator_compound_enabled
+        && !config.pool_members_compound_enabled
+    {
         return Ok(None);
+    }
+
+    if config.pool_only_operator_compound_enabled {
+        return try_fetch_pool_operators_for_compound(&crunch).await;
     }
 
     let api = crunch.client().clone();
