@@ -22,6 +22,8 @@ For Nominators in private or public rooms check their chosen Validators rewards 
 
 For Pool Operators to ensure that all active validators selected - active pool nominees - payout on time. An additional guarantee for Pool members that Pool operatos act in members best interests.
 
+For Pool Operators to auto-compound members rewards above certain threshold.
+
 ## Installation
 
 ```bash
@@ -224,7 +226,7 @@ crunch polkadot rewards daily
 # or for Westend network and claiming rewards every 6 hours at a specific time
 crunch westend rewards turbo
 # or for Westend network with unique stashes verified and for all configured pools nominees and claiming rewards every era
-crunch westend --enable-unique-stashes --enable-all-nominees-payouts rewards era
+crunch westend --enable-unique-stashes rewards era --enable-pool-all-nominees-payout
 # or to auto-compound members rewards of nomination pools you operate
 crunch kusama rewards --enable-pool-members-compound
 # or to know which ONE-T grade a validator got from the last 6 sessions
