@@ -325,16 +325,25 @@ pub struct OnetData {
 }
 
 pub async fn try_fetch_onet_data(
+    chain_name: String,
     stash: AccountId32,
 ) -> Result<Option<OnetData>, CrunchError> {
     let config = CONFIG.clone();
-    if !config.onet_api_enabled || config.onet_api_url.len() == 0 {
+    if !config.onet_api_enabled {
         return Ok(None);
     }
+
+    let endpoint = if config.onet_api_url != "" {
+        config.onet_api_url
+    } else {
+        format!("https://{}-onet-api-beta.turboflakes.io", chain_name)
+    };
+
     let url = format!(
         "{}/api/v1/validators/{}/grade?number_last_sessions={}",
-        config.onet_api_url, stash, config.onet_number_last_sessions
+        endpoint, stash, config.onet_number_last_sessions
     );
+
     debug!("Crunch <> ONE-T grade loaded from {}", url);
     let client = reqwest::Client::new();
     match client

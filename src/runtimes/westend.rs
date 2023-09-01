@@ -151,13 +151,13 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     // Try run members in batches
     let pools_summary = try_run_batch_pool_members(&crunch, &seed_account_signer).await?;
 
-    // Try fetch ONE-T grade data
-    for mut v in &mut validators {
-        v.onet = try_fetch_onet_data(v.stash.clone()).await?;
-    }
-
     // Get Network name
     let chain_name = api.rpc().system_chain().await?;
+
+    // Try fetch ONE-T grade data
+    for v in &mut validators {
+        v.onet = try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone()).await?;
+    }
 
     // Get Era index
     let active_era_addr = node_runtime::storage().staking().active_era();

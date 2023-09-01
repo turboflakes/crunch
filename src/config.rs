@@ -89,17 +89,12 @@ fn default_maximum_pool_members_calls() -> u32 {
     128
 }
 
-/// provides default value for onet_api_url if CRUNCH_ONET_API_URL env var is not set
-fn default_onet_api_url() -> String {
-    "https://kusama-onet-api-beta.turboflakes.io".into()
-}
-
-/// provides default value for onet_api_url if CRUNCH_ONET_API_KEY env var is not set
+/// provides default value for onet_api_key if CRUNCH_ONET_API_KEY env var is not set
 fn default_onet_api_key() -> String {
     "crunch-101".into()
 }
 
-/// provides default value for onet_api_url if CRUNCH_ONET_NUMBER_LAST_SESSIONS env var is not set
+/// provides default value for onet_number_last_sessions if CRUNCH_ONET_NUMBER_LAST_SESSIONS env var is not set
 fn default_onet_number_last_sessions() -> u32 {
     6
 }
@@ -153,7 +148,7 @@ pub struct Config {
     // ONE-T integration
     #[serde(default)]
     pub onet_api_enabled: bool,
-    #[serde(default = "default_onet_api_url")]
+    #[serde(default)]
     pub onet_api_url: String,
     #[serde(default = "default_onet_api_key")]
     pub onet_api_key: String,
