@@ -519,7 +519,7 @@ Tips are welcome
 
 ### License
 
-`crunch` is [MIT licensed](./LICENSE).
+`crunch` - The entire code within this repository is licensed under the [Apache License 2.0](./LICENSE).
 
 ### Quote
 
