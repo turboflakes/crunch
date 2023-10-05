@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Changed
 - Fix `onet_api_url` to depend on the connected chain and remove default endpoint.
+- Update metadata Polkadot runtime/9430
 
 ## [0.10.1] - 2023-07-14
 
