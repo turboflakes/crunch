@@ -28,8 +28,10 @@ mod report;
 mod runtimes;
 mod stats;
 
-use crate::config::CONFIG;
-use crate::crunch::Crunch;
+use crate::{
+    config::CONFIG,
+    crunch::Crunch,
+};
 use log::info;
 use std::env;
 

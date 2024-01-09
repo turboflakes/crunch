@@ -21,6 +21,7 @@
 
 #![allow(clippy::all)]
 
+pub mod creditcoin;
 pub mod kusama;
 pub mod polkadot;
 pub mod support;

@@ -27,6 +27,7 @@ pub enum SupportedRuntime {
     Polkadot,
     Kusama,
     Westend,
+    Creditcoin,
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -34,7 +35,7 @@ impl From<ChainPrefix> for SupportedRuntime {
         match v {
             0 => Self::Polkadot,
             2 => Self::Kusama,
-            42 => Self::Westend,
+            42 => Self::Creditcoin,
             _ => unimplemented!("Chain prefix not supported"),
         }
     }
@@ -42,11 +43,13 @@ impl From<ChainPrefix> for SupportedRuntime {
 
 impl From<ChainTokenSymbol> for SupportedRuntime {
     fn from(v: ChainTokenSymbol) -> Self {
+        println!("{:?}", v);
         match v.as_str() {
             "DOT" => Self::Polkadot,
             "KSM" => Self::Kusama,
             "WND" => Self::Westend,
-            _ => unimplemented!("Chain unit not supported"),
+            "CTC" => Self::Creditcoin,
+            _ => Self::Creditcoin,
         }
     }
 }
@@ -57,6 +60,7 @@ impl std::fmt::Display for SupportedRuntime {
             Self::Polkadot => write!(f, "Polkadot"),
             Self::Kusama => write!(f, "Kusama"),
             Self::Westend => write!(f, "Westend"),
+            Self::Creditcoin => write!(f, "Creditcoin"),
         }
     }
 }

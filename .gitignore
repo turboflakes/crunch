@@ -4,3 +4,7 @@ Cargo.lock
 .env
 .private.seed
 bump-version.sh
+/environments/**/.env
+/environments/**/.private.seed
+**/.env
+**/.private.seed

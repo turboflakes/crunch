@@ -19,14 +19,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 #![allow(dead_code)]
-use crate::config::CONFIG;
-use crate::errors::MatrixError;
-use crate::runtimes::support::SupportedRuntime;
+use crate::{
+    config::CONFIG,
+    errors::MatrixError,
+    runtimes::support::SupportedRuntime,
+};
 use async_recursion::async_recursion;
 use base64::encode;
-use log::{debug, info, warn};
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, result::Result, thread, time};
+use log::{
+    debug,
+    info,
+    warn,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use std::{
+    collections::HashMap,
+    result::Result,
+    thread,
+    time,
+};
 use url::form_urlencoded::byte_serialize;
 
 const MATRIX_URL: &str = "https://matrix.org/_matrix/client/r0";

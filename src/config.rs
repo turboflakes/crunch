@@ -30,10 +30,17 @@
 //
 // Set Config struct into a CONFIG lazy_static to avoid multiple processing.
 //
-use clap::{App, Arg, SubCommand};
+use clap::{
+    App,
+    Arg,
+    SubCommand,
+};
 use dotenv;
 use lazy_static::lazy_static;
-use log::{info, warn};
+use log::{
+    info,
+    warn,
+};
 use serde::Deserialize;
 use std::env;
 

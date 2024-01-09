@@ -18,10 +18,19 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::{config::CONFIG, crunch::OnetData};
-use log::{info, warn};
+use crate::{
+    config::CONFIG,
+    crunch::OnetData,
+};
+use log::{
+    info,
+    warn,
+};
 use rand::Rng;
-use subxt::{ext::sp_core::H256, utils::AccountId32};
+use subxt::{
+    ext::sp_core::H256,
+    utils::AccountId32,
+};
 
 pub type EraIndex = u32;
 
@@ -501,10 +510,12 @@ fn performance(a: f64, b: f64, out: String) -> Option<String> {
 fn good_performance(value: u32, higher_limit: f64, outlier_limit: f64) -> String {
     match performance(value.into(), outlier_limit, "🤑 🤯 🚀".into()) {
         Some(p) => p,
-        None => match performance(value.into(), higher_limit, "😊 🔥".into()) {
-            Some(p) => p,
-            None => String::from(""),
-        },
+        None => {
+            match performance(value.into(), higher_limit, "😊 🔥".into()) {
+                Some(p) => p,
+                None => String::from(""),
+            }
+        }
     }
 }
 

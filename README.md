@@ -1,3 +1,21 @@
+# Gluwa Related Info
+
+Information related to Gluwa specific changes for Crunch.
+
+## Metadata generation 
+
+```shell
+subxt metadata --version 14 -f bytes > metadata/creditcoin_metadata.scale
+```
+
+## runtimes/creditcoin.rs
+
+This file is almost identical to `runtimes/polkadot.rs`. The only changes made were to the path of the metadata file for the node_runtime and in the function `try_run_batch_pool_members`. The `member` field expected an Address32 according to the compiler and it the other implementations it was a `MultiAddress`.
+
+## Issues with M1 Macs
+
+If you have issues building the docker image for this repo and you are on an M1 mac try upgrading your version of MacOs. YMMV 
+
 # crunch &middot; ![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)
 
 <p align="center">

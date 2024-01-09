@@ -18,26 +18,52 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::config::{Config, CONFIG};
-use crate::errors::CrunchError;
-use crate::matrix::Matrix;
-use crate::runtimes::{
-    kusama, polkadot,
-    support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
-    westend,
+use crate::{
+    config::{
+        Config,
+        CONFIG,
+    },
+    errors::CrunchError,
+    matrix::Matrix,
+    runtimes::{
+        creditcoin,
+        kusama,
+        polkadot,
+        support::{
+            ChainPrefix,
+            ChainTokenSymbol,
+            SupportedRuntime,
+        },
+        westend,
+    },
 };
 use async_std::task;
-use log::{debug, error, info, warn};
+use log::{
+    debug,
+    error,
+    info,
+    warn,
+};
 use rand::Rng;
 use regex::Regex;
 use serde::Deserialize;
-use std::{convert::TryInto, result::Result, thread, time};
+use std::{
+    convert::TryInto,
+    result::Result,
+    thread,
+    time,
+};
 
 use subxt::{
-    ext::sp_core::{crypto, sr25519, Pair as PairT},
+    ext::sp_core::{
+        crypto,
+        sr25519,
+        Pair as PairT,
+    },
     storage::StorageKey,
     utils::AccountId32,
-    OnlineClient, PolkadotConfig,
+    OnlineClient,
+    PolkadotConfig,
 };
 
 pub type ValidatorIndex = Option<usize>;
@@ -202,6 +228,7 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
+            SupportedRuntime::Creditcoin => creditcoin::inspect(self).await,
             // _ => unreachable!(),
         }
     }
@@ -211,6 +238,7 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
             SupportedRuntime::Kusama => kusama::try_crunch(self).await,
             SupportedRuntime::Westend => westend::try_crunch(self).await,
+            SupportedRuntime::Creditcoin => creditcoin::try_crunch(self).await,
             // _ => unreachable!(),
         }
     }
@@ -225,7 +253,10 @@ impl Crunch {
             }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
-            } // _ => unreachable!(),
+            }
+            SupportedRuntime::Creditcoin => {
+                creditcoin::run_and_subscribe_era_paid_events(self).await
+            }
         }
     }
 }
@@ -357,10 +388,12 @@ pub async fn try_fetch_onet_data(
                 reqwest::StatusCode::OK => {
                     match response.json::<OnetData>().await {
                         Ok(parsed) => return Ok(Some(parsed)),
-                        Err(e) => error!(
-                            "Unable to parse ONE-T response for stash {} error: {:?}",
-                            stash, e
-                        ),
+                        Err(e) => {
+                            error!(
+                                "Unable to parse ONE-T response for stash {} error: {:?}",
+                                stash, e
+                            )
+                        }
                     };
                 }
                 other => {
