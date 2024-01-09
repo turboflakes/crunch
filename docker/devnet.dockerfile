@@ -24,7 +24,7 @@ COPY --from=builder /app/target/$PROFILE/crunch /usr/local/bin
 
 #
 run ls
-COPY ./environments/cc3/devnet/* .
+COPY --from=builder app/environments/cc3/devnet/* .
 
 RUN useradd -u 1000 -U -s /bin/sh crunch
 USER crunch
