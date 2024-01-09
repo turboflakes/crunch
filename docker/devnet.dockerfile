@@ -23,8 +23,8 @@ ARG PROFILE=release
 COPY --from=builder /app/target/$PROFILE/crunch /usr/local/bin
 
 #
-COPY ./environments/cc3/devnet/.env .
-COPY ./environments/cc3/devnet/.private.seed .
+run ls
+COPY ./environments/cc3/devnet/* .
 
 RUN useradd -u 1000 -U -s /bin/sh crunch
 USER crunch
