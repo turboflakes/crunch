@@ -8,6 +8,12 @@ Information related to Gluwa specific changes for Crunch.
 subxt metadata --version 14 -f bytes > metadata/creditcoin_metadata.scale
 ```
 
+Or use the handy `gen_metadata.sh` script. 
+
+## How to update docker image when metadata changes. 
+
+Create a new branch. Run a local version of your node with the updated runtime and run the `gen_metadata.sh` script. Move that metadata to the `metadata` folder and check that the binary compiles (Because subxt uses macros you need to perform a full compile and not just a `cargo check` for completeness). After you test the new metadata create a PR and merge your branch into either `mainnet`, `testnnet`, or `devnet`. A push to either of these branches triggers a workflow that builds the docker image and pushes it to Gluwa's repo. The image will be named `crunch-[BRANCH]:latest`. 
+
 ## runtimes/creditcoin.rs
 
 This file is almost identical to `runtimes/polkadot.rs`. The only changes made were to the path of the metadata file for the node_runtime and in the function `try_run_batch_pool_members`. The `member` field expected an Address32 according to the compiler and it the other implementations it was a `MultiAddress`.
