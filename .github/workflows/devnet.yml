@@ -20,13 +20,13 @@ jobs:
         env:
           CRUNCH_AGENT_PK: ${{ secrets.DEVNET_CRUNCH_PK }}  
         run: |
-          run touch environments/cc3/devnet/.private.seed \
+          touch environments/cc3/devnet/.private.seed \
             && echo $CRUNCH_AGENT_PK > environments/cc3/devnet/.private.seed
       - shell: bash
         env:
           CRUNCH_AGENT_CONFIG: ${{ secrets.DEVNET_CRUNCH_CONFIG }}  
         run: |
-          run touch environments/cc3/devnet/.env \
+          touch environments/cc3/devnet/.env \
             && echo $CRUNCH_AGENT_CONFIG > environments/cc3/devnet/.env
 
       - name: Build and push
