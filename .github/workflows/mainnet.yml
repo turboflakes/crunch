@@ -1,0 +1,38 @@
+name: Mainnet ci
+
+on:
+  push:
+    branches:
+      - 'mainnet'
+jobs:
+  mainnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - shell: bash
+        env:
+          CRUNCH_AGENT_PK: ${{ secrets.MAINNET_CRUNCH_PK }}  
+        run: |
+          touch environments/cc3/mainnet/.private.seed \
+            && echo $CRUNCH_AGENT_PK > environments/cc3/mainnet/.private.seed
+      - shell: bash
+        env:
+          CRUNCH_AGENT_CONFIG: ${{ secrets.MAINNET_CRUNCH_CONFIG }}  
+        run: |
+          touch environments/cc3/mainnet/.env \
+            && echo $CRUNCH_AGENT_CONFIG > environments/cc3/mainnet/.env
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with: 
+          file: docker/mainnet.dockerfile
+          push: true
+          tags: gluwa/crunch-mainnet:latest
+

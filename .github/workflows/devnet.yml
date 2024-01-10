@@ -1,9 +1,9 @@
-name: ci
+name: Devnet ci
 
 on:
   push:
     branches:
-      - 'dev'
+      - 'devnet'
 jobs:
   devnet:
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
         uses: docker/build-push-action@v5
         with: 
           file: docker/devnet.dockerfile
-          push: false
+          push: true
           tags: gluwa/crunch-devnet:latest
 
       
