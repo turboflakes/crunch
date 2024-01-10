@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - 'dev'
+jobs:
+  devnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - shell: bash
+        env:
+          CRUNCH_AGENT_PK: ${{ secrets.DEVNET_CRUNCH_PK }}  
+        run: |
+          run touch environments/cc3/devnet/.private.seed \
+            && echo $CRUNCH_AGENT_PK > environments/cc3/devnet/.private.seed
+      - shell: bash
+        env:
+          CRUNCH_AGENT_CONFIG: ${{ secrets.DEVNET_CRUNCH_CONFIG }}  
+        run: |
+          run touch environments/cc3/devnet/.env \
+            && echo $CRUNCH_AGENT_CONFIG > environments/cc3/devnet/.env
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with: 
+          file: docker/devnet.dockerfile
+          push: false
+          tags: gluwa/crunch-devnet:latest
+
+      

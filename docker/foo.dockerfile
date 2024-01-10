@@ -10,17 +10,13 @@ RUN /root/.cargo/bin/rustup update
 
 COPY . /app
 WORKDIR /app
-RUN /root/.cargo/bin/cargo build --$PROFILE --package crunch
-
 # ===== SECOND STAGE ======
 FROM ubuntu:jammy
 
-RUN apt-get update \
-    && apt-get -y install ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 ARG PROFILE=release
 COPY --from=builder /app/target/$PROFILE/crunch /usr/local/bin
+
+copy --from=builder /app/crunch /usr/local/bin/crunch
 
 # Add the credentials needed to run crunch for this environment 
 COPY --from=builder app/environments/cc3/devnet/* .
