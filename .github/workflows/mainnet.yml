@@ -22,7 +22,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
+
       - shell: bash
         env:
           CRUNCH_AGENT_PK: ${{ secrets.MAINNET_CRUNCH_PK }}  
