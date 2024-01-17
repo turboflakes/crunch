@@ -28,7 +28,6 @@ jobs:
           CRUNCH_AGENT_PK: ${{ secrets.DEVNET_CRUNCH_PK }}  
         run: |
           echo $CRUNCH_AGENT_PK >> environments/cc3/devnet/.private.seed
-          ls environments/cc3/devnet/
           
       - name: Set up Crunch configuration
         shell: bash
@@ -36,7 +35,11 @@ jobs:
           CRUNCH_AGENT_CONFIG: ${{ secrets.DEVNET_CRUNCH_CONFIG }}  
         run: |
           echo $CRUNCH_AGENT_CONFIG >> environments/cc3/devnet/.env
-          ls environments/cc3/devnet/
+
+      - name: Check settings
+        shell: bash
+        run: |
+          ls -a environments/cc3/devnet/
 
       - name: Build and push
         uses: docker/build-push-action@v5
