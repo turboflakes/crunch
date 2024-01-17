@@ -61,9 +61,7 @@ use subxt::{
         },
     },
     tx::PairSigner,
-    utils::{
-        AccountId32,
-    },
+    utils::AccountId32,
     PolkadotConfig,
 };
 
@@ -662,7 +660,26 @@ async fn collect_validators_data(
     debug!("active_validators {:?}", active_validators);
     let mut validators: Validators = Vec::new();
 
-    let stashes = get_stashes(&crunch).await?;
+    let mut stashes = get_stashes(&crunch).await?;
+
+    let current_block = api.blocks().at_latest().await?;
+    let current_header = current_block.header();
+    let prev_hash = current_header.parent_hash;
+
+    let previous_validators: Option<Vec<AccountId32>> = api
+        .storage()
+        .at(prev_hash)
+        .fetch(&active_validators_addr)
+        .await?;
+
+    if let Some(ref validator_list) = previous_validators {
+        for validator in validator_list.iter() {
+            let validator_s = validator.to_string();
+            if !stashes.iter().any(|x| x == &validator_s) {
+                stashes.push(validator_s);
+            }
+        }
+    }
 
     for (_i, stash_str) in stashes.iter().enumerate() {
         let stash = AccountId32::from_str(stash_str).map_err(|e| {
@@ -707,7 +724,7 @@ async fn collect_validators_data(
         };
 
         // Look for unclaimed eras, starting on current_era - maximum_eras
-        let start_index = get_era_index_start(&crunch, era_index).await?;
+        let start_index = get_era_index_start(era_index).await?;
 
         // Get staking info from ledger
         let ledger_addr = node_runtime::storage().staking().ledger(&controller);
@@ -754,14 +771,13 @@ async fn collect_validators_data(
 }
 
 async fn get_era_index_start(
-    crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<EraIndex, CrunchError> {
-    let api = crunch.client().clone();
+    // let api = crunch.client().clone();
     let config = CONFIG.clone();
 
-    let history_depth_addr = node_runtime::constants().staking().history_depth();
-    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
+    // let history_depth_addr = node_runtime::constants().staking().history_depth();
+    let history_depth: u32 = 32; // api.constants().at(&history_depth_addr)?;
 
     if era_index < cmp::min(config.maximum_history_eras, history_depth) {
         return Ok(0);

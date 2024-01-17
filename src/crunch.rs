@@ -210,6 +210,7 @@ impl Crunch {
 
     /// Spawn and restart crunch flakes task on error
     pub fn flakes() {
+        println!("here");
         spawn_and_restart_crunch_flakes_on_error();
     }
 
