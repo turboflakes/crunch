@@ -15,25 +15,24 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      -
-        name: Login to Docker Hub
+        
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - shell: bash
+      - name: Set up account private key
         env:
           CRUNCH_AGENT_PK: ${{ secrets.DEVNET_CRUNCH_PK }}  
         run: |
-          touch environments/cc3/devnet/.private.seed \
-            && echo $CRUNCH_AGENT_PK > environments/cc3/devnet/.private.seed
-      - shell: bash
+          echo $CRUNCH_AGENT_PK >> environments/cc3/devnet/.private.seed
+      
+      - name: Set up Crunch configuration
         env:
           CRUNCH_AGENT_CONFIG: ${{ secrets.DEVNET_CRUNCH_CONFIG }}  
         run: |
-          touch environments/cc3/devnet/.env \
-            && echo $CRUNCH_AGENT_CONFIG > environments/cc3/devnet/.env
+          echo $CRUNCH_AGENT_CONFIG >> environments/cc3/devnet/.env
 
       - name: Build and push
         uses: docker/build-push-action@v5
