@@ -23,15 +23,19 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up account private key
+        shell: bash
         env:
           CRUNCH_AGENT_PK: ${{ secrets.DEVNET_CRUNCH_PK }}  
         run: |
+          ls
           echo $CRUNCH_AGENT_PK >> environments/cc3/devnet/.private.seed
       
       - name: Set up Crunch configuration
+        shell: bash
         env:
           CRUNCH_AGENT_CONFIG: ${{ secrets.DEVNET_CRUNCH_CONFIG }}  
         run: |
+          ls
           echo $CRUNCH_AGENT_CONFIG >> environments/cc3/devnet/.env
 
       - name: Build and push
