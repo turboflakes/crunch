@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - 'testnet'
-      - "feature/cifix"
 jobs:
   testnet:
     runs-on: ubuntu-latest
