@@ -1,6 +1,7 @@
 name: Testnet ci
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'testnet'

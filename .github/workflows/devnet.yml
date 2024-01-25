@@ -1,6 +1,7 @@
 name: Devnet ci
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'devnet'

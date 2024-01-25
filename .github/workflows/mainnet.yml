@@ -1,6 +1,7 @@
 name: Mainnet ci
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'mainnet'
