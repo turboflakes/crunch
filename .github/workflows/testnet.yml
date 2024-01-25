@@ -41,6 +41,6 @@ jobs:
         with: 
           file: docker/testnet.dockerfile
           push: true
-          tags: gluwa/crunch-testnet:latest
+          tags: gluwa/crunch:devnet-${{github.run_id}}
 
       
