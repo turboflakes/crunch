@@ -42,5 +42,5 @@ jobs:
         with: 
           file: docker/mainnet.dockerfile
           push: true
-          tags: gluwa/crunch:devnet-${{github.run_id}}
+          tags: gluwa/crunch:mainnet-${{github.run_id}}
 
