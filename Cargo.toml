@@ -15,7 +15,7 @@ log = "0.4"
 clap = "2.33"
 lazy_static = "1.4"
 derive_more = "0.99"
-async-recursion = "0.3.2"
+async-recursion = "1.0.5"
 serde = "1.0.132"
 serde_json = "1.0.68"
 thiserror = "^1.0.24"
@@ -26,7 +26,8 @@ url = "2.2.2"
 base64 = "0.13.0"
 rand = "0.8.4"
 # subxt dependencies
-subxt = "0.29.0"
+subxt = { version = "0.34", features = ["substrate-compat", "native"] }
+subxt-signer = { version = "0.34", features = ["subxt"] }
 async-std = { version = "1.11.0", features = ["attributes", "tokio1"] }
 env_logger = "0.9.3"
 futures = "0.3.13"

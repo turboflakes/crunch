@@ -21,19 +21,18 @@
 
 use crate::config::CONFIG;
 use crate::crunch::{
-    get_account_id_from_storage_key, get_from_seed, random_wait, try_fetch_onet_data,
-    try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
-    ValidatorIndex,
+    get_account_id_from_storage_key, get_signer_from_seed, random_wait,
+    try_fetch_onet_data, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount,
+    ValidatorAmount, ValidatorIndex,
 };
 use crate::errors::CrunchError;
 use crate::pools::{nomination_pool_account, AccountType};
 use crate::report::{
     Batch, EraIndex, Network, NominationPoolsSummary, Payout, PayoutSummary, Points,
-    RawData, Report, Signer, Validator, Validators,
+    RawData, Report, SignerDetails, Validator, Validators,
 };
 use crate::stats;
 use async_recursion::async_recursion;
-use futures::StreamExt;
 use log::{debug, info, warn};
 use std::{
     cmp, convert::TryFrom, convert::TryInto, fs, result::Result, str::FromStr, thread,
@@ -41,14 +40,11 @@ use std::{
 };
 use subxt::{
     error::DispatchError,
-    ext::{
-        codec::Encode,
-        sp_core::{sr25519, Pair as PairT},
-    },
-    tx::PairSigner,
+    ext::codec::{Decode, Encode},
     utils::{AccountId32, MultiAddress},
-    PolkadotConfig,
 };
+
+use subxt_signer::sr25519::Keypair;
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/kusama_metadata.scale",
@@ -70,7 +66,7 @@ use node_runtime::{
     utility::events::ItemFailed,
 };
 
-type Call = node_runtime::runtime_types::kusama_runtime::RuntimeCall;
+type Call = node_runtime::runtime_types::staging_kusama_runtime::RuntimeCall;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 type NominationPoolsCall =
     node_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
@@ -108,19 +104,17 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     // Load seed account
     let seed = fs::read_to_string(config.seed_path)
         .expect("Something went wrong reading the seed file");
-    let seed_account: sr25519::Pair = get_from_seed(&seed, None);
-    let seed_account_signer =
-        PairSigner::<PolkadotConfig, sr25519::Pair>::new(seed_account.clone());
-    let seed_account_id: AccountId32 = seed_account.public().into();
+    let signer_keypair: Keypair = get_signer_from_seed(&seed, None);
+    let seed_account_id: AccountId32 = signer_keypair.public_key().into();
 
     // Get signer account identity
     let signer_name = get_display_name(&crunch, &seed_account_id, None).await?;
-    let mut signer = Signer {
+    let mut signer_details = SignerDetails {
         account: seed_account_id.clone(),
         name: signer_name,
         warnings: Vec::new(),
     };
-    debug!("signer {:?}", signer);
+    debug!("signer_details {:?}", signer_details);
 
     // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
     let ed_addr = node_runtime::constants().balances().existential_deposit();
@@ -138,7 +132,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         if seed_account_info.data.free
             <= (config.existential_deposit_factor_warning as u128 * ed)
         {
-            signer
+            signer_details
                 .warnings
                 .push("⚡ Signer account is running low on funds ⚡".to_string());
         }
@@ -146,13 +140,13 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     // Try run payouts in batches
     let (mut validators, payout_summary) =
-        try_run_batch_payouts(&crunch, &seed_account_signer).await?;
+        try_run_batch_payouts(&crunch, &signer_keypair).await?;
 
     // Try run members in batches
-    let pools_summary = try_run_batch_pool_members(&crunch, &seed_account_signer).await?;
+    let pools_summary = try_run_batch_pool_members(&crunch, &signer_keypair).await?;
 
     // Get Network name
-    let chain_name = api.rpc().system_chain().await?;
+    let chain_name = crunch.rpc().system_chain().await?;
 
     // Try fetch ONE-T grade data
     for v in &mut validators {
@@ -172,7 +166,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
 
-    let properties = api.rpc().system_properties().await?;
+    let properties = crunch.rpc().system_properties().await?;
 
     // Get Token symbol
     let token_symbol: String = if let Some(token_symbol) = properties.get("tokenSymbol") {
@@ -204,7 +198,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     let data = RawData {
         network,
-        signer,
+        signer_details,
         validators,
         payout_summary,
         pools_summary,
@@ -220,7 +214,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
 pub async fn try_run_batch_pool_members(
     crunch: &Crunch,
-    signer: &PairSigner<PolkadotConfig, sr25519::Pair>,
+    signer: &Keypair,
 ) -> Result<NominationPoolsSummary, CrunchError> {
     let config = CONFIG.clone();
     let api = crunch.client().clone();
@@ -296,8 +290,10 @@ pub async fn try_run_batch_pool_members(
                 let tx_events = batch_response.fetch_events().await?;
 
                 // Get block number
-                let block_number = if let Some(header) =
-                    api.rpc().header(Some(tx_events.block_hash())).await?
+                let block_number = if let Some(header) = crunch
+                    .rpc()
+                    .chain_get_header(Some(tx_events.block_hash()))
+                    .await?
                 {
                     header.number
                 } else {
@@ -355,14 +351,10 @@ pub async fn try_run_batch_pool_members(
 
 pub async fn try_run_batch_payouts(
     crunch: &Crunch,
-    signer: &PairSigner<PolkadotConfig, sr25519::Pair>,
+    signer: &Keypair,
 ) -> Result<(Validators, PayoutSummary), CrunchError> {
     let config = CONFIG.clone();
     let api = crunch.client().clone();
-    // Warn if static metadata is no longer the same as the latest runtime version
-    if node_runtime::validate_codegen(&api).is_err() {
-        warn!("Crunch upgrade might be required soon. Local static metadata differs from current chain runtime version.");
-    }
 
     // Get Era index
     let active_era_addr = node_runtime::storage().staking().active_era();
@@ -468,8 +460,10 @@ pub async fn try_run_batch_payouts(
                 let tx_events = batch_response.fetch_events().await?;
 
                 // Get block number
-                let block_number = if let Some(header) =
-                    api.rpc().header(Some(tx_events.block_hash())).await?
+                let block_number = if let Some(header) = crunch
+                    .rpc()
+                    .chain_get_header(Some(tx_events.block_hash()))
+                    .await?
                 {
                     header.number
                 } else {
@@ -1107,7 +1101,7 @@ pub async fn try_fetch_pool_operators_for_compound(
                 {
                     // fetch pending rewards
                     let call_name = format!("NominationPoolsApi_pending_rewards");
-                    let claimable: u128 = api
+                    let bytes = crunch
                         .rpc()
                         .state_call(
                             &call_name,
@@ -1115,6 +1109,9 @@ pub async fn try_fetch_pool_operators_for_compound(
                             None,
                         )
                         .await?;
+
+                    let claimable: u128 = Decode::decode(&mut &*bytes)?;
+
                     if claimable > config.pool_compound_threshold.into() {
                         members.push(pool.roles.depositor.clone());
                     }
@@ -1147,16 +1144,16 @@ pub async fn try_fetch_pool_members_for_compound(
     // 1. get all members with permissions set as [PermissionlessCompound, PermissionlessAll]
     let permissions_addr = node_runtime::storage()
         .nomination_pools()
-        .claim_permissions_root();
+        .claim_permissions_iter();
 
-    let mut results = api
+    let mut iter = api
         .storage()
         .at_latest()
         .await?
-        .iter(permissions_addr, 10)
+        .iter(permissions_addr)
         .await?;
 
-    while let Some((key, value)) = results.next().await? {
+    while let Some(Ok((key, value))) = iter.next().await {
         if [
             ClaimPermission::PermissionlessCompound,
             ClaimPermission::PermissionlessAll,
@@ -1180,10 +1177,13 @@ pub async fn try_fetch_pool_members_for_compound(
                 if config.pool_ids.contains(&pool_member.pool_id) {
                     // fetch pending rewards
                     let call_name = format!("NominationPoolsApi_pending_rewards");
-                    let claimable: u128 = api
+                    let bytes = crunch
                         .rpc()
                         .state_call(&call_name, Some(&member.encode()), None)
                         .await?;
+
+                    let claimable: u128 = Decode::decode(&mut &*bytes)?;
+
                     if claimable > config.pool_compound_threshold.into() {
                         members.push(member);
                     }
