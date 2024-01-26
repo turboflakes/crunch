@@ -84,7 +84,7 @@ impl Validator {
 pub type Validators = Vec<Validator>;
 
 #[derive(Debug)]
-pub struct Signer {
+pub struct SignerDetails {
     pub account: AccountId32,
     pub name: String,
     pub warnings: Vec<String>,
@@ -120,7 +120,7 @@ pub struct NominationPoolsSummary {
 #[derive(Debug)]
 pub struct RawData {
     pub network: Network,
-    pub signer: Signer,
+    pub signer_details: SignerDetails,
     pub validators: Validators,
     pub payout_summary: PayoutSummary,
     pub pools_summary: NominationPoolsSummary,
@@ -244,9 +244,9 @@ impl From<RawData> for Report {
         // Signer
         report.add_text(format!(
             "<br>✍️ Signer &middot; <code>{}</code>",
-            data.signer.name
+            data.signer_details.name
         ));
-        for warning in data.signer.warnings {
+        for warning in data.signer_details.warnings {
             report.add_raw_text(format!("⚠️ {} ⚠️", warning.clone()));
             warn!("{}", warning);
         }
@@ -425,10 +425,29 @@ impl From<RawData> for Report {
         if config.pool_members_compound_enabled
             || config.pool_only_operator_compound_enabled
         {
+            let threshold = format!(
+                "{:.4} {}",
+                config.pool_compound_threshold as f64
+                    / 10f64.powi(data.network.token_decimals.into()),
+                data.network.token_symbol,
+            );
+
+            let pools_desc = if config.pool_ids.len() == 1 {
+                format!("Pool {}", config.pool_ids.get(0).unwrap())
+            } else {
+                format!("Pools {:?}", config.pool_ids)
+            };
+
             if data.pools_summary.total_members > 0 {
+                let members_desc = if data.pools_summary.total_members == 1 {
+                    format!("1 reward")
+                } else {
+                    format!("{} rewards", data.pools_summary.total_members)
+                };
+
                 report.add_raw_text(format!(
-                    "♻️ {} members rewards compounded from pools {:?}",
-                    data.pools_summary.total_members, config.pool_ids
+                    "♻️ {} compounded from {}",
+                    members_desc, pools_desc
                 ));
                 for batch in data.pools_summary.batches {
                     report.add_raw_text(format!(
@@ -442,8 +461,8 @@ impl From<RawData> for Report {
                 }
             } else {
                 report.add_raw_text(format!(
-                    "♻️ No pending rewards from Pools {:?}",
-                    config.pool_ids
+                    "♻️ No pending rewards to compound above {} from {}",
+                    threshold, pools_desc,
                 ));
             }
             report.add_break();
