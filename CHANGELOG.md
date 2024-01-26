@@ -6,15 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- Update subxt v0.34.0
-- Show nomination pool threshold value in the report
-- Update metadata Polkadot runtime/1000000
-- Update metadata Kusama runtime/1001000
-- Disable Westend runtime/1006000
+
+## [0.11.1] - 2023-01-26
 
 ## Changed
 - Fix `onet_api_url` to depend on the connected chain and remove default endpoint.
-- Update metadata Polkadot runtime/9430
+- Show nomination pool threshold value in the report
+- Update subxt v0.34.0
+- Update metadata Polkadot runtime/1000000
+- Update metadata Kusama runtime/1001000
+- Disable Westend runtime/1006000
 
 ## [0.10.1] - 2023-07-14
 
