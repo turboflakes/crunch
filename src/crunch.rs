@@ -39,8 +39,8 @@ use subxt::{
         rpc::RpcClient,
     },
     ext::sp_core::crypto,
-    utils::AccountId32,
-    OnlineClient, PolkadotConfig,
+    utils::{AccountId32, validate_url_is_secure},
+    OnlineClient, SubstrateConfig,
 };
 
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
@@ -76,35 +76,32 @@ impl MessageTrait for Message {
     }
 }
 
-pub async fn _create_substrate_node_client(
-    config: Config,
-) -> Result<OnlineClient<PolkadotConfig>, subxt::Error> {
-    OnlineClient::<PolkadotConfig>::from_url(config.substrate_ws_url).await
-}
-
 pub async fn create_substrate_rpc_client_from_config(
     config: Config,
 ) -> Result<RpcClient, subxt::Error> {
-    RpcClient::from_url(config.substrate_ws_url).await
+    if let Err(_) = validate_url_is_secure(config.substrate_ws_url.as_ref()) {
+        warn!("Insecure URL provided: {}", config.substrate_ws_url);
+    };
+    RpcClient::from_insecure_url(config.substrate_ws_url).await
 }
 
 pub async fn create_substrate_client_from_rpc_client(
     rpc_client: RpcClient,
-) -> Result<OnlineClient<PolkadotConfig>, subxt::Error> {
-    OnlineClient::<PolkadotConfig>::from_rpc_client(rpc_client).await
+) -> Result<OnlineClient<SubstrateConfig>, subxt::Error> {
+    OnlineClient::<SubstrateConfig>::from_rpc_client(rpc_client).await
 }
 
 pub async fn create_or_await_substrate_node_client(
     config: Config,
 ) -> (
-    OnlineClient<PolkadotConfig>,
-    LegacyRpcMethods<PolkadotConfig>,
+    OnlineClient<SubstrateConfig>,
+    LegacyRpcMethods<SubstrateConfig>,
     SupportedRuntime,
 ) {
     loop {
         match create_substrate_rpc_client_from_config(config.clone()).await {
             Ok(rpc_client) => {
-                let rpc = LegacyRpcMethods::<PolkadotConfig>::new(rpc_client.clone());
+                let rpc = LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone());
                 let chain = rpc.system_chain().await.unwrap_or_default();
                 let name = rpc.system_name().await.unwrap_or_default();
                 let version = rpc.system_version().await.unwrap_or_default();
@@ -178,8 +175,8 @@ pub fn get_signer_from_seed(seed: &str, pass: Option<&str>) -> Keypair {
 
 pub struct Crunch {
     runtime: SupportedRuntime,
-    client: OnlineClient<PolkadotConfig>,
-    rpc: LegacyRpcMethods<PolkadotConfig>,
+    client: OnlineClient<SubstrateConfig>,
+    rpc: LegacyRpcMethods<SubstrateConfig>,
     matrix: Matrix,
 }
 
@@ -203,11 +200,11 @@ impl Crunch {
         }
     }
 
-    pub fn client(&self) -> &OnlineClient<PolkadotConfig> {
+    pub fn client(&self) -> &OnlineClient<SubstrateConfig> {
         &self.client
     }
 
-    pub fn rpc(&self) -> &LegacyRpcMethods<PolkadotConfig> {
+    pub fn rpc(&self) -> &LegacyRpcMethods<SubstrateConfig> {
         &self.rpc
     }
 
