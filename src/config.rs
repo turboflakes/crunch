@@ -179,7 +179,7 @@ fn get_config() -> Config {
     .arg(
       Arg::with_name("CHAIN")
           .index(1)
-          .possible_values(&["westend", "kusama", "polkadot"])
+          .possible_values(&["westend", "kusama", "polkadot", "paseo"])
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )

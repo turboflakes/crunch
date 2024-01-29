@@ -15,6 +15,7 @@ Download metadata from a substrate node, for use with `subxt` codegen.
 subxt metadata --url wss://rpc.turboflakes.io:443/westend -f bytes > westend_metadata.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/kusama -f bytes > kusama_metadata.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/polkadot -f bytes > polkadot_metadata.scale
+subxt metadata --url wss://rpc.turboflakes.io:443/paseo -f bytes > paseo_metadata.scale
 ```
 
 Generate runtime API client code from metadata.
