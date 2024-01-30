@@ -39,6 +39,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with: 
+          context: .
           file: docker/mainnet.dockerfile
           push: true
           tags: gluwa/crunch-mainnet:latest
