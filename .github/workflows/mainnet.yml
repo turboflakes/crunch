@@ -1,6 +1,7 @@
 name: Mainnet ci
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'mainnet'
@@ -42,5 +43,5 @@ jobs:
           context: .
           file: docker/mainnet.dockerfile
           push: true
-          tags: gluwa/crunch-mainnet:latest
+          tags: gluwa/crunch:mainnet-${{github.run_id}}
 

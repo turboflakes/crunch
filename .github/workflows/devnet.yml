@@ -1,6 +1,7 @@
 name: Devnet ci
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'devnet'
@@ -41,6 +42,6 @@ jobs:
           context: .
           file: docker/devnet.dockerfile
           push: true
-          tags: gluwa/crunch-devnet:latest
+          tags: gluwa/crunch:devnet-${{github.run_id}}
 
       
