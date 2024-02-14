@@ -662,25 +662,6 @@ async fn collect_validators_data(
 
     let mut stashes = get_stashes(&crunch).await?;
 
-    let current_block = api.blocks().at_latest().await?;
-    let current_header = current_block.header();
-    let prev_hash = current_header.parent_hash;
-
-    let previous_validators: Option<Vec<AccountId32>> = api
-        .storage()
-        .at(prev_hash)
-        .fetch(&active_validators_addr)
-        .await?;
-
-    if let Some(ref validator_list) = previous_validators {
-        for validator in validator_list.iter() {
-            let validator_s = validator.to_string();
-            if !stashes.iter().any(|x| x == &validator_s) {
-                stashes.push(validator_s);
-            }
-        }
-    }
-
     for (_i, stash_str) in stashes.iter().enumerate() {
         let stash = AccountId32::from_str(stash_str).map_err(|e| {
             CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
