@@ -317,8 +317,11 @@ FLAGS:
                                                 that the operator member account have to have their permissions set as
                                                 PermissionlessCompound or PermissionlessAll.
     -h, --help                                  Prints help information
-        --short                                 Display only essential information (e.g. with this flag active 'crunch
-                                                rewards' will only send essential messages/notifications about claimed
+        --medium                                Display essential information (e.g. with this flag active 'crunch
+                                                rewards' will send essential verbose messages/notifications about
+                                                claimed rewards like points and validator rewards)
+        --short                                 Display only minimum information (e.g. with this flag active 'crunch
+                                                rewards' will send minimum verbose messages/notifications about claimed
                                                 rewards)
     -V, --version                               Prints version information
 
