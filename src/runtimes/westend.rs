@@ -739,13 +739,15 @@ async fn get_era_index_start(
 
     if era_index < cmp::min(config.maximum_history_eras, history_depth) {
         return Ok(0);
-    } else if config.is_short {
-        return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
-    } else {
-        // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
-        // since we still want to show information about inclusion and eras crunched for all history_depth
-        return Ok(era_index - history_depth);
     }
+
+    if config.is_short || config.is_medium {
+        return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
+    }
+
+    // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
+    // since we still want to show information about inclusion and eras crunched for all history_depth
+    Ok(era_index - history_depth)
 }
 
 async fn get_validator_points_info(

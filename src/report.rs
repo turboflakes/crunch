@@ -128,17 +128,48 @@ pub struct RawData {
 
 type Body = Vec<String>;
 
+#[derive(Clone, PartialEq)]
+enum Verbosity {
+    Short,
+    Medium,
+    Long,
+}
+
+impl Verbosity {
+    fn from_config() -> Self {
+        let config = CONFIG.clone();
+        if config.is_short {
+            return Self::Short;
+        }
+        if config.is_medium {
+            return Self::Medium;
+        }
+        Self::Long
+    }
+
+    fn _is_short(&self) -> bool {
+        *self == Verbosity::Short
+    }
+
+    fn is_medium(&self) -> bool {
+        *self == Verbosity::Medium
+    }
+
+    fn is_long(&self) -> bool {
+        *self == Verbosity::Long
+    }
+}
+
 pub struct Report {
     body: Body,
-    is_short: bool,
+    verbosity: Verbosity,
 }
 
 impl Report {
     pub fn new() -> Report {
-        let config = CONFIG.clone();
         Report {
             body: Vec::new(),
-            is_short: config.is_short,
+            verbosity: Verbosity::from_config(),
         }
     }
 
@@ -147,7 +178,7 @@ impl Report {
     }
 
     pub fn add_text(&mut self, t: String) {
-        if !self.is_short {
+        if self.verbosity.is_long() {
             self.add_raw_text(t);
         }
     }
@@ -306,13 +337,7 @@ impl From<RawData> for Report {
                             payout.points.outlier_limits.1
                         )
                     );
-                    report.add_raw_text(format!(
-                        "🎲 Points {} {} ({:.0}) → 💸 {}",
-                        payout.points.validator,
-                        trend(payout.points.validator.into(), payout.points.era_avg),
-                        payout.points.era_avg,
-                        reward_amount
-                    ));
+
                     // Validator reward amount
                     let stash_amount = format!(
                         "{:.4} {}",
@@ -324,6 +349,28 @@ impl From<RawData> for Report {
                         / (payout.validator_amount_value + payout.nominators_amount_value)
                             as f64)
                         * 100.0;
+
+                    // NOTE: if 'medium' flag is selected show validator total rewards alongside points
+                    if report.verbosity.is_medium() {
+                        report.add_raw_text(format!(
+                            "🎲 Points {} {} ({:.0}) → 💸 {} → {} ({:.2}%)",
+                            payout.points.validator,
+                            trend(payout.points.validator.into(), payout.points.era_avg),
+                            payout.points.era_avg,
+                            reward_amount,
+                            stash_amount,
+                            stash_amount_percentage
+                        ));
+                    } else {
+                        report.add_raw_text(format!(
+                            "🎲 Points {} {} ({:.0}) → 💸 {}",
+                            payout.points.validator,
+                            trend(payout.points.validator.into(), payout.points.era_avg),
+                            payout.points.era_avg,
+                            reward_amount
+                        ));
+                    }
+
                     report.add_text(format!(
                         "🧑‍🚀 {} → 💸 <b>{}</b> ({:.2}%)",
                         validator.name, stash_amount, stash_amount_percentage
@@ -445,10 +492,18 @@ impl From<RawData> for Report {
                     format!("{} rewards", data.pools_summary.total_members)
                 };
 
-                report.add_raw_text(format!(
-                    "♻️ {} compounded from {}",
-                    members_desc, pools_desc
-                ));
+                if config.pool_only_operator_compound_enabled {
+                    report.add_raw_text(format!(
+                        "♻️ Pool operator reward compounded from {}",
+                        pools_desc
+                    ));
+                } else {
+                    report.add_raw_text(format!(
+                        "♻️ {} compounded from {}",
+                        members_desc, pools_desc
+                    ));
+                }
+
                 for batch in data.pools_summary.batches {
                     report.add_raw_text(format!(
                         "💯 Batch finalized at block #{} 
@@ -460,10 +515,11 @@ impl From<RawData> for Report {
                     ));
                 }
             } else {
-                report.add_raw_text(format!(
+                // NOTE: Just log if there are no pending rewards to compound
+                info!(
                     "♻️ No pending rewards to compound above {} from {}",
                     threshold, pools_desc,
-                ));
+                );
             }
             report.add_break();
         }

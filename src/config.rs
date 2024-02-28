@@ -144,6 +144,8 @@ pub struct Config {
     #[serde(default)]
     pub is_short: bool,
     #[serde(default)]
+    pub is_medium: bool,
+    #[serde(default)]
     pub is_mode_era: bool,
     // ONE-T integration
     #[serde(default)]
@@ -259,7 +261,11 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("short")
           .long("short")
-          .help("Display only essential information (e.g. with this flag active 'crunch flakes' will only send essential messages/notifications about claimed rewards)"))
+          .help("Display only minimum information (e.g. with this flag active 'crunch rewards' will send minimum verbose messages/notifications about claimed rewards)"))
+      .arg(
+        Arg::with_name("medium")
+          .long("medium")
+          .help("Display essential information (e.g. with this flag active 'crunch rewards' will send essential verbose messages/notifications about claimed rewards like points and validator rewards)"))
       .arg(
         Arg::with_name("error-interval")
           .long("error-interval")
@@ -385,7 +391,11 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("short")
           .long("short")
-          .help("Display only essential information (e.g. with this flag active 'crunch rewards' will only send essential messages/notifications about claimed rewards)"))
+          .help("Display only minimum information (e.g. with this flag active 'crunch rewards' will send minimum verbose messages/notifications about claimed rewards)"))
+      .arg(
+        Arg::with_name("medium")
+          .long("medium")
+          .help("Display essential information (e.g. with this flag active 'crunch rewards' will send essential verbose messages/notifications about claimed rewards like points and validator rewards)"))
       .arg(
         Arg::with_name("error-interval")
           .long("error-interval")
@@ -575,6 +585,10 @@ fn get_config() -> Config {
 
             if flakes_matches.is_present("short") {
                 env::set_var("CRUNCH_IS_SHORT", "true");
+            }
+
+            if flakes_matches.is_present("medium") {
+                env::set_var("CRUNCH_IS_MEDIUM", "true");
             }
 
             if flakes_matches.is_present("subscribe") {
