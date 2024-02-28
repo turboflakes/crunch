@@ -6,8 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.11.3] - 2023-02-28
+
+## New
+- Add `medium` flag as another verbosity option
 - Add support for Paseo Testnet
-- Add metadata Paseo runtime/1000000
+- Add metadata Paseo runtime/1001002
+
+## Changed
+- Update metadata Polkadot runtime/1001002
+- Update metadata Kusama runtime/1001002
 
 ## [0.11.2] - 2023-01-26
 

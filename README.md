@@ -31,7 +31,7 @@ For Pool Operators to auto-compound members rewards above certain threshold.
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.11.2/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.11.3/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
@@ -386,8 +386,8 @@ Note: You can run `crunch` inside a tmux session and leave it, or using somethin
 
 Install previous openssl version from:
 ```
-wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.20_amd64.deb
-dpkg -i libssl1.1_1.1.1f-1ubuntu2.20_amd64.deb
+wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.21_amd64.deb
+dpkg -i libssl1.1_1.1.1f-1ubuntu2.21_amd64.deb
 ```
 
 ## Development / Build from Source
