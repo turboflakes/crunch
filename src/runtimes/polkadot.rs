@@ -35,8 +35,7 @@ use crate::stats;
 use async_recursion::async_recursion;
 use log::{debug, info, warn};
 use std::{
-    cmp, convert::TryFrom, convert::TryInto, result::Result, str::FromStr, thread,
-    time,
+    cmp, convert::TryFrom, convert::TryInto, result::Result, str::FromStr, thread, time,
 };
 use subxt::{
     error::DispatchError,

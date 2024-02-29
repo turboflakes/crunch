@@ -31,6 +31,7 @@ use crate::runtimes::{
 use async_std::task;
 use log::{debug, error, info, warn};
 use rand::Rng;
+use regex::Regex;
 use serde::Deserialize;
 use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
 
@@ -174,6 +175,11 @@ pub fn get_keypair_from_seed_file() -> Result<Keypair, CrunchError> {
 
     // load data from seed file
     let data = fs::read_to_string(config.seed_path)?;
+
+    // clear control characters from data
+    let re = Regex::new(r"[\x00-\x1F]").unwrap();
+    let data = re.replace_all(&data.trim(), "");
+
     // parse data into a secret
     let uri = SecretUri::from_str(&data)?;
     Ok(Keypair::from_uri(&uri)?)
