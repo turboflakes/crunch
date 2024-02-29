@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2023-02-29
+
+## Bugfix
+- Since v0.11.0 only mnemonic phrases were parsed correctly from the seed file, this release fixes this issue, allowing secret keys, mnemonic phrases or uri to be interpreted correctly.
+
 ## [0.12.0] - 2023-02-28
 
 ## New
