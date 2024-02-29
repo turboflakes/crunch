@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2023-02-29
+
+## Bugfix
+- Fixes issue [#39](https://github.com/turboflakes/crunch/issues/39), removes control characters from seed file, before parsing content.
+
 ## [0.12.1] - 2023-02-29
 
 ## Bugfix
