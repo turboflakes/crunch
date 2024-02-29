@@ -21,7 +21,7 @@
 
 use crate::config::CONFIG;
 use crate::crunch::{
-    get_account_id_from_storage_key, get_signer_from_seed, random_wait,
+    get_account_id_from_storage_key, get_keypair_from_seed_file, random_wait,
     try_fetch_onet_data, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount,
     ValidatorAmount, ValidatorIndex,
 };
@@ -35,7 +35,7 @@ use crate::stats;
 use async_recursion::async_recursion;
 use log::{debug, info, warn};
 use std::{
-    cmp, convert::TryFrom, convert::TryInto, fs, result::Result, str::FromStr, thread,
+    cmp, convert::TryFrom, convert::TryInto, result::Result, str::FromStr, thread,
     time,
 };
 use subxt::{
@@ -101,10 +101,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
     let api = crunch.client().clone();
 
-    // Load seed account
-    let seed = fs::read_to_string(config.seed_path)
-        .expect("Something went wrong reading the seed file");
-    let signer_keypair: Keypair = get_signer_from_seed(&seed, None);
+    let signer_keypair: Keypair = get_keypair_from_seed_file()?;
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
 
     // Get signer account identity

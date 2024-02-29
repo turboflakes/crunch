@@ -46,6 +46,12 @@ pub enum CrunchError {
     ReqwestError(#[from] reqwest::Error),
     #[error("ParseError error: {0}")]
     ParseError(#[from] url::ParseError),
+    #[error("SubxtSignerError error: {0}")]
+    SubxtSignerError(#[from] subxt_signer::sr25519::Error),
+    #[error("SecretError error: {0}")]
+    SecretError(#[from] subxt_signer::SecretUriError),
+    #[error("IOError error: {0}")]
+    IOError(#[from] std::io::Error),
     #[error("Other error: {0}")]
     Other(String),
 }

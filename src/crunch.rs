@@ -32,7 +32,7 @@ use async_std::task;
 use log::{debug, error, info, warn};
 use rand::Rng;
 use serde::Deserialize;
-use std::{convert::TryInto, result::Result, thread, time};
+use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
 
 use subxt::{
     backend::{
@@ -44,7 +44,7 @@ use subxt::{
     OnlineClient, SubstrateConfig,
 };
 
-use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
+use subxt_signer::{sr25519::Keypair, SecretUri};
 
 pub type ValidatorIndex = Option<usize>;
 pub type ValidatorAmount = u128;
@@ -168,10 +168,15 @@ pub async fn create_or_await_substrate_node_client(
 //         .expect("constructed from known-good static value; qed")
 // }
 
-/// Helper function to generate a crypto pair from seed
-pub fn get_signer_from_seed(seed: &str, pass: Option<&str>) -> Keypair {
-    let mnemonic = Mnemonic::parse(seed).unwrap();
-    Keypair::from_phrase(&mnemonic, pass).unwrap()
+/// Helper function to generate a keypair from the content of the seed file
+pub fn get_keypair_from_seed_file() -> Result<Keypair, CrunchError> {
+    let config = CONFIG.clone();
+
+    // load data from seed file
+    let data = fs::read_to_string(config.seed_path)?;
+    // parse data into a secret
+    let uri = SecretUri::from_str(&data)?;
+    Ok(Keypair::from_uri(&uri)?)
 }
 
 pub struct Crunch {
