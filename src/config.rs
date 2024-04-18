@@ -513,7 +513,7 @@ fn get_config() -> Config {
         Some("kusama") => {
             env::set_var(
                 "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://kusama-rpc.polkadot.io:443",
+                "wss://rpc.turboflakes.io:443/kusama",
             );
         }
         Some("polkadot") => {

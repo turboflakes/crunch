@@ -680,11 +680,11 @@ async fn collect_validators_data(
         {
             debug!(
                 "{} * claimed_rewards: {:?}",
-                stash, staking_ledger.claimed_rewards
+                stash, staking_ledger.legacy_claimed_rewards
             );
 
             // deconstruct claimed rewards
-            let BoundedVec(claimed_rewards) = staking_ledger.claimed_rewards;
+            let BoundedVec(claimed_rewards) = staking_ledger.legacy_claimed_rewards;
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
                 // If reward was already claimed skip it
@@ -805,7 +805,7 @@ async fn get_display_name(
         .fetch(&identity_of_addr)
         .await?
     {
-        Some(identity) => {
+        Some((identity, _)) => {
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
             let name = match sub_account_name {
@@ -990,7 +990,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
                 // deconstruct claimed rewards
-                let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
+                let BoundedVec(claimed_rewards) = ledger_response.legacy_claimed_rewards;
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
                     // If reward was already claimed skip it
