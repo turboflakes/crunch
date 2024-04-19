@@ -709,6 +709,23 @@ async fn collect_validators_data(
                         v.unclaimed.push(e)
                     }
                 }
+                // Verify if stash was active by looping pages at eras_stakers_paged
+                let eras_stakers_paged_addr = node_runtime::storage()
+                    .staking()
+                    .eras_stakers_paged_iter2(&e, &stash);
+
+                let mut iter = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .iter(eras_stakers_paged_addr)
+                    .await?;
+
+                while let Some(Ok((_, exposure))) = iter.next().await {
+                    if exposure.page_total > 0 {
+                        v.unclaimed.push(e)
+                    }
+                }
             }
         }
         validators.push(v);
@@ -991,8 +1008,10 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
             {
                 // deconstruct claimed rewards
                 let BoundedVec(claimed_rewards) = ledger_response.legacy_claimed_rewards;
+
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
+                    // info!("__era_index: {}: {:?}", era_index, claimed_rewards);
                     // If reward was already claimed skip it
                     if claimed_rewards.contains(&era_index) {
                         claimed.push(era_index);
@@ -1010,6 +1029,23 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                         .await?
                     {
                         if exposure.total > 0 {
+                            unclaimed.push(era_index)
+                        }
+                    }
+                    // Verify if stash was active by looping pages at eras_stakers_paged
+                    let eras_stakers_paged_addr = node_runtime::storage()
+                        .staking()
+                        .eras_stakers_paged_iter2(&era_index, &stash);
+
+                    let mut iter = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .iter(eras_stakers_paged_addr)
+                        .await?;
+
+                    while let Some(Ok((_, exposure))) = iter.next().await {
+                        if exposure.page_total > 0 {
                             unclaimed.push(era_index)
                         }
                     }
