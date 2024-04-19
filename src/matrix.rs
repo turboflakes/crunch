@@ -23,7 +23,7 @@ use crate::config::CONFIG;
 use crate::errors::MatrixError;
 use crate::runtimes::support::SupportedRuntime;
 use async_recursion::async_recursion;
-use base64::encode;
+use base64::{engine::general_purpose, Engine};
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, result::Result, thread, time};
@@ -59,7 +59,7 @@ fn define_private_room_alias_name(
     matrix_user: &str,
     matrix_bot_user: &str,
 ) -> String {
-    encode(
+    general_purpose::STANDARD.encode(
         format!(
             "{}/{}/{}/{}",
             pkg_name, chain_name, matrix_user, matrix_bot_user
