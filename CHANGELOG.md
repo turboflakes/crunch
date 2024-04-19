@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2023-04-19
+- Fixes unclaimed eras from new storage 'staking.eras_stakers_paged'
+- update base64 crate version
+
+## Changed
+
 ## [0.13.0] - 2023-04-18
 
 ## Changed
