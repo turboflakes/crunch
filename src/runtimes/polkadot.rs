@@ -680,21 +680,36 @@ async fn collect_validators_data(
         {
             debug!(
                 "{} * claimed_rewards: {:?}",
-                stash, staking_ledger.claimed_rewards
+                stash, staking_ledger.legacy_claimed_rewards
             );
-
             // deconstruct claimed rewards
-            let BoundedVec(claimed_rewards) = staking_ledger.claimed_rewards;
+            let BoundedVec(legacy_claimed_rewards) =
+                staking_ledger.legacy_claimed_rewards;
+
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
                 // If reward was already claimed skip it
-                if claimed_rewards.contains(&e) {
-                    if e == era_index - 1 {
-                        v.is_previous_era_already_claimed = true;
-                    }
+                if legacy_claimed_rewards.contains(&e) {
                     v.claimed.push(e);
                     continue;
                 }
+
+                // If reward was already claimed skip it
+                let claimed_rewards_addr = node_runtime::storage()
+                    .staking()
+                    .claimed_rewards(&e, &stash);
+                if api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&claimed_rewards_addr)
+                    .await?
+                    .is_some()
+                {
+                    v.claimed.push(e);
+                    continue;
+                }
+
                 // Verify if stash was active in set
                 let eras_stakers_addr =
                     node_runtime::storage().staking().eras_stakers(&e, &stash);
@@ -706,6 +721,23 @@ async fn collect_validators_data(
                     .await?
                 {
                     if exposure.total > 0 {
+                        v.unclaimed.push(e)
+                    }
+                }
+                // Verify if stash was active by looping pages at eras_stakers_paged
+                let eras_stakers_paged_addr = node_runtime::storage()
+                    .staking()
+                    .eras_stakers_paged_iter2(&e, &stash);
+
+                let mut iter = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .iter(eras_stakers_paged_addr)
+                    .await?;
+
+                while let Some(Ok((_, exposure))) = iter.next().await {
+                    if exposure.page_total > 0 {
                         v.unclaimed.push(e)
                     }
                 }
@@ -805,7 +837,7 @@ async fn get_display_name(
         .fetch(&identity_of_addr)
         .await?
     {
-        Some(identity) => {
+        Some((identity, _)) => {
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
             let name = match sub_account_name {
@@ -990,14 +1022,34 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
                 // deconstruct claimed rewards
-                let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
+                let BoundedVec(legacy_claimed_rewards) =
+                    ledger_response.legacy_claimed_rewards;
+
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
+                    // TODO: legacy_claimed_rewards will be deprecated in the future
                     // If reward was already claimed skip it
-                    if claimed_rewards.contains(&era_index) {
+                    if legacy_claimed_rewards.contains(&era_index) {
                         claimed.push(era_index);
                         continue;
                     }
+
+                    // If reward was already claimed skip it
+                    let claimed_rewards_addr = node_runtime::storage()
+                        .staking()
+                        .claimed_rewards(&era_index, &stash);
+                    if api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .fetch(&claimed_rewards_addr)
+                        .await?
+                        .is_some()
+                    {
+                        claimed.push(era_index);
+                        continue;
+                    }
+
                     // Verify if stash was active in set
                     let eras_stakers_addr = node_runtime::storage()
                         .staking()
@@ -1010,6 +1062,23 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                         .await?
                     {
                         if exposure.total > 0 {
+                            unclaimed.push(era_index)
+                        }
+                    }
+                    // Verify if stash was active by looping pages at eras_stakers_paged
+                    let eras_stakers_paged_addr = node_runtime::storage()
+                        .staking()
+                        .eras_stakers_paged_iter2(&era_index, &stash);
+
+                    let mut iter = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .iter(eras_stakers_paged_addr)
+                        .await?;
+
+                    while let Some(Ok((_, exposure))) = iter.next().await {
+                        if exposure.page_total > 0 {
                             unclaimed.push(era_index)
                         }
                     }
