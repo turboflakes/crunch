@@ -79,6 +79,16 @@ fn default_existential_deposit_factor_warning() -> u32 {
     2
 }
 
+/// provides the default tip in PLANCKS for the block author
+fn default_tx_tip() -> u64 {
+    0
+}
+
+/// provides the default number of blocks the transaction is mortal for
+fn default_tx_mortal_period() -> u64 {
+    64
+}
+
 /// provides default value for pool_compound_threshold if CRUNCH_POOL_COMPOUND_THRESHOLD env var is not set
 fn default_pool_compound_threshold() -> u64 {
     100000000000
@@ -135,6 +145,10 @@ pub struct Config {
     pub maximum_calls: u32,
     #[serde(default = "default_existential_deposit_factor_warning")]
     pub existential_deposit_factor_warning: u32,
+    #[serde(default = "default_tx_tip")]
+    pub tx_tip: u64,
+    #[serde(default = "default_tx_mortal_period")]
+    pub tx_mortal_period: u64,
     #[serde(default)]
     pub only_view: bool,
     #[serde(default)]
@@ -279,6 +293,20 @@ fn get_config() -> Config {
             "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
           ))
       .arg(
+        Arg::with_name("tx-tip")
+          .long("tx-tip")
+          .takes_value(true)
+          .help(
+            "Define a tip in PLANCKS for the block author.",
+          ))
+      .arg(
+        Arg::with_name("tx-mortal-period")
+          .long("tx-mortal-period")
+          .takes_value(true)
+          .help(
+            "Define the number of blocks the transaction is mortal for (default is 64 blocks)",
+          ))
+      .arg(
         Arg::with_name("enable-pool-compound-threshold")
           .long("enable-pool-compound-threshold")
           .takes_value(true)
@@ -408,6 +436,20 @@ fn get_config() -> Config {
           .help(
             "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
           ))
+          .arg(
+            Arg::with_name("tx-tip")
+              .long("tx-tip")
+              .takes_value(true)
+              .help(
+                "Define a tip in PLANCKS for the block author.",
+              ))
+          .arg(
+            Arg::with_name("tx-mortal-period")
+              .long("tx-mortal-period")
+              .takes_value(true)
+              .help(
+                "Define the number of blocks the transaction is mortal for (default is 64 blocks)",
+              ))
       .arg(
         Arg::with_name("enable-pool-compound-threshold")
           .long("enable-pool-compound-threshold")
@@ -623,6 +665,14 @@ fn get_config() -> Config {
 
             if let Some(pool_ids) = flakes_matches.value_of("pool-ids") {
                 env::set_var("CRUNCH_POOL_IDS", pool_ids);
+            }
+
+            if let Some(tx_tip) = flakes_matches.value_of("tx-tip") {
+                env::set_var("CRUNCH_TX_TIP", tx_tip);
+            }
+
+            if let Some(tx_mortal_period) = flakes_matches.value_of("tx-mortal-period") {
+                env::set_var("CRUNCH_TX_MORTAL_PERIOD", tx_mortal_period);
             }
 
             if let Some(threshold) =

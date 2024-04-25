@@ -38,6 +38,7 @@ use std::{
     cmp, convert::TryFrom, convert::TryInto, result::Result, str::FromStr, thread, time,
 };
 use subxt::{
+    config::polkadot::PolkadotExtrinsicParamsBuilder as Params,
     error::DispatchError,
     ext::codec::{Decode, Encode},
     utils::{AccountId32, MultiAddress},
@@ -276,9 +277,19 @@ pub async fn try_run_batch_pool_members(
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
 
+                // Get latest block to be submitted in tx params
+                let latest_block = api.blocks().at_latest().await?;
+
+                // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
+                // Note: transaction to longevity is calculated from the `latest_block`
+                let tx_params = Params::new()
+                    .tip(config.tx_tip.into())
+                    .mortal(latest_block.header(), config.tx_mortal_period)
+                    .build();
+
                 let batch_response = api
                     .tx()
-                    .sign_and_submit_then_watch_default(&tx, signer)
+                    .sign_and_submit_then_watch(&tx, signer, tx_params)
                     .await?
                     .wait_for_finalized()
                     .await?;
@@ -451,9 +462,19 @@ pub async fn try_run_batch_payouts(
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
 
+                // Get latest block to be submitted in tx params
+                let latest_block = api.blocks().at_latest().await?;
+
+                // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
+                // Note: transaction to longevity is calculated from the `latest_block`
+                let tx_params = Params::new()
+                    .tip(config.tx_tip.into())
+                    .mortal(latest_block.header(), config.tx_mortal_period)
+                    .build();
+
                 let batch_response = api
                     .tx()
-                    .sign_and_submit_then_watch_default(&tx, signer)
+                    .sign_and_submit_then_watch(&tx, signer, tx_params)
                     .await?
                     .wait_for_finalized()
                     .await?;
