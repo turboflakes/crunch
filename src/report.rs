@@ -415,9 +415,6 @@ impl From<RawData> for Report {
 
             // General stats
 
-            info!("__claimed {:?}", validator.claimed.clone());
-            info!("__unclaimed {:?}", validator.unclaimed.clone());
-
             // Inclusion
             let eras_claimed = validator
                 .claimed
