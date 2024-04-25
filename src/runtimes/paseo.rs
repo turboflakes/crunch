@@ -379,7 +379,14 @@ pub async fn try_run_batch_payouts(
                 if i == 0 {
                     maximum_payouts = None;
                 } else {
-                    if let Some(claim_era) = v.unclaimed.pop() {
+                    if let Some((claim_era, _page_index)) = v.unclaimed.pop() {
+                        // TODO: After deprecated storage items going away we could consider
+                        // using payout_stakers_by_page with the respective page_index.
+                        // Until than lets just call payout_stakers x times based on
+                        // the unclaimed pages previously checked.
+                        //
+                        // PR: https://github.com/paritytech/polkadot-sdk/pull/1189
+                        //
                         let call = Call::Staking(StakingCall::payout_stakers {
                             validator_stash: v.stash.clone(),
                             era: claim_era,
@@ -510,8 +517,10 @@ pub async fn try_run_batch_payouts(
                         //
                         if let Some(i) = validator_index {
                             let validator = &mut validators[i];
-                            // Add era to claimed vec
-                            validator.claimed.push(era_index);
+
+                            // NOTE: Currently we do not track which page is being payout here.
+                            // It should be changed when payout_stakers_by_page is in place
+                            validator.claimed.push((era_index, 0));
                             // Fetch stash points
                             let points = get_validator_points_info(
                                 &crunch,
@@ -601,11 +610,7 @@ pub async fn try_run_batch_payouts(
 
     // Prepare summary report
     summary.total_validators = validators.len() as u32;
-    summary.total_validators_previous_era_already_claimed = validators
-        .iter()
-        .map(|v| v.claimed.contains(&(active_era_index - 1)) as u32)
-        .reduce(|a, b| a + b)
-        .unwrap_or_default();
+
     Ok((validators, summary))
 }
 
@@ -692,7 +697,7 @@ async fn collect_validators_data(
                     if e == era_index - 1 {
                         v.is_previous_era_already_claimed = true;
                     }
-                    v.claimed.push(e);
+                    v.claimed.push((e, 0));
                     continue;
                 }
                 // Verify if stash was active in set
@@ -706,7 +711,7 @@ async fn collect_validators_data(
                     .await?
                 {
                     if exposure.total > 0 {
-                        v.unclaimed.push(e)
+                        v.unclaimed.push((e, 0))
                     }
                 }
             }

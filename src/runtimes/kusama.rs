@@ -28,8 +28,8 @@ use crate::crunch::{
 use crate::errors::CrunchError;
 use crate::pools::{nomination_pool_account, AccountType};
 use crate::report::{
-    Batch, EraIndex, Network, NominationPoolsSummary, Payout, PayoutSummary, Points,
-    RawData, Report, SignerDetails, Validator, Validators,
+    Batch, EraIndex, Network, NominationPoolsSummary, PageIndex, Payout, PayoutSummary,
+    Points, RawData, Report, SignerDetails, Validator, Validators,
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -379,7 +379,14 @@ pub async fn try_run_batch_payouts(
                 if i == 0 {
                     maximum_payouts = None;
                 } else {
-                    if let Some(claim_era) = v.unclaimed.pop() {
+                    if let Some((claim_era, _page_index)) = v.unclaimed.pop() {
+                        // TODO: After deprecated storage items going away we could consider
+                        // using payout_stakers_by_page with the respective page_index.
+                        // Until than lets just call payout_stakers x times based on
+                        // the unclaimed pages previously checked.
+                        //
+                        // PR: https://github.com/paritytech/polkadot-sdk/pull/1189
+                        //
                         let call = Call::Staking(StakingCall::payout_stakers {
                             validator_stash: v.stash.clone(),
                             era: claim_era,
@@ -397,7 +404,7 @@ pub async fn try_run_batch_payouts(
     }
 
     if calls_for_batch.len() > 0 {
-        // TODO check batch call weight or maximum_calls [default: 8]
+        // TODO check batch call weight or maximum_calls [default: 4]
         //
         // Calculate the number of extrinsics (iteractions) based on the maximum number of calls per batch
         // and the number of calls to be sent
@@ -510,8 +517,10 @@ pub async fn try_run_batch_payouts(
                         //
                         if let Some(i) = validator_index {
                             let validator = &mut validators[i];
-                            // Add era to claimed vec
-                            validator.claimed.push(era_index);
+
+                            // NOTE: Currently we do not track which page is being payout here.
+                            // It should be changed when payout_stakers_by_page is in place
+                            validator.claimed.push((era_index, 0));
                             // Fetch stash points
                             let points = get_validator_points_info(
                                 &crunch,
@@ -601,11 +610,7 @@ pub async fn try_run_batch_payouts(
 
     // Prepare summary report
     summary.total_validators = validators.len() as u32;
-    summary.total_validators_previous_era_already_claimed = validators
-        .iter()
-        .map(|v| v.claimed.contains(&(active_era_index - 1)) as u32)
-        .reduce(|a, b| a + b)
-        .unwrap_or_default();
+
     Ok((validators, summary))
 }
 
@@ -688,57 +693,65 @@ async fn collect_validators_data(
 
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
-                // If reward was already claimed skip it
+                // TODO: legacy methods to be deprecated in the future
+                // check https://github.com/paritytech/polkadot-sdk/pull/1189
                 if legacy_claimed_rewards.contains(&e) {
-                    v.claimed.push(e);
+                    v.claimed.push((e, 0));
                     continue;
                 }
 
-                // If reward was already claimed skip it
+                // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
                 let claimed_rewards_addr = node_runtime::storage()
                     .staking()
                     .claimed_rewards(&e, &stash);
-                if api
+                if let Some(claimed_rewards) = api
                     .storage()
                     .at_latest()
                     .await?
                     .fetch(&claimed_rewards_addr)
                     .await?
-                    .is_some()
                 {
-                    v.claimed.push(e);
-                    continue;
-                }
-
-                // Verify if stash was active in set
-                let eras_stakers_addr =
-                    node_runtime::storage().staking().eras_stakers(&e, &stash);
-                if let Some(exposure) = api
-                    .storage()
-                    .at_latest()
-                    .await?
-                    .fetch(&eras_stakers_addr)
-                    .await?
-                {
-                    if exposure.total > 0 {
-                        v.unclaimed.push(e)
+                    // Verify if there are more pages to claim than the ones already claimed
+                    let eras_stakers_overview_addr = node_runtime::storage()
+                        .staking()
+                        .eras_stakers_overview(&e, &stash);
+                    if let Some(exposure) = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .fetch(&eras_stakers_overview_addr)
+                        .await?
+                    {
+                        // Check if all pages are claimed or not
+                        for page_index in 0..exposure.page_count {
+                            if claimed_rewards.contains(&page_index) {
+                                v.claimed.push((e, page_index));
+                            } else {
+                                v.unclaimed.push((e, page_index));
+                            }
+                        }
+                    } else {
+                        // If eras_stakers_overview is not available set all pages claimed
+                        for page_index in claimed_rewards {
+                            v.claimed.push((e, page_index));
+                        }
                     }
-                }
-                // Verify if stash was active by looping pages at eras_stakers_paged
-                let eras_stakers_paged_addr = node_runtime::storage()
-                    .staking()
-                    .eras_stakers_paged_iter2(&e, &stash);
+                } else {
+                    // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
+                    let eras_stakers_paged_addr = node_runtime::storage()
+                        .staking()
+                        .eras_stakers_paged_iter2(&e, &stash);
+                    let mut iter = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .iter(eras_stakers_paged_addr)
+                        .await?;
 
-                let mut iter = api
-                    .storage()
-                    .at_latest()
-                    .await?
-                    .iter(eras_stakers_paged_addr)
-                    .await?;
-
-                while let Some(Ok((_, exposure))) = iter.next().await {
-                    if exposure.page_total > 0 {
-                        v.unclaimed.push(e)
+                    let mut page_index = 0;
+                    while let Some(Ok(_)) = iter.next().await {
+                        v.unclaimed.push((e, page_index));
+                        page_index += 1;
                     }
                 }
             }
@@ -1010,8 +1023,8 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         info!("{} * Stash account", stash);
 
         let start_index = active_era_index - history_depth;
-        let mut unclaimed: Vec<u32> = Vec::new();
-        let mut claimed: Vec<u32> = Vec::new();
+        let mut unclaimed: Vec<(EraIndex, PageIndex)> = Vec::new();
+        let mut claimed: Vec<(EraIndex, PageIndex)> = Vec::new();
 
         let bonded_addr = node_runtime::storage().staking().bonded(&stash);
         if let Some(controller) =
@@ -1027,72 +1040,78 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
 
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
-                    // TODO: legacy_claimed_rewards will be deprecated in the future
-                    // If reward was already claimed skip it
+                    // TODO: legacy methods to be deprecated in the future
+                    // check https://github.com/paritytech/polkadot-sdk/pull/1189
                     if legacy_claimed_rewards.contains(&era_index) {
-                        claimed.push(era_index);
+                        claimed.push((era_index, 0));
                         continue;
                     }
 
-                    // If reward was already claimed skip it
+                    // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
                     let claimed_rewards_addr = node_runtime::storage()
                         .staking()
                         .claimed_rewards(&era_index, &stash);
-                    if api
+                    if let Some(claimed_rewards) = api
                         .storage()
                         .at_latest()
                         .await?
                         .fetch(&claimed_rewards_addr)
                         .await?
-                        .is_some()
                     {
-                        claimed.push(era_index);
-                        continue;
-                    }
-
-                    // Verify if stash was active in set
-                    let eras_stakers_addr = node_runtime::storage()
-                        .staking()
-                        .eras_stakers(&era_index, &stash);
-                    if let Some(exposure) = api
-                        .storage()
-                        .at_latest()
-                        .await?
-                        .fetch(&eras_stakers_addr)
-                        .await?
-                    {
-                        if exposure.total > 0 {
-                            unclaimed.push(era_index)
+                        // Verify if there are more pages to claim than the ones already claimed
+                        let eras_stakers_overview_addr = node_runtime::storage()
+                            .staking()
+                            .eras_stakers_overview(&era_index, &stash);
+                        if let Some(exposure) = api
+                            .storage()
+                            .at_latest()
+                            .await?
+                            .fetch(&eras_stakers_overview_addr)
+                            .await?
+                        {
+                            // Check if all pages are claimed or not
+                            for page_index in 0..exposure.page_count {
+                                if claimed_rewards.contains(&page_index) {
+                                    claimed.push((era_index, page_index));
+                                } else {
+                                    unclaimed.push((era_index, page_index));
+                                }
+                            }
+                        } else {
+                            // If eras_stakers_overview is not available set all pages claimed
+                            for page_index in claimed_rewards {
+                                claimed.push((era_index, page_index));
+                            }
                         }
-                    }
-                    // Verify if stash was active by looping pages at eras_stakers_paged
-                    let eras_stakers_paged_addr = node_runtime::storage()
-                        .staking()
-                        .eras_stakers_paged_iter2(&era_index, &stash);
+                    } else {
+                        // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
+                        let eras_stakers_paged_addr = node_runtime::storage()
+                            .staking()
+                            .eras_stakers_paged_iter2(&era_index, &stash);
+                        let mut iter = api
+                            .storage()
+                            .at_latest()
+                            .await?
+                            .iter(eras_stakers_paged_addr)
+                            .await?;
 
-                    let mut iter = api
-                        .storage()
-                        .at_latest()
-                        .await?
-                        .iter(eras_stakers_paged_addr)
-                        .await?;
-
-                    while let Some(Ok((_, exposure))) = iter.next().await {
-                        if exposure.page_total > 0 {
-                            unclaimed.push(era_index)
+                        let mut page_index = 0;
+                        while let Some(Ok(_)) = iter.next().await {
+                            unclaimed.push((era_index, page_index));
+                            page_index += 1;
                         }
                     }
                 }
             }
         }
         info!(
-            "{} claimed eras in the last {} -> {:?}",
+            "{} claimed pages in the last {} eras -> {:?}",
             claimed.len(),
             history_depth,
             claimed
         );
         info!(
-            "{} unclaimed eras in the last {} -> {:?}",
+            "{} unclaimed pages in the last {} eras -> {:?}",
             unclaimed.len(),
             history_depth,
             unclaimed
