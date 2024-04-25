@@ -21,9 +21,11 @@
 use crate::{config::CONFIG, crunch::OnetData};
 use log::{info, warn};
 use rand::Rng;
+use std::collections::HashSet;
 use subxt::{ext::sp_core::H256, utils::AccountId32};
 
 pub type EraIndex = u32;
+pub type PageIndex = u32;
 
 #[derive(Debug, Default, Clone)]
 pub struct Points {
@@ -57,8 +59,8 @@ pub struct Validator {
     pub name: String,
     pub is_active: bool,
     pub is_previous_era_already_claimed: bool,
-    pub claimed: Vec<EraIndex>,
-    pub unclaimed: Vec<EraIndex>,
+    pub claimed: Vec<(EraIndex, PageIndex)>,
+    pub unclaimed: Vec<(EraIndex, PageIndex)>,
     pub payouts: Vec<Payout>,
     pub warnings: Vec<String>,
     pub onet: Option<OnetData>,
@@ -105,7 +107,7 @@ pub struct PayoutSummary {
     pub calls_failed: u32,
     pub next_minimum_expected: u32,
     pub total_validators: u32,
-    pub total_validators_previous_era_already_claimed: u32,
+    pub total_unclaimed_pages: u32,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -221,21 +223,6 @@ impl From<RawData> for Report {
             format!("")
         };
 
-        let summary_already_desc = if data
-            .payout_summary
-            .total_validators_previous_era_already_claimed
-            > 0
-            && data.payout_summary.calls_succeeded == 0
-        {
-            format!(
-                "Earlier claimed <b>{}</b> → ",
-                data.payout_summary
-                    .total_validators_previous_era_already_claimed,
-            )
-        } else {
-            format!("")
-        };
-
         let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {
             format!(
                 "Next era expect <b>{}</b> ({:.0}%) {}",
@@ -250,8 +237,8 @@ impl From<RawData> for Report {
         };
 
         report.add_raw_text(format!(
-            "<details><summary>{}{}{}</summary>",
-            summary_crunch_desc, summary_already_desc, summary_next_desc,
+            "<details><summary>{}{}</summary>",
+            summary_crunch_desc, summary_next_desc,
         ));
 
         report.add_raw_text("——".to_string());
@@ -428,15 +415,34 @@ impl From<RawData> for Report {
 
             // General stats
 
+            info!("__claimed {:?}", validator.claimed.clone());
+            info!("__unclaimed {:?}", validator.unclaimed.clone());
+
             // Inclusion
+            let eras_claimed = validator
+                .claimed
+                .clone()
+                .into_iter()
+                .map(|(era_index, _page_index)| era_index)
+                .collect::<HashSet<EraIndex>>()
+                .len();
+
+            let eras_unclaimed = validator
+                .unclaimed
+                .clone()
+                .into_iter()
+                .map(|(era_index, _page_index)| era_index)
+                .collect::<HashSet<EraIndex>>()
+                .len();
+
             let inclusion_percentage =
-                ((validator.claimed.len() + validator.unclaimed.len()) as f32 / 84.0)
-                    * 100.0;
+                ((eras_claimed + eras_unclaimed) as f32 / 84.0) * 100.0;
+
             report.add_text(format!(
                 "📒 Inclusion {}/{} ({:.2}%)",
-                validator.claimed.len() + validator.unclaimed.len(),
+                eras_claimed + eras_unclaimed,
                 84,
-                inclusion_percentage
+                inclusion_percentage.clone()
             ));
 
             // Claimed
