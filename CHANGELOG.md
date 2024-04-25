@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## New
+- Add `--tx-tip` as optional to define a tip for block author
+
+## Changed
+- Review no bonded controller message
+- Make transaction mortal by default, with optional `--tx-mortal-period` defining the number of blocks the tx will be mortal for
+- Fix oversubscribed validators by checking all unclaimed pages
+
 ## [0.14.0] - 2023-04-21
 
 ## Changed
