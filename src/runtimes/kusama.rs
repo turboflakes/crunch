@@ -671,15 +671,13 @@ async fn collect_validators_data(
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
-                v.warnings = vec![format!(
-                    "Stash <code>{}</code> does not have a bonded Controller account!",
-                    stash
-                )];
+                v.name = get_display_name(&crunch, &stash, None).await?;
+                v.warnings = vec![format!("No controller bonded!")];
                 validators.push(v);
                 continue;
             }
         };
-        debug!("controller {:?}", controller);
+
         // Instantiates a new validator struct
         let mut v = Validator::new(stash.clone());
 
