@@ -119,6 +119,8 @@ pub struct Config {
     #[serde(default)]
     pub stashes_url: String,
     #[serde(default)]
+    pub github_pat: String,
+    #[serde(default)]
     pub pool_ids: Vec<u32>,
     #[serde(default)]
     pub pool_active_nominees_payout_enabled: bool,
@@ -195,7 +197,7 @@ fn get_config() -> Config {
     .arg(
       Arg::with_name("CHAIN")
           .index(1)
-          .possible_values(&["westend", "kusama", "polkadot", "paseo"])
+          .possible_values(&["kusama", "polkadot", "paseo"])
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -507,6 +509,13 @@ fn get_config() -> Config {
           "Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g. https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).",
         ))
     .arg(
+      Arg::with_name("github-pat")
+        .long("github-pat")
+        .takes_value(true)
+        .help(
+          "Github Personal Access Token with read access to the private repo defined at 'stashes-url'.",
+      ))
+    .arg(
       Arg::with_name("enable-unique-stashes")
         .long("enable-unique-stashes")
         .help(
@@ -546,12 +555,12 @@ fn get_config() -> Config {
     }
 
     match matches.value_of("CHAIN") {
-        Some("westend") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://westend-rpc.polkadot.io:443",
-            );
-        }
+        // Some("westend") => {
+        //     env::set_var(
+        //         "CRUNCH_SUBSTRATE_WS_URL",
+        //         "wss://rpc.turboflakes.io:443/westend",
+        //     );
+        // }
         Some("kusama") => {
             env::set_var(
                 "CRUNCH_SUBSTRATE_WS_URL",
@@ -559,7 +568,16 @@ fn get_config() -> Config {
             );
         }
         Some("polkadot") => {
-            env::set_var("CRUNCH_SUBSTRATE_WS_URL", "wss://rpc.polkadot.io:443");
+            env::set_var(
+                "CRUNCH_SUBSTRATE_WS_URL",
+                "wss://rpc.turboflakes.io:443/polkadot",
+            );
+        }
+        Some("paseo") => {
+            env::set_var(
+                "CRUNCH_SUBSTRATE_WS_URL",
+                "wss://rpc.turboflakes.io:443/paseo",
+            );
         }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
@@ -578,6 +596,10 @@ fn get_config() -> Config {
 
     if let Some(stashes_url) = matches.value_of("stashes-url") {
         env::set_var("CRUNCH_STASHES_URL", stashes_url);
+    }
+
+    if let Some(github_pat) = matches.value_of("github-pat") {
+        env::set_var("CRUNCH_GITHUB_PAT", github_pat);
     }
 
     if let Some(stashes) = matches.value_of("stashes") {

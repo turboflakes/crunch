@@ -258,6 +258,9 @@ OPTIONS:
     -c, --config-path <FILE>
             Sets a custom config file path. The config file contains 'crunch' configuration variables. [default: .env]
 
+        --github-pat <github-pat>
+            Github Personal Access Token with read access to the private repo defined at 'stashes-url'.
+
     -s, --stashes <stashes>
             Validator stash addresses for which 'crunch view', 'crunch flakes' or 'crunch rewards' will be applied. If
             needed specify more than one (e.g. stash_1,stash_2,stash_3).
@@ -269,8 +272,8 @@ OPTIONS:
             (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
 
 ARGS:
-    <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [possible values: westend,
-               kusama, polkadot]
+    <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [possible values: kusama,
+               polkadot, paseo]
 
 SUBCOMMANDS:
     flakes     Crunch awesome flakes (rewards) every era, daily or in turbo mode -> 4x faster
@@ -359,6 +362,12 @@ OPTIONS:
     -f, --seed-path <FILE>
             Sets a custom seed file path. The seed file contains the private seed phrase to Sign the extrinsic payout
             call.
+        --tx-mortal-period <tx-mortal-period>
+            Define the number of blocks the transaction is mortal for (default is 64 blocks)
+
+        --tx-tip <tx-tip>
+            Define a tip in PLANCKS for the block author.
+
 
 ARGS:
     <MODE>    Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets

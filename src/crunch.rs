@@ -366,7 +366,23 @@ pub async fn try_fetch_stashes_from_remote_url(
     if config.stashes_url.len() == 0 {
         return Ok(None);
     }
-    let response = reqwest::get(&config.stashes_url).await?.text().await?;
+
+    let response = if config.github_pat.len() == 0 {
+        // Fetch public remote file
+        reqwest::get(&config.stashes_url).await?.text().await?
+    } else {
+        // Fetch github private remote file
+        let client = reqwest::Client::new();
+        client
+            .get(&config.stashes_url)
+            .header("Authorization", format!("token {}", config.github_pat))
+            .header("Accept", "application/vnd.github.v4+raw")
+            .send()
+            .await?
+            .text()
+            .await?
+    };
+
     let v: Vec<String> = response.trim().split('\n').map(|s| s.to_string()).collect();
     if v.is_empty() {
         return Ok(None);

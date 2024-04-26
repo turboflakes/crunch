@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## New
 - Add tip for block author optional with `--tx-tip`
 - Add transaction mortal optional with `--tx-mortal-period`
+- Add github personal access token with `--github-pat` to grant access to a list of stashes defined in a private github repo
 
 ## Changed
 - Review no bonded controller message
