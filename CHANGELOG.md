@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2023-04-26
+
 ## New
 - Add tip for block author optional with `--tx-tip`
 - Add transaction mortal optional with `--tx-mortal-period`
