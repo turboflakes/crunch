@@ -57,6 +57,7 @@ pub struct Validator {
     pub stash: AccountId32,
     pub controller: Option<AccountId32>,
     pub name: String,
+    pub has_identity: bool,
     pub is_active: bool,
     pub is_previous_era_already_claimed: bool,
     pub claimed: Vec<(EraIndex, PageIndex)>,
@@ -72,6 +73,7 @@ impl Validator {
             stash,
             controller: None,
             name: "".to_string(),
+            has_identity: false,
             is_active: false,
             is_previous_era_already_claimed: false,
             claimed: Vec::new(),
@@ -269,8 +271,36 @@ impl From<RawData> for Report {
             warn!("{}", warning);
         }
 
+        // Sort validators by identity, than by non-identity and push the stashes
+        // with warnings to bottom
+        let mut validators_with_warnings = data
+            .validators
+            .clone()
+            .into_iter()
+            .filter(|v| v.warnings.len() > 0)
+            .collect::<Vec<Validator>>();
+
+        validators_with_warnings.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
+
+        let validators_with_no_identity = data
+            .validators
+            .clone()
+            .into_iter()
+            .filter(|v| v.warnings.len() == 0 && !v.has_identity)
+            .collect::<Vec<Validator>>();
+
+        let mut validators = data
+            .validators
+            .into_iter()
+            .filter(|v| v.warnings.len() == 0 && v.has_identity)
+            .collect::<Vec<Validator>>();
+
+        validators.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
+        validators.extend(validators_with_no_identity);
+        validators.extend(validators_with_warnings);
+
         // Validators info
-        for validator in data.validators {
+        for validator in validators {
             report.add_break();
             let is_active_desc = if validator.is_active { "🟢" } else { "🔴" };
             report.add_raw_text(format!(
