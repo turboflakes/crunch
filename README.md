@@ -82,8 +82,8 @@ CRUNCH_MAXIMUM_PAYOUTS=4
 # unclaimed rewards for each stash address). [default: 4]
 CRUNCH_MAXIMUM_HISTORY_ERAS=4
 #
-# [CRUNCH_MAXIMUM_CALLS] Maximum number of calls in a single batch. [default: 8]
-CRUNCH_MAXIMUM_CALLS=8
+# [CRUNCH_MAXIMUM_CALLS] Maximum number of calls in a single batch. [default: 4]
+CRUNCH_MAXIMUM_CALLS=4
 #
 # [CRUNCH_SEED_PATH] File path containing the private seed phrase to Sign the extrinsic 
 # payout call. [default: .private.seed]
