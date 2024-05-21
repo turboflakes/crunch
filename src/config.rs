@@ -537,7 +537,7 @@ fn get_config() -> Config {
         .long("substrate-people-ws-url")
         .takes_value(true)
         .help(
-          "Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g. wss://sys.turboflakes.io:443/people-kusama))",
+          "Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g. wss://sys.turboflakes.io:443/people-kusama)",
         ),
     )
     .arg(
