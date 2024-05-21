@@ -364,9 +364,16 @@ pub async fn try_run_batch_pool_members(
                                 }
                             }
                         }
-                        other => {
-                            warn!("TxStatus: {other:?}");
+                        TxStatus::Error { message } => {
+                            warn!("TxStatus: {message:?}");
                         }
+                        TxStatus::Invalid { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        TxStatus::Dropped { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        _ => {}
                     }
                 }
                 iteration = Some(x + 1);
@@ -658,9 +665,16 @@ pub async fn try_run_batch_payouts(
                                 }
                             }
                         }
-                        other => {
-                            warn!("TxStatus: {other:?}");
+                        TxStatus::Error { message } => {
+                            warn!("TxStatus: {message:?}");
                         }
+                        TxStatus::Invalid { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        TxStatus::Dropped { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        _ => {}
                     }
                 }
 
