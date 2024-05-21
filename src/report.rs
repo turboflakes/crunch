@@ -57,6 +57,7 @@ pub struct Validator {
     pub stash: AccountId32,
     pub controller: Option<AccountId32>,
     pub name: String,
+    pub parent_identity: String,
     pub has_identity: bool,
     pub is_active: bool,
     pub is_previous_era_already_claimed: bool,
