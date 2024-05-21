@@ -115,7 +115,10 @@ pub struct Config {
     pub interval: u64,
     #[serde(default = "default_error_interval")]
     pub error_interval: u32,
+    #[serde(default)]
     pub substrate_ws_url: String,
+    #[serde(default)]
+    pub substrate_people_ws_url: String,
     #[serde(default)]
     pub stashes_url: String,
     #[serde(default)]
@@ -527,8 +530,16 @@ fn get_config() -> Config {
         .long("substrate-ws-url")
         .takes_value(true)
         .help(
-          "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
+          "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://rpc.turboflakes.io:443/kusama) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
         ))
+    .arg(
+      Arg::with_name("substrate-people-ws-url")
+        .long("substrate-people-ws-url")
+        .takes_value(true)
+        .help(
+          "Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g. wss://sys.turboflakes.io:443/people-kusama))",
+        ),
+    )
     .arg(
       Arg::with_name("config-path")
         .short("c")
@@ -562,22 +573,37 @@ fn get_config() -> Config {
         //     );
         // }
         Some("kusama") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.turboflakes.io:443/kusama",
-            );
+            if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_WS_URL",
+                    "wss://rpc.turboflakes.io:443/kusama",
+                );
+            }
+            if env::var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_PEOPLE_WS_URL",
+                    "wss://sys.turboflakes.io:443/people-kusama",
+                );
+            }
+            env::set_var("ONET_CHAIN_NAME", "kusama");
         }
         Some("polkadot") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.turboflakes.io:443/polkadot",
-            );
+            if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_WS_URL",
+                    "wss://rpc.turboflakes.io:443/polkadot",
+                );
+            }
+            env::set_var("CRUNCH_CHAIN_NAME", "polkadot");
         }
         Some("paseo") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.turboflakes.io:443/paseo",
-            );
+            if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_WS_URL",
+                    "wss://rpc.turboflakes.io:443/paseo",
+                );
+            }
+            env::set_var("CRUNCH_CHAIN_NAME", "paseo");
         }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
@@ -588,6 +614,10 @@ fn get_config() -> Config {
 
     if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
         env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
+    }
+
+    if let Some(substrate_people_ws_url) = matches.value_of("substrate-people-ws-url") {
+        env::set_var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL", substrate_people_ws_url);
     }
 
     if let Some(seed_path) = matches.value_of("seed-path") {

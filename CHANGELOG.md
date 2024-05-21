@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## New
+- Fetch identities from people-kusama chain rather than relay chain (Kusama only)
+
+## Changed
+- Update subxt v0.36.0
+- Use unstable subxt RPC reconnection feature
+- Iterate transaction progress to only evaluate events when block is finalized, log and drop all other states
+- Use unstable subxt RPC reconnection feature
+- Generate only metadata from specific pallets
+- Update metadata Kusama runtime/1002001
+
 ## [0.15.0] - 2023-04-26
 
 ## New

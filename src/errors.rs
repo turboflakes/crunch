@@ -22,7 +22,7 @@
 use codec;
 use reqwest;
 use std::{str::Utf8Error, string::String};
-use subxt::error::{DispatchError, MetadataError};
+use subxt::error::{DispatchError, MetadataError, RpcError};
 use thiserror::Error;
 
 /// Crunch specific error messages
@@ -30,6 +30,8 @@ use thiserror::Error;
 pub enum CrunchError {
     #[error("Subxt error: {0}")]
     SubxtError(#[from] subxt::Error),
+    #[error("SubxtCore error: {0}")]
+    SubxtCoreError(#[from] subxt::ext::subxt_core::Error),
     #[error("Codec error: {0}")]
     CodecError(#[from] codec::Error),
     #[error("Utf8 error: {0}")]
@@ -38,6 +40,8 @@ pub enum CrunchError {
     MetadataError(#[from] MetadataError),
     #[error("Dispatch error: {0}")]
     DispatchError(#[from] DispatchError),
+    #[error("{0}")]
+    RpcError(#[from] RpcError),
     #[error("Matrix error: {0}")]
     MatrixError(String),
     #[error("Subscription finished")]

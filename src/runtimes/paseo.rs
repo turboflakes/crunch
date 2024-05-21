@@ -53,7 +53,7 @@ use subxt_signer::sr25519::Keypair;
 mod node_runtime {}
 
 use node_runtime::{
-    runtime_types::bounded_collections::bounded_vec::BoundedVec,
+    runtime_types::bounded_collections::bounded_vec::{BoundedVec1, BoundedVec8},
     runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
     staking::events::EraPaid,
     staking::events::PayoutStarted,
@@ -675,7 +675,8 @@ async fn collect_validators_data(
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
-                (v.name, v.has_identity) = get_display_name(&crunch, &stash, None).await?;
+                (v.name, v.has_identity) =
+                    get_display_name(&crunch, &stash, None).await?;
                 v.warnings = vec![format!("No controller bonded!")];
                 validators.push(v);
                 continue;
@@ -712,7 +713,7 @@ async fn collect_validators_data(
             );
 
             // deconstruct claimed rewards
-            let BoundedVec(claimed_rewards) = staking_ledger.claimed_rewards;
+            let BoundedVec1(claimed_rewards) = staking_ledger.claimed_rewards;
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
                 // If reward was already claimed skip it
@@ -1018,7 +1019,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
                 // deconstruct claimed rewards
-                let BoundedVec(claimed_rewards) = ledger_response.claimed_rewards;
+                let BoundedVec1(claimed_rewards) = ledger_response.claimed_rewards;
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
                     // If reward was already claimed skip it
@@ -1261,7 +1262,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
             .await?
         {
             // deconstruct targets
-            let BoundedVec(targets) = nominations.targets;
+            let BoundedVec1(targets) = nominations.targets;
             all.extend(
                 targets
                     .iter()
