@@ -74,6 +74,7 @@ impl Validator {
             stash,
             controller: None,
             name: "".to_string(),
+            parent_identity: "".to_string(),
             has_identity: false,
             is_active: false,
             is_previous_era_already_claimed: false,

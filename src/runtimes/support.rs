@@ -36,6 +36,7 @@ impl From<ChainPrefix> for SupportedRuntime {
             0 => Self::Polkadot,
             2 => Self::Kusama,
             42 => Self::Westend,
+            //TODO: Add Paseo for completeness
             _ => unimplemented!("Chain prefix not supported"),
         }
     }

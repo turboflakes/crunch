@@ -104,8 +104,9 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let signer_keypair: Keypair = get_keypair_from_seed_file()?;
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
 
+
     // Get signer account identity
-    let (signer_name, _) = get_display_name(&crunch, &seed_account_id, None).await?;
+    let (signer_name,_, _) = get_display_name(&crunch, &seed_account_id, None).await?;
     let mut signer_details = SignerDetails {
         account: seed_account_id.clone(),
         name: signer_name,
@@ -192,6 +193,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         token_decimals,
     };
     debug!("network {:?}", network);
+
 
     let data = RawData {
         network,
@@ -675,7 +677,7 @@ async fn collect_validators_data(
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
-                (v.name, v.has_identity) =
+                (v.name, v.parent_identity, v.has_identity) =
                     get_display_name(&crunch, &stash, None).await?;
                 v.warnings = vec![format!("No controller bonded!")];
                 validators.push(v);
@@ -690,7 +692,7 @@ async fn collect_validators_data(
         v.controller = Some(controller.clone());
 
         // Get validator name
-        (v.name, v.has_identity) = get_display_name(&crunch, &stash, None).await?;
+        (v.name, v.parent_identity, v.has_identity) = get_display_name(&crunch, &stash, None).await?;
 
         // Check if validator is in active set
         v.is_active = if let Some(ref av) = active_validators {
@@ -858,12 +860,19 @@ async fn get_validator_points_info(
     }
 }
 
+
+
+/*
+Recursive function that looks up the identity of a validator given its stash,
+outputs a tuple with [primary identity/ sub-identity], primary identity and whether
+an identity is present.
+*/
 #[async_recursion]
 async fn get_display_name(
     crunch: &Crunch,
     stash: &AccountId32,
     sub_account_name: Option<String>,
-) -> Result<(String, bool), CrunchError> {
+) -> Result<(String, String, bool), CrunchError> {
     let api = crunch.client().clone();
 
     let identity_of_addr = node_runtime::storage().identity().identity_of(stash);
@@ -878,10 +887,10 @@ async fn get_display_name(
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
             let name = match sub_account_name {
-                Some(child) => format!("{}/{}", parent, child),
-                None => parent,
+                Some(child) => format!("{}/{}", &parent, child),
+                None => parent.clone(),
             };
-            Ok((name, true))
+            Ok((name, parent.clone(), true))
         }
         None => {
             let super_of_addr = node_runtime::storage().identity().super_of(stash);
@@ -901,7 +910,8 @@ async fn get_display_name(
                 .await;
             } else {
                 let s = &stash.to_string();
-                Ok((format!("{}...{}", &s[..6], &s[s.len() - 6..]), false))
+                let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
+                Ok((stash_address,"None".to_string(), false))
             }
         }
     }
