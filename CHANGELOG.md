@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## New
 - Fetch identities from people-kusama chain with use of `--substrate-people-ws-url` (Kusama only)
+- Introduce run mode `once` where crunch tries to run payouts and exit; Useful if you would like to set crunch as cronjob;
 
 ## Changed
 - Update subxt v0.36.0

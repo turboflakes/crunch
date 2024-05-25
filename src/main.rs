@@ -28,7 +28,7 @@ mod report;
 mod runtimes;
 mod stats;
 
-use crate::config::CONFIG;
+use crate::config::{RunMode, CONFIG};
 use crate::crunch::Crunch;
 use log::info;
 use std::env;
@@ -52,8 +52,10 @@ fn main() {
     if config.only_view {
         return Crunch::view();
     }
-    if config.is_mode_era {
-        return Crunch::subscribe();
+
+    match config.run_mode {
+        RunMode::Once => Crunch::once(),
+        RunMode::Daily | RunMode::Turbo => Crunch::flakes(),
+        RunMode::Era => Crunch::subscribe(),
     }
-    Crunch::flakes()
 }

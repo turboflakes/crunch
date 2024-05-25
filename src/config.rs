@@ -109,6 +109,11 @@ fn default_onet_number_last_sessions() -> u32 {
     6
 }
 
+/// provides default value for run_mode
+fn default_run_mode() -> RunMode {
+    RunMode::Era
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     #[serde(default = "default_interval")]
@@ -164,8 +169,8 @@ pub struct Config {
     pub is_short: bool,
     #[serde(default)]
     pub is_medium: bool,
-    #[serde(default)]
-    pub is_mode_era: bool,
+    #[serde(default = "default_run_mode")]
+    pub run_mode: RunMode,
     // ONE-T integration
     #[serde(default)]
     pub onet_api_enabled: bool,
@@ -190,6 +195,16 @@ pub struct Config {
     pub matrix_bot_display_name_disabled: bool,
 }
 
+#[derive(Default, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum RunMode {
+    #[default]
+    Era,
+    Daily,
+    Turbo,
+    Once,
+}
+
 /// Inject dotenv and env vars into the Config struct
 fn get_config() -> Config {
     // Define CLI flags with clap
@@ -210,10 +225,10 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("MODE")
             .index(1)
-            .possible_values(&["era", "daily", "turbo"])
+            .possible_values(&["era", "daily", "turbo", "once"])
             .default_value("era")
             .help(
-              "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
+              "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours; option 'once' tries to run the payout once and exit;)",
             ))
       .arg(
         Arg::with_name("seed-path")
@@ -354,10 +369,10 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("MODE")
             .index(1)
-            .possible_values(&["era", "daily", "turbo"])
+            .possible_values(&["era", "daily", "turbo", "once"])
             .default_value("era")
             .help(
-              "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
+              "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours;option 'once' tries to run the payout once and exit;)",
             ))
       .arg(
         Arg::with_name("seed-path")
@@ -642,17 +657,16 @@ fn get_config() -> Config {
 
     match matches.subcommand() {
         ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
-            match flakes_matches.value_of("MODE").unwrap() {
-                "era" => {
-                    env::set_var("CRUNCH_IS_MODE_ERA", "true");
-                }
+            let mode = flakes_matches.value_of("MODE").unwrap_or_default();
+            env::set_var("CRUNCH_RUN_MODE", mode);
+            match mode {
                 "daily" => {
                     env::set_var("CRUNCH_INTERVAL", "86400");
                 }
                 "turbo" => {
                     env::set_var("CRUNCH_INTERVAL", "21600");
                 }
-                _ => unreachable!(),
+                _ => {}
             }
 
             if let Some(seed_path) = flakes_matches.value_of("seed-path") {

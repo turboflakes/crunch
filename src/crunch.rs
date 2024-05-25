@@ -314,6 +314,11 @@ impl Crunch {
         spawn_crunch_view();
     }
 
+    /// Spawn crunch once task
+    pub fn once() {
+        spawn_crunch_once();
+    }
+
     async fn inspect(&self) -> Result<(), CrunchError> {
         match self.runtime {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
@@ -412,6 +417,16 @@ fn spawn_crunch_view() {
     let crunch_task = task::spawn(async {
         let c: Crunch = Crunch::new().await;
         if let Err(e) = c.inspect().await {
+            error!("{}", e);
+        };
+    });
+    task::block_on(crunch_task);
+}
+
+fn spawn_crunch_once() {
+    let crunch_task = task::spawn(async {
+        let c: Crunch = Crunch::new().await;
+        if let Err(e) = c.try_run_batch().await {
             error!("{}", e);
         };
     });
