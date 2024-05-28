@@ -78,11 +78,54 @@ pub async fn run_and_subscribe_era_paid_events(
     info!("Inspect and `crunch` unclaimed payout rewards");
     // Run once before start subscription
     try_crunch(&crunch).await?;
+    let mut latest_block_number_processed: Option<u32> = Some(0);
     info!("Subscribe 'EraPaid' on-chain finalized event");
     let api = crunch.client().clone();
     let mut block_sub = api.blocks().subscribe_finalized().await?;
     while let Some(block) = block_sub.next().await {
-        let block = block?;
+        // let block = block?;
+
+        // Silently handle RPC disconnection and wait for the next block as soon as reconnection is available
+        let block = match block {
+            Ok(b) => b,
+            Err(e) => {
+                if e.is_disconnected_will_reconnect() {
+                    warn!("The RPC connection was dropped will try to reconnect.");
+                    continue;
+                }
+                return Err(e.into());
+            }
+        };
+
+        // Process blocks that might have been dropped while reconnecting
+        while let Some(processed_block_number) = latest_block_number_processed {
+            if block.number() == processed_block_number || processed_block_number == 0 {
+                latest_block_number_processed = None;
+            } else {
+                let block_number = processed_block_number + 1;
+
+                // Skip current block and fetch only blocks that have not yet been processed
+                if block.number() - block_number > 0 {
+                    if let Some(block_hash) = crunch
+                        .rpc()
+                        .chain_get_block_hash(Some(block_number.into()))
+                        .await?
+                    {
+                        let events = api.events().at(block_hash).await?;
+
+                        // Event --> staking::EraPaid
+                        if let Some(_event) = events.find_first::<EraPaid>()? {
+                            let wait: u64 = random_wait(240);
+                            info!("Waiting {} seconds before run batch", wait);
+                            thread::sleep(time::Duration::from_secs(wait));
+                            try_crunch(&crunch).await?;
+                        }
+                    }
+                }
+
+                latest_block_number_processed = Some(block_number);
+            }
+        }
 
         let events = block.events().await?;
 
@@ -93,6 +136,8 @@ pub async fn run_and_subscribe_era_paid_events(
             thread::sleep(time::Duration::from_secs(wait));
             try_crunch(&crunch).await?;
         }
+
+        latest_block_number_processed = Some(block.number());
     }
     // If subscription has closed for some reason await and subscribe again
     Err(CrunchError::SubscriptionFinished)
