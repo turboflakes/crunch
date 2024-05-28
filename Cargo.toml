@@ -26,8 +26,8 @@ url = "2.2.2"
 base64 = "0.22.0"
 rand = "0.8.4"
 # subxt dependencies
-subxt = { version = "0.36.0", features = ["substrate-compat", "native", "unstable-reconnecting-rpc-client"] }
-subxt-signer = { version = "0.36.0", features = ["subxt"] }
+subxt = { version = "0.37.0", features = ["substrate-compat", "native", "unstable-reconnecting-rpc-client"] }
+subxt-signer = { version = "0.37.0", features = ["subxt"] }
 async-std = { version = "1.11.0", features = ["attributes", "tokio1"] }
 env_logger = "0.9.3"
 futures = "0.3.13"

@@ -54,7 +54,7 @@ use subxt_signer::sr25519::Keypair;
 mod node_runtime {}
 
 use node_runtime::{
-    runtime_types::bounded_collections::bounded_vec::{BoundedVec10, BoundedVec2},
+    runtime_types::bounded_collections::bounded_vec::BoundedVec,
     runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
     staking::events::EraPaid,
     staking::events::PayoutStarted,
@@ -743,7 +743,7 @@ async fn collect_validators_data(
                 stash, staking_ledger.legacy_claimed_rewards
             );
             // deconstruct claimed rewards
-            let BoundedVec10(legacy_claimed_rewards) =
+            let BoundedVec(legacy_claimed_rewards) =
                 staking_ledger.legacy_claimed_rewards;
 
             // Find unclaimed eras in previous 84 eras (reverse order)
@@ -1090,7 +1090,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
                 // deconstruct claimed rewards
-                let BoundedVec10(legacy_claimed_rewards) =
+                let BoundedVec(legacy_claimed_rewards) =
                     ledger_response.legacy_claimed_rewards;
 
                 // Find unclaimed eras in previous 84 eras
@@ -1376,7 +1376,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
             .await?
         {
             // deconstruct targets
-            let BoundedVec2(targets) = nominations.targets;
+            let BoundedVec(targets) = nominations.targets;
             all.extend(
                 targets
                     .iter()
