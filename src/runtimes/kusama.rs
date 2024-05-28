@@ -961,46 +961,49 @@ async fn get_display_name(
     stash: &AccountId32,
     sub_account_name: Option<String>,
 ) -> Result<(String, bool), CrunchError> {
-    let api = crunch.people_client().clone();
-
-    let identity_of_addr = people_runtime::storage().identity().identity_of(stash);
-    match api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&identity_of_addr)
-        .await?
-    {
-        Some((identity, _)) => {
-            debug!("identity {:?}", identity);
-            let parent = parse_identity_data(identity.info.display);
-            let name = match sub_account_name {
-                Some(child) => format!("{}/{}", parent, child),
-                None => parent,
-            };
-            Ok((name, true))
-        }
-        None => {
-            let super_of_addr = people_runtime::storage().identity().super_of(stash);
-            if let Some((parent_account, data)) = api
-                .storage()
-                .at_latest()
-                .await?
-                .fetch(&super_of_addr)
-                .await?
-            {
-                let sub_account_name = parse_identity_data(data);
-                return get_display_name(
-                    &crunch,
-                    &parent_account,
-                    Some(sub_account_name.to_string()),
-                )
-                .await;
-            } else {
-                let s = &stash.to_string();
-                Ok((format!("{}...{}", &s[..6], &s[s.len() - 6..]), false))
+    if let Some(api) = crunch.people_client().clone() {
+        let identity_of_addr = people_runtime::storage().identity().identity_of(stash);
+        match api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&identity_of_addr)
+            .await?
+        {
+            Some((identity, _)) => {
+                debug!("identity {:?}", identity);
+                let parent = parse_identity_data(identity.info.display);
+                let name = match sub_account_name {
+                    Some(child) => format!("{}/{}", parent, child),
+                    None => parent,
+                };
+                Ok((name, true))
+            }
+            None => {
+                let super_of_addr = people_runtime::storage().identity().super_of(stash);
+                if let Some((parent_account, data)) = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&super_of_addr)
+                    .await?
+                {
+                    let sub_account_name = parse_identity_data(data);
+                    return get_display_name(
+                        &crunch,
+                        &parent_account,
+                        Some(sub_account_name.to_string()),
+                    )
+                    .await;
+                } else {
+                    let s = &stash.to_string();
+                    Ok((format!("{}...{}", &s[..6], &s[s.len() - 6..]), false))
+                }
             }
         }
+    } else {
+        let s = &stash.to_string();
+        Ok((format!("{}...{}", &s[..6], &s[s.len() - 6..]), false))
     }
 }
 

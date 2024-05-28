@@ -225,13 +225,18 @@ impl Crunch {
         let (client, rpc, runtime) =
             create_or_await_substrate_node_client(&config.substrate_ws_url).await;
 
-        // Initialize people node client if supported by relay chain and enabled by user
+        // Initialize people node client if supported by relay chain and url specified by user
         let people_client_option = if let Some(people_runtime) = runtime.people_runtime()
         {
-            let (people_client, _, _) =
-                create_or_await_substrate_node_client(&people_runtime.default_rpc_url())
-                    .await;
-            Some(people_client)
+            if people_runtime.default_rpc_url() != "" {
+                let (people_client, _, _) = create_or_await_substrate_node_client(
+                    &people_runtime.default_rpc_url(),
+                )
+                .await;
+                Some(people_client)
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -256,12 +261,8 @@ impl Crunch {
         &self.client
     }
 
-    pub fn people_client(&self) -> &OnlineClient<SubstrateConfig> {
-        if let Some(people_client) = &self.people_client_option {
-            people_client
-        } else {
-            &self.client
-        }
+    pub fn people_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
+        &self.people_client_option
     }
 
     pub fn rpc(&self) -> &LegacyRpcMethods<SubstrateConfig> {

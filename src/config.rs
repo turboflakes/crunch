@@ -456,20 +456,20 @@ fn get_config() -> Config {
           .help(
             "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
           ))
-          .arg(
-            Arg::with_name("tx-tip")
-              .long("tx-tip")
-              .takes_value(true)
-              .help(
-                "Define a tip in PLANCKS for the block author.",
-              ))
-          .arg(
-            Arg::with_name("tx-mortal-period")
-              .long("tx-mortal-period")
-              .takes_value(true)
-              .help(
-                "Define the number of blocks the transaction is mortal for (default is 64 blocks)",
-              ))
+      .arg(
+        Arg::with_name("tx-tip")
+          .long("tx-tip")
+          .takes_value(true)
+          .help(
+            "Define a tip in PLANCKS for the block author.",
+          ))
+      .arg(
+        Arg::with_name("tx-mortal-period")
+          .long("tx-mortal-period")
+          .takes_value(true)
+          .help(
+            "Define the number of blocks the transaction is mortal for (default is 64 blocks)",
+          ))
       .arg(
         Arg::with_name("enable-pool-compound-threshold")
           .long("enable-pool-compound-threshold")
