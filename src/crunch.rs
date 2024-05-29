@@ -225,10 +225,10 @@ impl Crunch {
         let (client, rpc, runtime) =
             create_or_await_substrate_node_client(&config.substrate_ws_url).await;
 
-        // Initialize people node client if supported by relay chain and url specified by user
+        // Initialize people node client if supported by relay chain and url by user
         let people_client_option = if let Some(people_runtime) = runtime.people_runtime()
         {
-            if people_runtime.default_rpc_url() != "" {
+            if !people_runtime.default_rpc_url().is_empty() {
                 let (people_client, _, _) = create_or_await_substrate_node_client(
                     &people_runtime.default_rpc_url(),
                 )
@@ -473,7 +473,7 @@ pub async fn try_fetch_onet_data(
         return Ok(None);
     }
 
-    let endpoint = if config.onet_api_url != "" {
+    let endpoint = if !config.onet_api_url.is_empty() {
         config.onet_api_url
     } else {
         format!("https://{}-onet-api.turboflakes.io", chain_name)
