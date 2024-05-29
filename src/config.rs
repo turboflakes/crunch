@@ -215,7 +215,7 @@ fn get_config() -> Config {
     .arg(
       Arg::with_name("CHAIN")
           .index(1)
-          .possible_values(&["kusama", "polkadot", "paseo"])
+          .possible_values(&["kusama", "polkadot", "paseo", "westend"])
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -581,12 +581,12 @@ fn get_config() -> Config {
     }
 
     match matches.value_of("CHAIN") {
-        // Some("westend") => {
-        //     env::set_var(
-        //         "CRUNCH_SUBSTRATE_WS_URL",
-        //         "wss://rpc.turboflakes.io:443/westend",
-        //     );
-        // }
+        Some("westend") => {
+            env::set_var(
+                "CRUNCH_SUBSTRATE_WS_URL",
+                "wss://rpc.turboflakes.io:443/westend",
+            );
+        }
         Some("kusama") => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
                 env::set_var(
