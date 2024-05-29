@@ -28,8 +28,8 @@ use crate::crunch::{
 use crate::errors::CrunchError;
 use crate::pools::{nomination_pool_account, AccountType};
 use crate::report::{
-    Batch, EraIndex, Network, NominationPoolsSummary, Payout, PayoutSummary, Points,
-    RawData, Report, SignerDetails, Validator, Validators,
+    Batch, EraIndex, Network, NominationPoolsSummary, PageIndex, Payout, PayoutSummary,
+    Points, RawData, Report, SignerDetails, Validator, Validators,
 };
 use crate::stats;
 use async_recursion::async_recursion;
@@ -41,19 +41,20 @@ use subxt::{
     config::polkadot::PolkadotExtrinsicParamsBuilder as TxParams,
     error::DispatchError,
     ext::codec::{Decode, Encode},
+    tx::TxStatus,
     utils::{AccountId32, MultiAddress},
 };
 
 use subxt_signer::sr25519::Keypair;
 
 #[subxt::subxt(
-    runtime_metadata_path = "metadata/paseo_metadata.scale",
+    runtime_metadata_path = "metadata/paseo_metadata_small.scale",
     derive_for_all_types = "Clone, PartialEq"
 )]
 mod node_runtime {}
 
 use node_runtime::{
-    runtime_types::bounded_collections::bounded_vec::{BoundedVec1, BoundedVec8},
+    runtime_types::bounded_collections::bounded_vec::BoundedVec,
     runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
     staking::events::EraPaid,
     staking::events::PayoutStarted,
@@ -71,79 +72,76 @@ type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::
 type NominationPoolsCall =
     node_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
 
-    pub async fn run_and_subscribe_era_paid_events(
-        crunch: &Crunch,
-    ) -> Result<(), CrunchError> {
-        info!("Inspect and `crunch` unclaimed payout rewards");
-        // Run once before start subscription
-        try_crunch(&crunch).await?;
-        let mut latest_block_number_processed: Option<u32> = Some(0);
-        info!("Subscribe 'EraPaid' on-chain finalized event");
-        let api = crunch.client().clone();
-        let mut block_sub = api.blocks().subscribe_finalized().await?;
-        while let Some(block) = block_sub.next().await {
-            // let block = block?;
-    
-            // Silently handle RPC disconnection and wait for the next block as soon as reconnection is available
-            let block = match block {
-                Ok(b) => b,
-                Err(e) => {
-                    if e.is_disconnected_will_reconnect() {
-                        warn!(
-                            "The RPC connection was dropped will try to reconnect."
-                        );
-                        continue;
-                    }
-                    return Err(e.into());
+pub async fn run_and_subscribe_era_paid_events(
+    crunch: &Crunch,
+) -> Result<(), CrunchError> {
+    info!("Inspect and `crunch` unclaimed payout rewards");
+    // Run once before start subscription
+    try_crunch(&crunch).await?;
+    let mut latest_block_number_processed: Option<u32> = Some(0);
+    info!("Subscribe 'EraPaid' on-chain finalized event");
+    let api = crunch.client().clone();
+    let mut block_sub = api.blocks().subscribe_finalized().await?;
+    while let Some(block) = block_sub.next().await {
+        // let block = block?;
+
+        // Silently handle RPC disconnection and wait for the next block as soon as reconnection is available
+        let block = match block {
+            Ok(b) => b,
+            Err(e) => {
+                if e.is_disconnected_will_reconnect() {
+                    warn!("The RPC connection was dropped will try to reconnect.");
+                    continue;
                 }
-            };
-    
-            // Process blocks that might have been dropped while reconnecting
-            while let Some(processed_block_number) = latest_block_number_processed {
-                if block.number() == processed_block_number || processed_block_number == 0 {
-                    latest_block_number_processed = None;
-                } else {
-                    let block_number = processed_block_number + 1;
-    
-                    // Skip current block and fetch only blocks that have not yet been processed
-                    if block.number() - block_number > 0 {
-                        
-                        if let Some(block_hash) = crunch
-                            .rpc()
-                            .chain_get_block_hash(Some(block_number.into()))
-                            .await?
-                        {
-                            let events = api.events().at(block_hash).await?;
-                            
-                            // Event --> staking::EraPaid
-                            if let Some(_event) = events.find_first::<EraPaid>()? {
-                                let wait: u64 = random_wait(240);
-                                info!("Waiting {} seconds before run batch", wait);
-                                thread::sleep(time::Duration::from_secs(wait));
-                                try_crunch(&crunch).await?;
-                            }
+                return Err(e.into());
+            }
+        };
+
+        // Process blocks that might have been dropped while reconnecting
+        while let Some(processed_block_number) = latest_block_number_processed {
+            if block.number() == processed_block_number || processed_block_number == 0 {
+                latest_block_number_processed = None;
+            } else {
+                let block_number = processed_block_number + 1;
+
+                // Skip current block and fetch only blocks that have not yet been processed
+                if block.number() - block_number > 0 {
+                    if let Some(block_hash) = crunch
+                        .rpc()
+                        .chain_get_block_hash(Some(block_number.into()))
+                        .await?
+                    {
+                        let events = api.events().at(block_hash).await?;
+
+                        // Event --> staking::EraPaid
+                        if let Some(_event) = events.find_first::<EraPaid>()? {
+                            let wait: u64 = random_wait(240);
+                            info!("Waiting {} seconds before run batch", wait);
+                            thread::sleep(time::Duration::from_secs(wait));
+                            try_crunch(&crunch).await?;
                         }
                     }
-    
-                    latest_block_number_processed = Some(block_number);
                 }
+
+                latest_block_number_processed = Some(block_number);
             }
-    
-            let events = block.events().await?;
-    
-            // Event --> staking::EraPaid
-            if let Some(_event) = events.find_first::<EraPaid>()? {
-                let wait: u64 = random_wait(240);
-                info!("Waiting {} seconds before run batch", wait);
-                thread::sleep(time::Duration::from_secs(wait));
-                try_crunch(&crunch).await?;
-            }
-    
-            latest_block_number_processed = Some(block.number());
         }
-        // If subscription has closed for some reason await and subscribe again
-        Err(CrunchError::SubscriptionFinished)
+
+        let events = block.events().await?;
+
+        // Event --> staking::EraPaid
+        if let Some(_event) = events.find_first::<EraPaid>()? {
+            let wait: u64 = random_wait(240);
+            info!("Waiting {} seconds before run batch", wait);
+            thread::sleep(time::Duration::from_secs(wait));
+            try_crunch(&crunch).await?;
+        }
+
+        latest_block_number_processed = Some(block.number());
     }
+    // If subscription has closed for some reason await and subscribe again
+    Err(CrunchError::SubscriptionFinished)
+}
 
 pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
@@ -337,65 +335,84 @@ pub async fn try_run_batch_pool_members(
                     TxParams::new().tip(config.tx_tip.into()).build()
                 };
 
-                let batch_response = api
+                let mut tx_progress = api
                     .tx()
                     .sign_and_submit_then_watch(&tx, signer, tx_params)
-                    .await?
-                    .wait_for_finalized()
                     .await?;
 
-                let tx_events = batch_response.fetch_events().await?;
+                while let Some(status) = tx_progress.next().await {
+                    match status? {
+                        TxStatus::InFinalizedBlock(in_block) => {
+                            // Get block number
+                            let block_number = if let Some(header) = crunch
+                                .rpc()
+                                .chain_get_header(Some(in_block.block_hash()))
+                                .await?
+                            {
+                                header.number
+                            } else {
+                                0
+                            };
 
-                // Get block number
-                let block_number = if let Some(header) = crunch
-                    .rpc()
-                    .chain_get_header(Some(tx_events.block_hash()))
-                    .await?
-                {
-                    header.number
-                } else {
-                    0
-                };
+                            // Fetch events from block
+                            let tx_events = in_block.fetch_events().await?;
 
-                // Iterate over events to calculate respective reward amounts
-                for event in tx_events.iter() {
-                    let event = event?;
-                    if let Some(_ev) = event.as_event::<ItemCompleted>()? {
-                        // https://polkadot.js.org/docs/substrate/events#itemcompleted
-                        // summary: A single item within a Batch of dispatches has completed with no error.
-                        //
-                        summary.calls_succeeded += 1;
-                    } else if let Some(_ev) = event.as_event::<ItemFailed>()? {
-                        // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
-                        // summary: A single item within a Batch of dispatches has completed with error.
-                        //
-                        summary.calls_failed += 1;
-                    } else if let Some(_ev) = event.as_event::<BatchCompleted>()? {
-                        // https://polkadot.js.org/docs/substrate/events#batchcompleted
-                        // summary: Batch of dispatches completed fully with no error.
-                        info!(
+                            // Iterate over events to calculate respective reward amounts
+                            for event in tx_events.iter() {
+                                let event = event?;
+                                if let Some(_ev) = event.as_event::<ItemCompleted>()? {
+                                    // https://polkadot.js.org/docs/substrate/events#itemcompleted
+                                    // summary: A single item within a Batch of dispatches has completed with no error.
+                                    //
+                                    summary.calls_succeeded += 1;
+                                } else if let Some(_ev) =
+                                    event.as_event::<ItemFailed>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
+                                    // summary: A single item within a Batch of dispatches has completed with error.
+                                    //
+                                    summary.calls_failed += 1;
+                                } else if let Some(_ev) =
+                                    event.as_event::<BatchCompleted>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events#batchcompleted
+                                    // summary: Batch of dispatches completed fully with no error.
+                                    info!(
                             "Nomination Pools Compound Batch Completed ({} calls)",
                             calls_for_batch_clipped.len()
                         );
-                        let b = Batch {
-                            block_number,
-                            extrinsic: tx_events.extrinsic_hash(),
-                        };
-                        summary.batches.push(b);
-                    } else if let Some(_ev) =
-                        event.as_event::<BatchCompletedWithErrors>()?
-                    {
-                        // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
-                        // summary: Batch of dispatches completed but has errors.
-                        info!(
+                                    let b = Batch {
+                                        block_number,
+                                        extrinsic: tx_events.extrinsic_hash(),
+                                    };
+                                    summary.batches.push(b);
+                                } else if let Some(_ev) =
+                                    event.as_event::<BatchCompletedWithErrors>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
+                                    // summary: Batch of dispatches completed but has errors.
+                                    info!(
                             "Nomination Pools Compound Batch Completed with errors ({} calls)",
                             calls_for_batch_clipped.len()
                         );
-                        let b = Batch {
-                            block_number,
-                            extrinsic: tx_events.extrinsic_hash(),
-                        };
-                        summary.batches.push(b);
+                                    let b = Batch {
+                                        block_number,
+                                        extrinsic: tx_events.extrinsic_hash(),
+                                    };
+                                    summary.batches.push(b);
+                                }
+                            }
+                        }
+                        TxStatus::Error { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        TxStatus::Invalid { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        TxStatus::Dropped { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        _ => {}
                     }
                 }
                 iteration = Some(x + 1);
@@ -465,7 +482,7 @@ pub async fn try_run_batch_payouts(
     }
 
     if calls_for_batch.len() > 0 {
-        // TODO check batch call weight or maximum_calls [default: 8]
+        // TODO check batch call weight or maximum_calls [default: 4]
         //
         // Calculate the number of extrinsics (iteractions) based on the maximum number of calls per batch
         // and the number of calls to be sent
@@ -524,156 +541,181 @@ pub async fn try_run_batch_payouts(
                     TxParams::new().tip(config.tx_tip.into()).build()
                 };
 
-                let batch_response = api
+                let mut tx_progress = api
                     .tx()
                     .sign_and_submit_then_watch(&tx, signer, tx_params)
-                    .await?
-                    .wait_for_finalized()
                     .await?;
 
-                // Alternately, we could just `fetch_events`, which grabs all of the events like
-                // the above, but does not check for success, and leaves it up to you:
-                let tx_events = batch_response.fetch_events().await?;
-
-                // Get block number
-                let block_number = if let Some(header) = crunch
-                    .rpc()
-                    .chain_get_header(Some(tx_events.block_hash()))
-                    .await?
-                {
-                    header.number
-                } else {
-                    0
-                };
-
-                // Iterate over events to calculate respective reward amounts
-                for event in tx_events.iter() {
-                    let event = event?;
-                    if let Some(_ev) = event.as_event::<ExtrinsicFailed>()? {
-                        let dispatch_error = DispatchError::decode_from(
-                            event.field_bytes(),
-                            api.metadata(),
-                        )?;
-                        return Err(dispatch_error.into());
-                    } else if let Some(ev) = event.as_event::<PayoutStarted>()? {
-                        // https://polkadot.js.org/docs/substrate/events#payoutstartedu32-accountid32
-                        // PayoutStarted(u32, AccountId32)
-                        // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
-                        //
-                        debug!("{:?}", ev);
-                        let validator_index_ref = &mut validators
-                            .iter()
-                            .position(|v| v.stash == ev.validator_stash);
-                        era_index = ev.era_index;
-                        validator_index = *validator_index_ref;
-                        validator_amount_value = 0;
-                        nominators_amount_value = 0;
-                        nominators_quantity = 0;
-                    } else if let Some(ev) = event.as_event::<Rewarded>()? {
-                        // https://polkadot.js.org/docs/substrate/events#rewardedaccountid32-u128
-                        // Rewarded(AccountId32, u128)
-                        // summary: An account has been rewarded for their signed submission being finalized
-                        //
-                        debug!("{:?}", ev);
-                        if let Some(i) = validator_index {
-                            let validator = &mut validators[i];
-                            if ev.stash == validator.stash {
-                                validator_amount_value = ev.amount;
+                while let Some(status) = tx_progress.next().await {
+                    match status? {
+                        TxStatus::InFinalizedBlock(in_block) => {
+                            // Get block number
+                            let block_number = if let Some(header) = crunch
+                                .rpc()
+                                .chain_get_header(Some(in_block.block_hash()))
+                                .await?
+                            {
+                                header.number
                             } else {
-                                nominators_amount_value += ev.amount;
-                                nominators_quantity += 1;
-                            }
-                        }
-                    } else if let Some(_ev) = event.as_event::<ItemCompleted>()? {
-                        // https://polkadot.js.org/docs/substrate/events#itemcompleted
-                        // summary: A single item within a Batch of dispatches has completed with no error.
-                        //
-                        if let Some(i) = validator_index {
-                            let validator = &mut validators[i];
-
-                            // NOTE: Currently we do not track which page is being payout here.
-                            // It should be changed when payout_stakers_by_page is in place
-                            validator.claimed.push((era_index, 0));
-                            // Fetch stash points
-                            let points = get_validator_points_info(
-                                &crunch,
-                                era_index,
-                                &validator.stash,
-                            )
-                            .await?;
-
-                            let p = Payout {
-                                block_number,
-                                extrinsic: tx_events.extrinsic_hash(),
-                                era_index,
-                                validator_amount_value,
-                                nominators_amount_value,
-                                nominators_quantity,
-                                points,
+                                0
                             };
-                            validator.payouts.push(p);
-                            summary.calls_succeeded += 1;
-                        }
-                    } else if let Some(_ev) = event.as_event::<ItemFailed>()? {
-                        // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
-                        // summary: A single item within a Batch of dispatches has completed with error.
-                        //
-                        summary.calls_failed += 1;
-                    } else if let Some(_ev) = event.as_event::<BatchCompleted>()? {
-                        // https://polkadot.js.org/docs/substrate/events#batchcompleted
-                        // summary: Batch of dispatches completed fully with no error.
-                        info!(
-                            "Batch Completed ({} calls)",
-                            calls_for_batch_clipped.len()
-                        );
-                    } else if let Some(_ev) =
-                        event.as_event::<BatchCompletedWithErrors>()?
-                    {
-                        // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
-                        // summary: Batch of dispatches completed but has errors.
-                        info!(
-                            "Batch Completed with errors ({} calls)",
-                            calls_for_batch_clipped.len()
-                        );
-                    } else if let Some(ev) = event.as_event::<BatchInterrupted>()? {
-                        // NOTE: Deprecate with force_batch
-                        //
-                        // https://polkadot.js.org/docs/substrate/events#batchinterruptedu32-spruntimedispatcherror
-                        // summary: Batch of dispatches did not complete fully. Index of first failing dispatch given, as well as the error.
-                        //
-                        // Fix: https://github.com/turboflakes/crunch/issues/4
-                        // Most likely the batch was interrupted because of an AlreadyClaimed era
-                        // BatchInterrupted { index: 0, error: Module { index: 6, error: 14 } }
-                        warn!("{:?}", ev);
-                        if let Call::Staking(call) =
-                            &calls_for_batch_clipped[usize::try_from(ev.index).unwrap()]
-                        {
-                            match &call {
-                                StakingCall::payout_stakers {
-                                    validator_stash, ..
-                                } => {
-                                    warn!(
-                                        "Batch interrupted at stash: {:?}",
-                                        validator_stash
-                                    );
-                                    let validator_index = &mut validators
-                                        .iter()
-                                        .position(|v| v.stash == *validator_stash);
 
-                                    if let Some(i) = *validator_index {
+                            // Fetch events from block
+                            let tx_events = in_block.fetch_events().await?;
+
+                            // Iterate over events to calculate respective reward amounts
+                            for event in tx_events.iter() {
+                                let event = event?;
+                                if let Some(_ev) = event.as_event::<ExtrinsicFailed>()? {
+                                    let dispatch_error = DispatchError::decode_from(
+                                        event.field_bytes(),
+                                        api.metadata(),
+                                    )?;
+                                    return Err(dispatch_error.into());
+                                } else if let Some(ev) =
+                                    event.as_event::<PayoutStarted>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events#payoutstartedu32-accountid32
+                                    // PayoutStarted(u32, AccountId32)
+                                    // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
+                                    //
+                                    debug!("{:?}", ev);
+                                    let validator_index_ref = &mut validators
+                                        .iter()
+                                        .position(|v| v.stash == ev.validator_stash);
+                                    era_index = ev.era_index;
+                                    validator_index = *validator_index_ref;
+                                    validator_amount_value = 0;
+                                    nominators_amount_value = 0;
+                                    nominators_quantity = 0;
+                                } else if let Some(ev) = event.as_event::<Rewarded>()? {
+                                    // https://polkadot.js.org/docs/substrate/events#rewardedaccountid32-u128
+                                    // Rewarded(AccountId32, u128)
+                                    // summary: An account has been rewarded for their signed submission being finalized
+                                    //
+                                    debug!("{:?}", ev);
+                                    if let Some(i) = validator_index {
                                         let validator = &mut validators[i];
-                                        // TODO: decode DispatchError to a readable format
-                                        validator
-                                            .warnings
-                                            .push("⚡ Batch interrupted ⚡".to_string());
+                                        if ev.stash == validator.stash {
+                                            validator_amount_value = ev.amount;
+                                        } else {
+                                            nominators_amount_value += ev.amount;
+                                            nominators_quantity += 1;
+                                        }
+                                    }
+                                } else if let Some(_ev) =
+                                    event.as_event::<ItemCompleted>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events#itemcompleted
+                                    // summary: A single item within a Batch of dispatches has completed with no error.
+                                    //
+                                    if let Some(i) = validator_index {
+                                        let validator = &mut validators[i];
+
+                                        // NOTE: Currently we do not track which page is being payout here.
+                                        // It should be changed when payout_stakers_by_page is in place
+                                        validator.claimed.push((era_index, 0));
+                                        // Fetch stash points
+                                        let points = get_validator_points_info(
+                                            &crunch,
+                                            era_index,
+                                            &validator.stash,
+                                        )
+                                        .await?;
+
+                                        let p = Payout {
+                                            block_number,
+                                            extrinsic: tx_events.extrinsic_hash(),
+                                            era_index,
+                                            validator_amount_value,
+                                            nominators_amount_value,
+                                            nominators_quantity,
+                                            points,
+                                        };
+                                        validator.payouts.push(p);
+                                        summary.calls_succeeded += 1;
+                                    }
+                                } else if let Some(_ev) =
+                                    event.as_event::<ItemFailed>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
+                                    // summary: A single item within a Batch of dispatches has completed with error.
+                                    //
+                                    summary.calls_failed += 1;
+                                } else if let Some(_ev) =
+                                    event.as_event::<BatchCompleted>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events#batchcompleted
+                                    // summary: Batch of dispatches completed fully with no error.
+                                    info!(
+                                        "Batch Completed ({} calls)",
+                                        calls_for_batch_clipped.len()
+                                    );
+                                } else if let Some(_ev) =
+                                    event.as_event::<BatchCompletedWithErrors>()?
+                                {
+                                    // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
+                                    // summary: Batch of dispatches completed but has errors.
+                                    info!(
+                                        "Batch Completed with errors ({} calls)",
+                                        calls_for_batch_clipped.len()
+                                    );
+                                } else if let Some(ev) =
+                                    event.as_event::<BatchInterrupted>()?
+                                {
+                                    // NOTE: Deprecate with force_batch
+                                    //
+                                    // https://polkadot.js.org/docs/substrate/events#batchinterruptedu32-spruntimedispatcherror
+                                    // summary: Batch of dispatches did not complete fully. Index of first failing dispatch given, as well as the error.
+                                    //
+                                    // Fix: https://github.com/turboflakes/crunch/issues/4
+                                    // Most likely the batch was interrupted because of an AlreadyClaimed era
+                                    // BatchInterrupted { index: 0, error: Module { index: 6, error: 14 } }
+                                    warn!("{:?}", ev);
+                                    if let Call::Staking(call) = &calls_for_batch_clipped
+                                        [usize::try_from(ev.index).unwrap()]
+                                    {
+                                        match &call {
+                                            StakingCall::payout_stakers {
+                                                validator_stash,
+                                                ..
+                                            } => {
+                                                warn!(
+                                                    "Batch interrupted at stash: {:?}",
+                                                    validator_stash
+                                                );
+                                                let validator_index =
+                                                    &mut validators.iter().position(
+                                                        |v| v.stash == *validator_stash,
+                                                    );
+
+                                                if let Some(i) = *validator_index {
+                                                    let validator = &mut validators[i];
+                                                    // TODO: decode DispatchError to a readable format
+                                                    validator.warnings.push(
+                                                        "⚡ Batch interrupted ⚡"
+                                                            .to_string(),
+                                                    );
+                                                }
+                                            }
+                                            _ => unreachable!(),
+                                        };
                                     }
                                 }
-                                _ => unreachable!(),
-                            };
+                            }
                         }
+                        TxStatus::Error { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        TxStatus::Invalid { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        TxStatus::Dropped { message } => {
+                            warn!("TxStatus: {message:?}");
+                        }
+                        _ => {}
                     }
                 }
-
                 iteration = Some(x + 1);
             }
         }
@@ -757,33 +799,73 @@ async fn collect_validators_data(
         {
             debug!(
                 "{} * claimed_rewards: {:?}",
-                stash, staking_ledger.claimed_rewards
+                stash, staking_ledger.legacy_claimed_rewards
             );
-
             // deconstruct claimed rewards
-            let BoundedVec1(claimed_rewards) = staking_ledger.claimed_rewards;
+            let BoundedVec(legacy_claimed_rewards) =
+                staking_ledger.legacy_claimed_rewards;
+
             // Find unclaimed eras in previous 84 eras (reverse order)
             for e in (start_index..era_index).rev() {
-                // If reward was already claimed skip it
-                if claimed_rewards.contains(&e) {
-                    if e == era_index - 1 {
-                        v.is_previous_era_already_claimed = true;
-                    }
+                // TODO: legacy methods to be deprecated in the future
+                // check https://github.com/paritytech/polkadot-sdk/pull/1189
+                if legacy_claimed_rewards.contains(&e) {
                     v.claimed.push((e, 0));
                     continue;
                 }
-                // Verify if stash was active in set
-                let eras_stakers_addr =
-                    node_runtime::storage().staking().eras_stakers(&e, &stash);
-                if let Some(exposure) = api
+
+                // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
+                let claimed_rewards_addr = node_runtime::storage()
+                    .staking()
+                    .claimed_rewards(&e, &stash);
+                if let Some(claimed_rewards) = api
                     .storage()
                     .at_latest()
                     .await?
-                    .fetch(&eras_stakers_addr)
+                    .fetch(&claimed_rewards_addr)
                     .await?
                 {
-                    if exposure.total > 0 {
-                        v.unclaimed.push((e, 0))
+                    // Verify if there are more pages to claim than the ones already claimed
+                    let eras_stakers_overview_addr = node_runtime::storage()
+                        .staking()
+                        .eras_stakers_overview(&e, &stash);
+                    if let Some(exposure) = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .fetch(&eras_stakers_overview_addr)
+                        .await?
+                    {
+                        // Check if all pages are claimed or not
+                        for page_index in 0..exposure.page_count {
+                            if claimed_rewards.contains(&page_index) {
+                                v.claimed.push((e, page_index));
+                            } else {
+                                v.unclaimed.push((e, page_index));
+                            }
+                        }
+                    } else {
+                        // If eras_stakers_overview is not available set all pages claimed
+                        for page_index in claimed_rewards {
+                            v.claimed.push((e, page_index));
+                        }
+                    }
+                } else {
+                    // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
+                    let eras_stakers_paged_addr = node_runtime::storage()
+                        .staking()
+                        .eras_stakers_paged_iter2(&e, &stash);
+                    let mut iter = api
+                        .storage()
+                        .at_latest()
+                        .await?
+                        .iter(eras_stakers_paged_addr)
+                        .await?;
+
+                    let mut page_index = 0;
+                    while let Some(Ok(_)) = iter.next().await {
+                        v.unclaimed.push((e, page_index));
+                        page_index += 1;
                     }
                 }
             }
@@ -882,7 +964,7 @@ async fn get_display_name(
         .fetch(&identity_of_addr)
         .await?
     {
-        Some(identity) => {
+        Some((identity, _)) => {
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
             let name = match sub_account_name {
@@ -1055,8 +1137,8 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         info!("{} * Stash account", stash);
 
         let start_index = active_era_index - history_depth;
-        let mut unclaimed: Vec<u32> = Vec::new();
-        let mut claimed: Vec<u32> = Vec::new();
+        let mut unclaimed: Vec<(EraIndex, PageIndex)> = Vec::new();
+        let mut claimed: Vec<(EraIndex, PageIndex)> = Vec::new();
 
         let bonded_addr = node_runtime::storage().staking().bonded(&stash);
         if let Some(controller) =
@@ -1067,40 +1149,83 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
                 // deconstruct claimed rewards
-                let BoundedVec1(claimed_rewards) = ledger_response.claimed_rewards;
+                let BoundedVec(legacy_claimed_rewards) =
+                    ledger_response.legacy_claimed_rewards;
+
                 // Find unclaimed eras in previous 84 eras
                 for era_index in start_index..active_era_index {
-                    // If reward was already claimed skip it
-                    if claimed_rewards.contains(&era_index) {
-                        claimed.push(era_index);
+                    // TODO: legacy methods to be deprecated in the future
+                    // check https://github.com/paritytech/polkadot-sdk/pull/1189
+                    if legacy_claimed_rewards.contains(&era_index) {
+                        claimed.push((era_index, 0));
                         continue;
                     }
-                    // Verify if stash was active in set
-                    let eras_stakers_addr = node_runtime::storage()
+
+                    // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
+                    let claimed_rewards_addr = node_runtime::storage()
                         .staking()
-                        .eras_stakers(&era_index, &stash);
-                    if let Some(exposure) = api
+                        .claimed_rewards(&era_index, &stash);
+                    if let Some(claimed_rewards) = api
                         .storage()
                         .at_latest()
                         .await?
-                        .fetch(&eras_stakers_addr)
+                        .fetch(&claimed_rewards_addr)
                         .await?
                     {
-                        if exposure.total > 0 {
-                            unclaimed.push(era_index)
+                        // Verify if there are more pages to claim than the ones already claimed
+                        let eras_stakers_overview_addr = node_runtime::storage()
+                            .staking()
+                            .eras_stakers_overview(&era_index, &stash);
+                        if let Some(exposure) = api
+                            .storage()
+                            .at_latest()
+                            .await?
+                            .fetch(&eras_stakers_overview_addr)
+                            .await?
+                        {
+                            // Check if all pages are claimed or not
+                            for page_index in 0..exposure.page_count {
+                                if claimed_rewards.contains(&page_index) {
+                                    claimed.push((era_index, page_index));
+                                } else {
+                                    unclaimed.push((era_index, page_index));
+                                }
+                            }
+                        } else {
+                            // If eras_stakers_overview is not available set all pages claimed
+                            for page_index in claimed_rewards {
+                                claimed.push((era_index, page_index));
+                            }
+                        }
+                    } else {
+                        // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
+                        let eras_stakers_paged_addr = node_runtime::storage()
+                            .staking()
+                            .eras_stakers_paged_iter2(&era_index, &stash);
+                        let mut iter = api
+                            .storage()
+                            .at_latest()
+                            .await?
+                            .iter(eras_stakers_paged_addr)
+                            .await?;
+
+                        let mut page_index = 0;
+                        while let Some(Ok(_)) = iter.next().await {
+                            unclaimed.push((era_index, page_index));
+                            page_index += 1;
                         }
                     }
                 }
             }
         }
         info!(
-            "{} claimed eras in the last {} -> {:?}",
+            "{} claimed pages in the last {} eras -> {:?}",
             claimed.len(),
             history_depth,
             claimed
         );
         info!(
-            "{} unclaimed eras in the last {} -> {:?}",
+            "{} unclaimed pages in the last {} eras -> {:?}",
             unclaimed.len(),
             history_depth,
             unclaimed
@@ -1228,15 +1353,15 @@ pub async fn try_fetch_pool_members_for_compound(
         .iter(permissions_addr)
         .await?;
 
-    while let Some(Ok((key, value))) = iter.next().await {
+    while let Some(Ok(storage)) = iter.next().await {
         if [
             ClaimPermission::PermissionlessCompound,
             ClaimPermission::PermissionlessAll,
         ]
-        .contains(&value)
+        .contains(&storage.value)
         {
-            let member = get_account_id_from_storage_key(key);
-            debug!("member: {}", member);
+            let member = get_account_id_from_storage_key(storage.key_bytes);
+            // debug!("member: {}", member);
 
             // 2 .Verify if member belongs to the pools configured
             let pool_member_addr = node_runtime::storage()
@@ -1310,7 +1435,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
             .await?
         {
             // deconstruct targets
-            let BoundedVec1(targets) = nominations.targets;
+            let BoundedVec(targets) = nominations.targets;
             all.extend(
                 targets
                     .iter()

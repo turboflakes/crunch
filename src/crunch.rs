@@ -24,7 +24,7 @@ use crate::matrix::Matrix;
 use crate::runtimes::{
     kusama,
     // westend,
-    // paseo,
+    paseo,
     polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
 };
@@ -309,7 +309,7 @@ impl Crunch {
         match self.runtime {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
-            // SupportedRuntime::Paseo => paseo::inspect(self).await,
+            SupportedRuntime::Paseo => paseo::inspect(self).await,
             // SupportedRuntime::Westend => westend::inspect(self).await,
             _ => unreachable!(),
         }
@@ -319,7 +319,7 @@ impl Crunch {
         match self.runtime {
             SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
             SupportedRuntime::Kusama => kusama::try_crunch(self).await,
-            // SupportedRuntime::Paseo => paseo::try_crunch(self).await,
+            SupportedRuntime::Paseo => paseo::try_crunch(self).await,
             // SupportedRuntime::Westend => westend::try_crunch(self).await,
             _ => unreachable!(),
         }
@@ -333,9 +333,9 @@ impl Crunch {
             SupportedRuntime::Kusama => {
                 kusama::run_and_subscribe_era_paid_events(self).await
             }
-            // SupportedRuntime::Paseo => {
-            //     paseo::run_and_subscribe_era_paid_events(self).await
-            // }
+            SupportedRuntime::Paseo => {
+                paseo::run_and_subscribe_era_paid_events(self).await
+            }
             // SupportedRuntime::Westend => {
             //     westend::run_and_subscribe_era_paid_events(self).await
             // }
