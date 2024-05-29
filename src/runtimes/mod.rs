@@ -25,4 +25,4 @@ pub mod kusama;
 pub mod paseo;
 pub mod polkadot;
 pub mod support;
-// pub mod westend;
+pub mod westend;

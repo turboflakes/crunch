@@ -22,11 +22,9 @@ use crate::config::CONFIG;
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    kusama,
-    // westend,
-    paseo,
-    polkadot,
+    kusama, paseo, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
+    westend,
 };
 use async_std::task;
 use log::{debug, error, info, warn};
@@ -310,8 +308,8 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Paseo => paseo::inspect(self).await,
-            // SupportedRuntime::Westend => westend::inspect(self).await,
-            _ => unreachable!(),
+            SupportedRuntime::Westend => westend::inspect(self).await,
+            // _ => unreachable!(),
         }
     }
 
@@ -320,8 +318,8 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
             SupportedRuntime::Kusama => kusama::try_crunch(self).await,
             SupportedRuntime::Paseo => paseo::try_crunch(self).await,
-            // SupportedRuntime::Westend => westend::try_crunch(self).await,
-            _ => unreachable!(),
+            SupportedRuntime::Westend => westend::try_crunch(self).await,
+            // _ => unreachable!(),
         }
     }
 
@@ -336,10 +334,9 @@ impl Crunch {
             SupportedRuntime::Paseo => {
                 paseo::run_and_subscribe_era_paid_events(self).await
             }
-            // SupportedRuntime::Westend => {
-            //     westend::run_and_subscribe_era_paid_events(self).await
-            // }
-            _ => unreachable!(),
+            SupportedRuntime::Westend => {
+                westend::run_and_subscribe_era_paid_events(self).await
+            } // _ => unreachable!(),
         }
     }
 }
