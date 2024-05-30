@@ -25,6 +25,7 @@ use crate::{
 use log::{info, warn};
 use rand::Rng;
 use std::collections::HashSet;
+use regex::Regex;
 use subxt::{ext::sp_core::H256, utils::AccountId32};
 
 pub type EraIndex = u32;
@@ -588,6 +589,23 @@ impl From<RawData> for Report {
         report
     }
 }
+
+pub fn demoji(string: &String) -> String {
+    let regex = Regex::new(concat!(
+    "[",
+    "\u{01F600}-\u{01F64F}", // emoticons
+    "\u{01F300}-\u{01F5FF}", // symbols & pictographs
+    "\u{01F680}-\u{01F6FF}", // transport & map symbols
+    "\u{01F1E0}-\u{01F1FF}", // flags (iOS)
+    "\u{002702}-\u{0027B0}",
+    "\u{0024C2}-\u{01F251}",
+    "]+",
+    ))
+        .unwrap();
+
+    regex.replace_all(string, "").to_string().to_lowercase()
+}
+
 
 fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
     let cap: usize = match n {
