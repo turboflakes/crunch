@@ -18,7 +18,10 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::{config::CONFIG, crunch::OnetData};
+use crate::{
+    config::{RunMode, CONFIG},
+    crunch::OnetData,
+};
 use log::{info, warn};
 use rand::Rng;
 use std::collections::HashSet;
@@ -559,17 +562,21 @@ impl From<RawData> for Report {
             report.add_break();
         }
 
-        if config.is_mode_era {
-            report.add_raw_text(format!(
-                "💤 Until next era <i>{}</i> → Stay tuned 👀",
-                data.network.active_era + 1
-            ));
-        } else {
-            report.add_raw_text(format!(
-                "💤 The next <code>crunch</code> time will be in {} hours ⏱️",
-                config.interval / 3600
-            ));
-        };
+        match config.run_mode {
+            RunMode::Daily | RunMode::Turbo => {
+                report.add_raw_text(format!(
+                    "💤 The next <code>crunch</code> time will be in {} hours ⏱️",
+                    config.interval / 3600
+                ));
+            }
+            RunMode::Era => {
+                report.add_raw_text(format!(
+                    "💤 Until next era <i>{}</i> → Stay tuned 👀",
+                    data.network.active_era + 1
+                ));
+            }
+            _ => {}
+        }
 
         report.add_raw_text("——".into());
         report.add_break();

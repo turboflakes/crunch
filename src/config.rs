@@ -109,13 +109,21 @@ fn default_onet_number_last_sessions() -> u32 {
     6
 }
 
+/// provides default value for run_mode
+fn default_run_mode() -> RunMode {
+    RunMode::Era
+}
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     #[serde(default = "default_interval")]
     pub interval: u64,
     #[serde(default = "default_error_interval")]
     pub error_interval: u32,
+    #[serde(default)]
     pub substrate_ws_url: String,
+    #[serde(default)]
+    pub substrate_people_ws_url: String,
     #[serde(default)]
     pub stashes_url: String,
     #[serde(default)]
@@ -161,8 +169,8 @@ pub struct Config {
     pub is_short: bool,
     #[serde(default)]
     pub is_medium: bool,
-    #[serde(default)]
-    pub is_mode_era: bool,
+    #[serde(default = "default_run_mode")]
+    pub run_mode: RunMode,
     // ONE-T integration
     #[serde(default)]
     pub onet_api_enabled: bool,
@@ -187,6 +195,16 @@ pub struct Config {
     pub matrix_bot_display_name_disabled: bool,
 }
 
+#[derive(Default, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum RunMode {
+    #[default]
+    Era,
+    Daily,
+    Turbo,
+    Once,
+}
+
 /// Inject dotenv and env vars into the Config struct
 fn get_config() -> Config {
     // Define CLI flags with clap
@@ -197,7 +215,7 @@ fn get_config() -> Config {
     .arg(
       Arg::with_name("CHAIN")
           .index(1)
-          .possible_values(&["kusama", "polkadot", "paseo"])
+          .possible_values(&["kusama", "polkadot", "paseo", "westend"])
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -207,10 +225,10 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("MODE")
             .index(1)
-            .possible_values(&["era", "daily", "turbo"])
+            .possible_values(&["era", "daily", "turbo", "once"])
             .default_value("era")
             .help(
-              "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
+              "Sets how often flakes (staking rewards) should be crunched (claimed) from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours; option 'once' tries to run the payout once and exit;)",
             ))
       .arg(
         Arg::with_name("seed-path")
@@ -351,10 +369,10 @@ fn get_config() -> Config {
       .arg(
         Arg::with_name("MODE")
             .index(1)
-            .possible_values(&["era", "daily", "turbo"])
+            .possible_values(&["era", "daily", "turbo", "once"])
             .default_value("era")
             .help(
-              "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours)",
+              "Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets 'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets 'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6 hours;option 'once' tries to run the payout once and exit;)",
             ))
       .arg(
         Arg::with_name("seed-path")
@@ -438,20 +456,20 @@ fn get_config() -> Config {
           .help(
             "Nomination pool ids for which 'crunch' will try to fetch the validator stash addresses (e.g. poll_id_1, pool_id_2).",
           ))
-          .arg(
-            Arg::with_name("tx-tip")
-              .long("tx-tip")
-              .takes_value(true)
-              .help(
-                "Define a tip in PLANCKS for the block author.",
-              ))
-          .arg(
-            Arg::with_name("tx-mortal-period")
-              .long("tx-mortal-period")
-              .takes_value(true)
-              .help(
-                "Define the number of blocks the transaction is mortal for (default is 64 blocks)",
-              ))
+      .arg(
+        Arg::with_name("tx-tip")
+          .long("tx-tip")
+          .takes_value(true)
+          .help(
+            "Define a tip in PLANCKS for the block author.",
+          ))
+      .arg(
+        Arg::with_name("tx-mortal-period")
+          .long("tx-mortal-period")
+          .takes_value(true)
+          .help(
+            "Define the number of blocks the transaction is mortal for (default is 64 blocks)",
+          ))
       .arg(
         Arg::with_name("enable-pool-compound-threshold")
           .long("enable-pool-compound-threshold")
@@ -527,8 +545,16 @@ fn get_config() -> Config {
         .long("substrate-ws-url")
         .takes_value(true)
         .help(
-          "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
+          "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://rpc.turboflakes.io:443/kusama) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
         ))
+    .arg(
+      Arg::with_name("substrate-people-ws-url")
+        .long("substrate-people-ws-url")
+        .takes_value(true)
+        .help(
+          "Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g. wss://sys.turboflakes.io:443/people-kusama)",
+        ),
+    )
     .arg(
       Arg::with_name("config-path")
         .short("c")
@@ -555,29 +581,44 @@ fn get_config() -> Config {
     }
 
     match matches.value_of("CHAIN") {
-        // Some("westend") => {
-        //     env::set_var(
-        //         "CRUNCH_SUBSTRATE_WS_URL",
-        //         "wss://rpc.turboflakes.io:443/westend",
-        //     );
-        // }
-        Some("kusama") => {
+        Some("westend") => {
             env::set_var(
                 "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.turboflakes.io:443/kusama",
+                "wss://rpc.turboflakes.io:443/westend",
             );
+        }
+        Some("kusama") => {
+            if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_WS_URL",
+                    "wss://rpc.turboflakes.io:443/kusama",
+                );
+            }
+            if env::var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_PEOPLE_WS_URL",
+                    "wss://sys.turboflakes.io:443/people-kusama",
+                );
+            }
+            env::set_var("ONET_CHAIN_NAME", "kusama");
         }
         Some("polkadot") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.turboflakes.io:443/polkadot",
-            );
+            if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_WS_URL",
+                    "wss://rpc.turboflakes.io:443/polkadot",
+                );
+            }
+            env::set_var("CRUNCH_CHAIN_NAME", "polkadot");
         }
         Some("paseo") => {
-            env::set_var(
-                "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.turboflakes.io:443/paseo",
-            );
+            if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_WS_URL",
+                    "wss://rpc.turboflakes.io:443/paseo",
+                );
+            }
+            env::set_var("CRUNCH_CHAIN_NAME", "paseo");
         }
         _ => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
@@ -588,6 +629,10 @@ fn get_config() -> Config {
 
     if let Some(substrate_ws_url) = matches.value_of("substrate-ws-url") {
         env::set_var("CRUNCH_SUBSTRATE_WS_URL", substrate_ws_url);
+    }
+
+    if let Some(substrate_people_ws_url) = matches.value_of("substrate-people-ws-url") {
+        env::set_var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL", substrate_people_ws_url);
     }
 
     if let Some(seed_path) = matches.value_of("seed-path") {
@@ -612,17 +657,16 @@ fn get_config() -> Config {
 
     match matches.subcommand() {
         ("flakes", Some(flakes_matches)) | ("rewards", Some(flakes_matches)) => {
-            match flakes_matches.value_of("MODE").unwrap() {
-                "era" => {
-                    env::set_var("CRUNCH_IS_MODE_ERA", "true");
-                }
+            let mode = flakes_matches.value_of("MODE").unwrap_or_default();
+            env::set_var("CRUNCH_RUN_MODE", mode);
+            match mode {
                 "daily" => {
                     env::set_var("CRUNCH_INTERVAL", "86400");
                 }
                 "turbo" => {
                     env::set_var("CRUNCH_INTERVAL", "21600");
                 }
-                _ => unreachable!(),
+                _ => {}
             }
 
             if let Some(seed_path) = flakes_matches.value_of("seed-path") {

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## New
+- Fetch identities from people-kusama chain with use of `--substrate-people-ws-url` (Available for Kusama & Westend)
+- Introduce run mode `once` where crunch tries to run payouts and exit; useful if you would like to setup crunch as cronjob;
+
+## Changed
+- Update subxt v0.37.0 (make use of unstable subxt RPC reconnection feature)
+- Iterate transaction progress to only evaluate events when block is finalized, log and drop all other states
+- Generate only metadata from specific pallets
+- Update metadata polkadot/1002000
+- Update metadata kusama/1002001
+- Update metadata westend/1011000
+- Update metadata paseo/1002000
+
 ## [0.15.0] - 2023-04-26
 
 ## New

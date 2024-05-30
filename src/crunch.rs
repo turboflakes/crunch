@@ -18,15 +18,13 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::config::{Config, CONFIG};
+use crate::config::CONFIG;
 use crate::errors::CrunchError;
 use crate::matrix::Matrix;
 use crate::runtimes::{
-    kusama,
-    // westend,
-    paseo,
-    polkadot,
+    kusama, paseo, polkadot,
     support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
+    westend,
 };
 use async_std::task;
 use log::{debug, error, info, warn};
@@ -38,7 +36,10 @@ use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
 use subxt::{
     backend::{
         legacy::{rpc_methods::StorageKey, LegacyRpcMethods},
-        rpc::RpcClient,
+        rpc::{
+            reconnecting_rpc_client::{Client as ReconnectingClient, ExponentialBackoff},
+            RpcClient,
+        },
     },
     ext::sp_core::crypto,
     utils::{validate_url_is_secure, AccountId32},
@@ -78,36 +79,55 @@ impl MessageTrait for Message {
     }
 }
 
-pub async fn create_substrate_rpc_client_from_config(
-    config: Config,
-) -> Result<RpcClient, subxt::Error> {
-    if let Err(_) = validate_url_is_secure(config.substrate_ws_url.as_ref()) {
-        warn!("Insecure URL provided: {}", config.substrate_ws_url);
+// pub async fn create_substrate_rpc_client_from_config(
+//     url: &str,
+// ) -> Result<RpcClient, subxt::Error> {
+//     if let Err(_) = validate_url_is_secure(url) {
+//         warn!("Insecure URL provided: {}", url);
+//     };
+//     RpcClient::from_insecure_url(url).await
+// }
+
+pub async fn create_substrate_rpc_client_from_url(
+    url: &str,
+) -> Result<ReconnectingClient, subxt::error::RpcError> {
+    if let Err(_) = validate_url_is_secure(url) {
+        warn!("Insecure URL provided: {}", url);
     };
-    RpcClient::from_insecure_url(config.substrate_ws_url).await
+    ReconnectingClient::builder()
+        .retry_policy(
+            ExponentialBackoff::from_millis(100)
+                .max_delay(time::Duration::from_secs(10))
+                .take(10),
+        )
+        .build(url.to_string())
+        .await
 }
 
 pub async fn create_substrate_client_from_rpc_client(
     rpc_client: RpcClient,
-) -> Result<OnlineClient<SubstrateConfig>, subxt::Error> {
-    OnlineClient::<SubstrateConfig>::from_rpc_client(rpc_client).await
+) -> Result<OnlineClient<SubstrateConfig>, CrunchError> {
+    OnlineClient::<SubstrateConfig>::from_rpc_client(rpc_client)
+        .await
+        .map_err(|err| CrunchError::SubxtError(err.into()))
 }
 
 pub async fn create_or_await_substrate_node_client(
-    config: Config,
+    url: &str,
 ) -> (
     OnlineClient<SubstrateConfig>,
     LegacyRpcMethods<SubstrateConfig>,
     SupportedRuntime,
 ) {
     loop {
-        match create_substrate_rpc_client_from_config(config.clone()).await {
+        match create_substrate_rpc_client_from_url(url).await {
             Ok(rpc_client) => {
-                let rpc = LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone());
-                let chain = rpc.system_chain().await.unwrap_or_default();
-                let name = rpc.system_name().await.unwrap_or_default();
-                let version = rpc.system_version().await.unwrap_or_default();
-                let properties = rpc.system_properties().await.unwrap_or_default();
+                let legacy_rpc =
+                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+                let chain = legacy_rpc.system_chain().await.unwrap_or_default();
+                let name = legacy_rpc.system_name().await.unwrap_or_default();
+                let version = legacy_rpc.system_version().await.unwrap_or_default();
+                let properties = legacy_rpc.system_properties().await.unwrap_or_default();
 
                 // Display SS58 addresses based on the connected chain
                 let chain_prefix: ChainPrefix =
@@ -134,26 +154,27 @@ pub async fn create_or_await_substrate_node_client(
 
                 info!(
                     "Connected to {} network using {} * Substrate node {} v{}",
-                    chain, config.substrate_ws_url, name, version
+                    chain, url, name, version
                 );
 
-                match create_substrate_client_from_rpc_client(rpc_client.clone()).await {
-                    Ok(client) => {
-                        break (client, rpc, SupportedRuntime::from(chain_token_symbol));
+                match create_substrate_client_from_rpc_client(rpc_client.clone().into())
+                    .await
+                {
+                    Ok(relay_client) => {
+                        // Create people chain client depending on the runtime selected
+                        let runtime = SupportedRuntime::from(chain_token_symbol);
+                        break (relay_client, legacy_rpc, runtime);
                     }
                     Err(e) => {
                         error!("{}", e);
-                        info!(
-                            "Awaiting for connection using {}",
-                            config.substrate_ws_url
-                        );
+                        info!("Awaiting for connection using {}", url);
                         thread::sleep(time::Duration::from_secs(6));
                     }
                 }
             }
             Err(e) => {
                 error!("{}", e);
-                info!("Awaiting for connection using {}", config.substrate_ws_url);
+                info!("Awaiting for connection using {}", url);
                 thread::sleep(time::Duration::from_secs(6));
             }
         }
@@ -189,13 +210,34 @@ pub struct Crunch {
     runtime: SupportedRuntime,
     client: OnlineClient<SubstrateConfig>,
     rpc: LegacyRpcMethods<SubstrateConfig>,
+    // Note: Use people client as optional only until we get people chain available
+    // on Polkadot, as soon as it is available it can go away
+    people_client_option: Option<OnlineClient<SubstrateConfig>>,
     matrix: Matrix,
 }
 
 impl Crunch {
     async fn new() -> Crunch {
+        let config = CONFIG.clone();
+        // Initialize relay node client
         let (client, rpc, runtime) =
-            create_or_await_substrate_node_client(CONFIG.clone()).await;
+            create_or_await_substrate_node_client(&config.substrate_ws_url).await;
+
+        // Initialize people node client if supported by relay chain and url by user
+        let people_client_option = if let Some(people_runtime) = runtime.people_runtime()
+        {
+            if !people_runtime.default_rpc_url().is_empty() {
+                let (people_client, _, _) = create_or_await_substrate_node_client(
+                    &people_runtime.default_rpc_url(),
+                )
+                .await;
+                Some(people_client)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         // Initialize matrix client
         let mut matrix: Matrix = Matrix::new();
@@ -208,12 +250,17 @@ impl Crunch {
             runtime,
             client,
             rpc,
+            people_client_option,
             matrix,
         }
     }
 
     pub fn client(&self) -> &OnlineClient<SubstrateConfig> {
         &self.client
+    }
+
+    pub fn people_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
+        &self.people_client_option
     }
 
     pub fn rpc(&self) -> &LegacyRpcMethods<SubstrateConfig> {
@@ -251,13 +298,18 @@ impl Crunch {
         spawn_crunch_view();
     }
 
+    /// Spawn crunch once task
+    pub fn once() {
+        spawn_crunch_once();
+    }
+
     async fn inspect(&self) -> Result<(), CrunchError> {
         match self.runtime {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Paseo => paseo::inspect(self).await,
-            // SupportedRuntime::Westend => westend::inspect(self).await,
-            _ => unreachable!(),
+            SupportedRuntime::Westend => westend::inspect(self).await,
+            // _ => unreachable!(),
         }
     }
 
@@ -266,8 +318,8 @@ impl Crunch {
             SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
             SupportedRuntime::Kusama => kusama::try_crunch(self).await,
             SupportedRuntime::Paseo => paseo::try_crunch(self).await,
-            // SupportedRuntime::Westend => westend::try_crunch(self).await,
-            _ => unreachable!(),
+            SupportedRuntime::Westend => westend::try_crunch(self).await,
+            // _ => unreachable!(),
         }
     }
 
@@ -282,10 +334,9 @@ impl Crunch {
             SupportedRuntime::Paseo => {
                 paseo::run_and_subscribe_era_paid_events(self).await
             }
-            // SupportedRuntime::Westend => {
-            //     westend::run_and_subscribe_era_paid_events(self).await
-            // }
-            _ => unreachable!(),
+            SupportedRuntime::Westend => {
+                westend::run_and_subscribe_era_paid_events(self).await
+            } // _ => unreachable!(),
         }
     }
 }
@@ -355,6 +406,16 @@ fn spawn_crunch_view() {
     task::block_on(crunch_task);
 }
 
+fn spawn_crunch_once() {
+    let crunch_task = task::spawn(async {
+        let c: Crunch = Crunch::new().await;
+        if let Err(e) = c.try_run_batch().await {
+            error!("{}", e);
+        };
+    });
+    task::block_on(crunch_task);
+}
+
 pub fn random_wait(max: u64) -> u64 {
     let mut rng = rand::thread_rng();
     rng.gen_range(0..max)
@@ -409,7 +470,7 @@ pub async fn try_fetch_onet_data(
         return Ok(None);
     }
 
-    let endpoint = if config.onet_api_url != "" {
+    let endpoint = if !config.onet_api_url.is_empty() {
         config.onet_api_url
     } else {
         format!("https://{}-onet-api.turboflakes.io", chain_name)

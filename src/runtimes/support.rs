@@ -19,6 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::config::CONFIG;
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
@@ -28,6 +29,16 @@ pub enum SupportedRuntime {
     Kusama,
     Westend,
     Paseo,
+}
+
+impl SupportedRuntime {
+    pub fn people_runtime(&self) -> Option<SupportedParasRuntime> {
+        match &self {
+            Self::Kusama => Some(SupportedParasRuntime::PeopleKusama),
+            Self::Westend => Some(SupportedParasRuntime::PeopleWestend),
+            _ => None,
+        }
+    }
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -61,6 +72,30 @@ impl std::fmt::Display for SupportedRuntime {
             Self::Kusama => write!(f, "Kusama"),
             Self::Westend => write!(f, "Westend"),
             Self::Paseo => write!(f, "Paseo"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum SupportedParasRuntime {
+    PeopleKusama,
+    PeopleWestend,
+}
+
+impl SupportedParasRuntime {
+    pub fn default_rpc_url(&self) -> String {
+        let config = CONFIG.clone();
+        match &self {
+            Self::PeopleKusama | Self::PeopleWestend => config.substrate_people_ws_url,
+        }
+    }
+}
+
+impl std::fmt::Display for SupportedParasRuntime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PeopleKusama => write!(f, "People Kusama"),
+            Self::PeopleWestend => write!(f, "People Westend"),
         }
     }
 }

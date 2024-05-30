@@ -267,9 +267,12 @@ OPTIONS:
         --stashes-url <stashes-url>
             Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g.
             https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).
+        --substrate-people-ws-url <substrate-people-ws-url>
+            Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g.
+            wss://sys.turboflakes.io:443/people-kusama)
     -w, --substrate-ws-url <substrate-ws-url>
-            Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://kusama-rpc.polkadot.io)
-            (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
+            Substrate websocket endpoint for which 'crunch' will try to connect. (e.g.
+            wss://rpc.turboflakes.io:443/kusama) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
 
 ARGS:
     <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [possible values: kusama,
@@ -373,7 +376,8 @@ ARGS:
     <MODE>    Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets
               'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets
               'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6
-              hours) [default: era]  [possible values: era, daily, turbo]
+              hours;option 'once' tries to run the payout once and exit;) [default: era]  [possible values: era, 
+              daily, turbo, once]
 ```
 
 Note: By default `crunch` collects the outstanding payouts from previous eras and group all the extrinsic payout calls in group of 4 or whatever value defined in the flag `maximum-calls` so that a single batch call per group can be made. The collection of all outstanding payouts from previous eras is also limited by 2 other flags. The first being `maximum-payouts` which default value is 4, this flag limits the number of payouts **per stash**. The other one is the `maximum-history-eras` which default is also 4, this flag limits the number of past eras `crunch` will look for unclaimed rewards - but this flag only applies if `short` flag is also used in the configuration. This is done so that `crunch` can run efficiently every era.
@@ -398,8 +402,8 @@ Note: You can run `crunch` inside a tmux session and leave it, or using somethin
 
 Install previous openssl version from:
 ```
-wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.21_amd64.deb
-dpkg -i libssl1.1_1.1.1f-1ubuntu2.21_amd64.deb
+wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb
+dpkg -i libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb
 ```
 
 ## Development / Build from Source
