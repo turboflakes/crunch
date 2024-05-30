@@ -213,8 +213,8 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
             pools_summary:pools_summary.clone(),
         };
 
-        //Flooding prevention, a message will be sent every 30s
-        thread::sleep(Duration::from_millis(500));
+        //Flooding prevention, a message will be sent every 10s
+        thread::sleep(Duration::from_millis(10000));
 
         let report = Report::from(data);
         crunch
@@ -402,7 +402,7 @@ pub fn get_distinct_parent_identites(validators:Validators)->Vec<String>{
     let mut has_none:bool = false;
 
     //Obtains a sorted distinct list of parent identities
-    let mut parent_identities:Vec<String> = validators.clone().iter().map(|val| val.parent_identity.clone()).collect();
+    let mut parent_identities:Vec<String> = validators.clone().iter().map(|val| val.parent_identity.clone().to_lowercase()).collect();
     parent_identities.sort();
     parent_identities.dedup();
 
@@ -463,7 +463,7 @@ pub async fn try_run_batch_payouts(
         let mut summary: PayoutSummary = Default::default();
 
         for v in &all_validators{
-            if v.parent_identity == parent{
+            if v.parent_identity.to_lowercase() == parent{
                 validators.push(v.clone());
             }
         }
