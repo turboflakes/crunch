@@ -89,14 +89,14 @@ impl Validator {
 
 pub type Validators = Vec<Validator>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SignerDetails {
     pub account: AccountId32,
     pub name: String,
     pub warnings: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Network {
     pub active_era: EraIndex,
     pub name: String,
