@@ -231,13 +231,13 @@ impl From<RawData> for Report {
 		} else {
 			format!("")
 		};
+		let mut prefix = "Next".to_string();
+
+		if data.payout_summary.calls_succeeded == 0 {
+			prefix = format!("{}, next", data.validators[0].parent_identity);
+		}
 
 		let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {
-			let mut prefix = "Next".to_string();
-
-			if data.payout_summary.calls_succeeded == 0 {
-				prefix = format!("{}, next", data.validators[0].parent_identity);
-			}
 
 			format!(
 				"{} era expect <b>{}</b> ({:.0}%) {}",
@@ -249,7 +249,7 @@ impl From<RawData> for Report {
 				Random::Happy,
 			)
 		} else {
-			format!("{}, next era expect <b>NO</b> rewards {}", data.validators[0].parent_identity, Random::Grumpy)
+			format!("{} era expect <b>NO</b> rewards {}", prefix, Random::Grumpy)
 		};
 
 		report.add_raw_text(format!(
