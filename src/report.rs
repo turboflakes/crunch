@@ -240,7 +240,7 @@ impl From<RawData> for Report {
 			}
 
 			format!(
-				"{}, next era expect <b>{}</b> ({:.0}%) {}",
+				"{} era expect <b>{}</b> ({:.0}%) {}",
 				prefix,
 				data.payout_summary.next_minimum_expected,
 				(data.payout_summary.next_minimum_expected as f32
