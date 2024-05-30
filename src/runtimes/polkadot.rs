@@ -59,14 +59,14 @@ use node_runtime::{
 	runtime_types::bounded_collections::bounded_vec::BoundedVec,
 	runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
 	staking::events::EraPaid,
-	staking::events::PayoutStarted,
+	/*staking::events::PayoutStarted,
 	staking::events::Rewarded,
 	system::events::ExtrinsicFailed,
 	utility::events::BatchCompleted,
 	utility::events::BatchCompletedWithErrors,
 	utility::events::BatchInterrupted,
 	utility::events::ItemCompleted,
-	utility::events::ItemFailed,
+	utility::events::ItemFailed,*/
 };
 use crate::runtimes::kusama::relay_runtime;
 
@@ -200,16 +200,24 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 	debug!("network {:?}", network);
 
 	//Iterate through summaries and issues reports for each
-	for vs in validator_summary {
+	for vs in validator_summary.clone() {
 		let validators = vs.0;
 		let payout_summary = vs.1;
+		let mut pool_summary: Option<NominationPoolsSummary> = None;
 
+		let last_validator_group_parent = validator_summary[validator_summary.len() - 1].0[0].parent_identity.clone();
+		let current_validator_group_parent = validators[0].parent_identity.clone();
+
+		if last_validator_group_parent == current_validator_group_parent
+		{
+			pool_summary = Some(pools_summary.clone());
+		}
 		let data = RawData {
 			network: network.clone(),
 			signer_details: signer_details.clone(),
 			validators: validators,
 			payout_summary: payout_summary,
-			pools_summary: pools_summary.clone(),
+			pools_summary: pool_summary,
 		};
 
 		//Flooding prevention, a message will be sent every 10s

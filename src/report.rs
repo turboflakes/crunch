@@ -133,7 +133,7 @@ pub struct RawData {
 	pub signer_details: SignerDetails,
 	pub validators: Validators,
 	pub payout_summary: PayoutSummary,
-	pub pools_summary: NominationPoolsSummary,
+	pub pools_summary: Option<NominationPoolsSummary>,
 }
 
 type Body = Vec<String>;
@@ -221,7 +221,8 @@ impl From<RawData> for Report {
 
 		let summary_crunch_desc = if data.payout_summary.calls_succeeded > 0 {
 			format!(
-				"Crunched <b>{}</b> ({:.0}%) → ",
+				"{} crunched <b>{}</b> ({:.0}%) → ",
+				data.validators[0].parent_identity.clone(),
 				data.payout_summary.calls_succeeded,
 				(data.payout_summary.calls_succeeded as f32
 					/ data.payout_summary.calls as f32)
@@ -232,8 +233,15 @@ impl From<RawData> for Report {
 		};
 
 		let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {
+			let mut prefix = "Next".to_string();
+
+			if data.payout_summary.calls_succeeded == 0 {
+				prefix = format!("{}, next", data.validators[0].parent_identity);
+			}
+
 			format!(
-				"{}, next era expect <b>{}</b> ({:.0}%) {}", data.validators[0].parent_identity,
+				"{}, next era expect <b>{}</b> ({:.0}%) {}",
+				prefix,
 				data.payout_summary.next_minimum_expected,
 				(data.payout_summary.next_minimum_expected as f32
 					/ data.payout_summary.total_validators as f32)
@@ -507,10 +515,13 @@ impl From<RawData> for Report {
 
 		report.add_break();
 
-		// Nomination Pools coumpound info
-		if config.pool_members_compound_enabled
-			|| config.pool_only_operator_compound_enabled
+		// Nomination Pools compound info
+		if (config.pool_members_compound_enabled
+			|| config.pool_only_operator_compound_enabled)
+			&& data.pools_summary.is_some()
 		{
+			let pool_summary_data = data.pools_summary.unwrap();
+
 			let threshold = format!(
 				"{:.4} {}",
 				config.pool_compound_threshold as f64
@@ -524,11 +535,11 @@ impl From<RawData> for Report {
 				format!("Pools {:?}", config.pool_ids)
 			};
 
-			if data.pools_summary.total_members > 0 {
-				let members_desc = if data.pools_summary.total_members == 1 {
+			if pool_summary_data.total_members > 0 {
+				let members_desc = if pool_summary_data.total_members == 1 {
 					format!("1 reward")
 				} else {
-					format!("{} rewards", data.pools_summary.total_members)
+					format!("{} rewards", pool_summary_data.total_members)
 				};
 
 				if config.pool_only_operator_compound_enabled {
@@ -543,7 +554,7 @@ impl From<RawData> for Report {
 					));
 				}
 
-				for batch in data.pools_summary.batches {
+				for batch in pool_summary_data.batches {
 					report.add_raw_text(format!(
 						"💯 Batch finalized at block #{}
                     (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",

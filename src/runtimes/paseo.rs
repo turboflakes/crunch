@@ -244,7 +244,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         signer_details,
         validators,
         payout_summary,
-        pools_summary,
+        pools_summary: Some(pools_summary),
     };
 
     let report = Report::from(data);
