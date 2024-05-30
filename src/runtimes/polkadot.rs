@@ -401,7 +401,7 @@ pub fn get_distinct_parent_identites(validators: Validators) -> Vec<String> {
 	let mut has_none: bool = false;
 
 	//Obtains a sorted distinct list of parent identities
-	let mut parent_identities: Vec<String> = validators.clone().iter().map(|val| report::demoji(&val.parent_identity)).collect();
+	let mut parent_identities: Vec<String> = validators.clone().iter().map(|val| report::replace_emoji_lowercase(&val.parent_identity)).collect();
 	parent_identities.sort();
 	parent_identities.dedup();
 
@@ -461,7 +461,7 @@ pub async fn try_run_batch_payouts(
 		let mut summary: PayoutSummary = Default::default();
 
 		for v in &all_validators {
-			if report::demoji(&v.parent_identity) == report::demoji(&parent) {
+			if report::replace_emoji_lowercase(&v.parent_identity) == report::replace_emoji_lowercase(&parent) {
 				validators.push(v.clone());
 			}
 		}
