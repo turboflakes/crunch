@@ -208,10 +208,11 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 		let last_validator_group_parent = validator_summary[validator_summary.len() - 1].0[0].parent_identity.clone();
 		let current_validator_group_parent = validators[0].parent_identity.clone();
 
-		if last_validator_group_parent == current_validator_group_parent
+		if report::replace_emoji_lowercase(&last_validator_group_parent) == report::replace_emoji_lowercase(&current_validator_group_parent)
 		{
 			pool_summary = Some(pools_summary.clone());
 		}
+
 		let data = RawData {
 			network: network.clone(),
 			signer_details: signer_details.clone(),
