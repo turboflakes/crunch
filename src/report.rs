@@ -232,7 +232,7 @@ impl From<RawData> for Report {
 
         let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {
             format!(
-                "Next era expect <b>{}</b> ({:.0}%) {}",
+                "{}, next era expect <b>{}</b> ({:.0}%) {}",data.validators[0].parent_identity,
                 data.payout_summary.next_minimum_expected,
                 (data.payout_summary.next_minimum_expected as f32
                     / data.payout_summary.total_validators as f32)
@@ -240,7 +240,7 @@ impl From<RawData> for Report {
                 Random::Happy,
             )
         } else {
-            format!("Next era expect <b>NO</b> rewards {}", Random::Grumpy)
+            format!("{}, next era expect <b>NO</b> rewards {}", data.validators[0].parent_identity, Random::Grumpy)
         };
 
         report.add_raw_text(format!(
