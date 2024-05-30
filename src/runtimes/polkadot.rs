@@ -214,7 +214,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         };
 
         //Flooding prevention, a message will be sent every 30s
-        thread::sleep(Duration::from_sec(30));
+        thread::sleep(Duration::from_millis(500));
 
         let report = Report::from(data);
         crunch
