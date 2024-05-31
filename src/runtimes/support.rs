@@ -20,6 +20,7 @@
 // SOFTWARE.
 
 use crate::config::CONFIG;
+use crate::runtimes::{paseo, westend};
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
@@ -39,6 +40,14 @@ impl SupportedRuntime {
             _ => None,
         }
     }
+
+    pub fn chain_specs(&self) -> &str {
+        match &self {
+            Self::Westend => westend::WESTEND_SPEC,
+            Self::Paseo => paseo::PASEO_SPEC,
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -48,6 +57,18 @@ impl From<ChainPrefix> for SupportedRuntime {
             2 => Self::Kusama,
             42 => Self::Westend,
             _ => unimplemented!("Chain prefix not supported"),
+        }
+    }
+}
+
+impl From<&str> for SupportedRuntime {
+    fn from(s: &str) -> Self {
+        match s {
+            "polkadot" => Self::Polkadot,
+            "kusama" => Self::Kusama,
+            "westend" => Self::Westend,
+            "paseo" => Self::Paseo,
+            _ => unimplemented!(),
         }
     }
 }
@@ -86,6 +107,13 @@ impl SupportedParasRuntime {
         let config = CONFIG.clone();
         match &self {
             Self::PeopleKusama | Self::PeopleWestend => config.substrate_people_ws_url,
+        }
+    }
+
+    pub fn chain_specs(&self) -> &str {
+        match &self {
+            Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
+            _ => unimplemented!(),
         }
     }
 }

@@ -193,6 +193,13 @@ pub struct Config {
     pub matrix_public_room_disabled: bool,
     #[serde(default)]
     pub matrix_bot_display_name_disabled: bool,
+    // light client configuration
+    #[serde(default)]
+    pub light_client_enabled: bool,
+    #[serde(default)]
+    pub chain_name: String,
+    #[serde(default)]
+    pub people_enabled: bool,
 }
 
 #[derive(Default, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -216,6 +223,7 @@ fn get_config() -> Config {
       Arg::with_name("CHAIN")
           .index(1)
           .possible_values(&["kusama", "polkadot", "paseo", "westend"])
+          .takes_value(true)
           .help(
             "Sets the substrate-based chain for which 'crunch' will try to connect",
           )
@@ -540,6 +548,18 @@ fn get_config() -> Config {
           "From all given stashes crunch will Sort by stash adddress and Remove duplicates.",
         ))
     .arg(
+      Arg::with_name("enable-light-client")
+        .long("enable-light-client")
+        .help(
+          "Enable lightweight client to connect to substrate-based chains. With this option enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url' or 'substrate-people-ws-url'",
+        ))
+    .arg(
+      Arg::with_name("enable-light-client-people")
+        .long("enable-light-client-people")
+        .help(
+          "Enable lightweight client to connect to people chain. Note: this option only takes  only be used with 'enable-light-client'",
+        ))
+    .arg(
       Arg::with_name("substrate-ws-url")
         .short("w")
         .long("substrate-ws-url")
@@ -586,6 +606,7 @@ fn get_config() -> Config {
                 "CRUNCH_SUBSTRATE_WS_URL",
                 "wss://rpc.turboflakes.io:443/westend",
             );
+            env::set_var("CRUNCH_CHAIN_NAME", "westend");
         }
         Some("kusama") => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
@@ -600,7 +621,7 @@ fn get_config() -> Config {
                     "wss://sys.turboflakes.io:443/people-kusama",
                 );
             }
-            env::set_var("ONET_CHAIN_NAME", "kusama");
+            env::set_var("CRUNCH_CHAIN_NAME", "kusama");
         }
         Some("polkadot") => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
@@ -653,6 +674,14 @@ fn get_config() -> Config {
 
     if matches.is_present("enable-unique-stashes") {
         env::set_var("CRUNCH_UNIQUE_STASHES_ENABLED", "true");
+    }
+
+    if matches.is_present("enable-light-client") {
+        env::set_var("CRUNCH_LIGHT_CLIENT_ENABLED", "true");
+    }
+
+    if matches.is_present("enable-light-client-people") {
+        env::set_var("CRUNCH_LIGHT_CLIENT_PEOPLE_ENABLED", "true");
     }
 
     match matches.subcommand() {
