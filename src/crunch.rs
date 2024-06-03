@@ -95,7 +95,7 @@ pub async fn create_substrate_rpc_client_from_url(
     if let Err(_) = validate_url_is_secure(url) {
         warn!("Insecure URL provided: {}", url);
     };
-    info!("Using RPC endpoint: {}", url);
+    info!("Using RPC endpoint {}", url);
     ReconnectingClient::builder()
         .retry_policy(
             ExponentialBackoff::from_millis(100)
@@ -183,16 +183,13 @@ pub async fn create_or_await_substrate_node_client() -> (
                     };
 
                 info!(
-                    "Connected to {} network * Substrate node {} v{}",
+                    "Connected to {} network * client {} v{}",
                     chain, name, version
                 );
 
                 match create_substrate_client_from_rpc_client(rpc_client.clone()).await {
                     Ok(relay_client) => {
                         // Create people chain client depending on the runtime selected
-
-                        info!("__{}", chain_token_symbol);
-
                         let runtime = SupportedRuntime::from(chain_token_symbol);
                         break (relay_client, legacy_rpc, runtime);
                     }
@@ -375,7 +372,7 @@ impl Crunch {
         // Initialize relay node client
         let (client, rpc, runtime) = create_or_await_substrate_node_client().await;
 
-        // Initialize people node client if supported by relay chain and people url is defined by user
+        // Initialize people node client if supported by relay chain and people url is defined by user if RPC selected
         let people_client_option = if let Some(people_runtime) = runtime.people_runtime()
         {
             if config.light_client_enabled {

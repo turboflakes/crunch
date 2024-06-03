@@ -20,7 +20,7 @@
 // SOFTWARE.
 
 use crate::config::CONFIG;
-use crate::runtimes::{paseo, westend};
+use crate::runtimes::{kusama, paseo, polkadot, westend};
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
@@ -43,9 +43,10 @@ impl SupportedRuntime {
 
     pub fn chain_specs(&self) -> &str {
         match &self {
+            Self::Polkadot => polkadot::POLKADOT_SPEC,
+            Self::Kusama => kusama::KUSAMA_SPEC,
             Self::Westend => westend::WESTEND_SPEC,
             Self::Paseo => paseo::PASEO_SPEC,
-            _ => unimplemented!(),
         }
     }
 }
@@ -64,23 +65,31 @@ impl From<ChainPrefix> for SupportedRuntime {
 impl From<&str> for SupportedRuntime {
     fn from(s: &str) -> Self {
         match s {
+            "DOT" => Self::Polkadot,
             "polkadot" => Self::Polkadot,
+            "KSM" => Self::Kusama,
             "kusama" => Self::Kusama,
+            "WND" => Self::Westend,
             "westend" => Self::Westend,
+            "PAS" => Self::Paseo,
             "paseo" => Self::Paseo,
-            _ => unimplemented!(),
+            _ => unimplemented!("Chain not supported"),
         }
     }
 }
 
-impl From<ChainTokenSymbol> for SupportedRuntime {
-    fn from(v: ChainTokenSymbol) -> Self {
+impl From<String> for SupportedRuntime {
+    fn from(v: String) -> Self {
         match v.as_str() {
             "DOT" => Self::Polkadot,
+            "polkadot" => Self::Polkadot,
             "KSM" => Self::Kusama,
+            "kusama" => Self::Kusama,
             "WND" => Self::Westend,
+            "westend" => Self::Westend,
             "PAS" => Self::Paseo,
-            _ => unimplemented!("Chain unit not supported"),
+            "paseo" => Self::Paseo,
+            _ => unimplemented!("Chain not supported"),
         }
     }
 }
@@ -112,8 +121,8 @@ impl SupportedParasRuntime {
 
     pub fn chain_specs(&self) -> &str {
         match &self {
+            Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
             Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
-            _ => unimplemented!(),
         }
     }
 }

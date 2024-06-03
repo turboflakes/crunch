@@ -198,8 +198,6 @@ pub struct Config {
     pub light_client_enabled: bool,
     #[serde(default)]
     pub chain_name: String,
-    #[serde(default)]
-    pub people_enabled: bool,
 }
 
 #[derive(Default, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -554,12 +552,6 @@ fn get_config() -> Config {
           "Enable lightweight client to connect to substrate-based chains. With this option enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url' or 'substrate-people-ws-url'",
         ))
     .arg(
-      Arg::with_name("enable-light-client-people")
-        .long("enable-light-client-people")
-        .help(
-          "Enable lightweight client to connect to people chain. Note: this option only takes  only be used with 'enable-light-client'",
-        ))
-    .arg(
       Arg::with_name("substrate-ws-url")
         .short("w")
         .long("substrate-ws-url")
@@ -678,10 +670,6 @@ fn get_config() -> Config {
 
     if matches.is_present("enable-light-client") {
         env::set_var("CRUNCH_LIGHT_CLIENT_ENABLED", "true");
-    }
-
-    if matches.is_present("enable-light-client-people") {
-        env::set_var("CRUNCH_LIGHT_CLIENT_PEOPLE_ENABLED", "true");
     }
 
     match matches.subcommand() {
