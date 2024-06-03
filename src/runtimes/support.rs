@@ -20,6 +20,7 @@
 // SOFTWARE.
 
 use crate::config::CONFIG;
+use crate::runtimes::{kusama, paseo, polkadot, westend};
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
@@ -39,6 +40,15 @@ impl SupportedRuntime {
             _ => None,
         }
     }
+
+    pub fn chain_specs(&self) -> &str {
+        match &self {
+            Self::Polkadot => polkadot::POLKADOT_SPEC,
+            Self::Kusama => kusama::KUSAMA_SPEC,
+            Self::Westend => westend::WESTEND_SPEC,
+            Self::Paseo => paseo::PASEO_SPEC,
+        }
+    }
 }
 
 impl From<ChainPrefix> for SupportedRuntime {
@@ -52,14 +62,34 @@ impl From<ChainPrefix> for SupportedRuntime {
     }
 }
 
-impl From<ChainTokenSymbol> for SupportedRuntime {
-    fn from(v: ChainTokenSymbol) -> Self {
+impl From<&str> for SupportedRuntime {
+    fn from(s: &str) -> Self {
+        match s {
+            "DOT" => Self::Polkadot,
+            "polkadot" => Self::Polkadot,
+            "KSM" => Self::Kusama,
+            "kusama" => Self::Kusama,
+            "WND" => Self::Westend,
+            "westend" => Self::Westend,
+            "PAS" => Self::Paseo,
+            "paseo" => Self::Paseo,
+            _ => unimplemented!("Chain not supported"),
+        }
+    }
+}
+
+impl From<String> for SupportedRuntime {
+    fn from(v: String) -> Self {
         match v.as_str() {
             "DOT" => Self::Polkadot,
+            "polkadot" => Self::Polkadot,
             "KSM" => Self::Kusama,
+            "kusama" => Self::Kusama,
             "WND" => Self::Westend,
+            "westend" => Self::Westend,
             "PAS" => Self::Paseo,
-            _ => unimplemented!("Chain unit not supported"),
+            "paseo" => Self::Paseo,
+            _ => unimplemented!("Chain not supported"),
         }
     }
 }
@@ -86,6 +116,13 @@ impl SupportedParasRuntime {
         let config = CONFIG.clone();
         match &self {
             Self::PeopleKusama | Self::PeopleWestend => config.substrate_people_ws_url,
+        }
+    }
+
+    pub fn chain_specs(&self) -> &str {
+        match &self {
+            Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
+            Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
         }
     }
 }
