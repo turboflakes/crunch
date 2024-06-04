@@ -175,7 +175,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     let seed_account_info_addr =
         node_runtime::storage().system().account(&seed_account_id);
-    if let Some(seed_account_info) = api
+        if let Some(seed_account_info) = api
         .storage()
         .at_latest()
         .await?
@@ -185,10 +185,15 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         if seed_account_info.data.free
             <= (config.existential_deposit_factor_warning as u128 * ed)
         {
+            let warning = "⚡ Signer account is running low on funds ⚡";
             signer_details
                 .warnings
-                .push("⚡ Signer account is running low on funds ⚡".to_string());
+                .push(warning.to_string());
+            warn!("{warning}");
         }
+    } else {
+        let chain_name = crunch.rpc().system_chain().await?;
+        warn!("Signer account {seed_account_id} not found on the {chain_name} network!");
     }
 
     // Get Network name
@@ -1382,7 +1387,7 @@ pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
         stashes.extend(nominees);
     }
 
-    if config.unique_stashes_enabled {
+    if config.unique_stashes_enabled || config.group_identity_enabled {
         // sort and remove duplicates
         stashes.sort();
         stashes.dedup();
