@@ -47,6 +47,9 @@ use subxt::{
 
 use subxt_signer::sr25519::Keypair;
 
+pub const KUSAMA_SPEC: &str = include_str!("../../chain_specs/kusama.json");
+pub const PEOPLE_KUSAMA_SPEC: &str = include_str!("../../chain_specs/people-kusama.json");
+
 #[subxt::subxt(
     runtime_metadata_path = "metadata/kusama_metadata_small.scale",
     derive_for_all_types = "Clone, PartialEq"

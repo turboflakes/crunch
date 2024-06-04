@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## New
 - Fetch identities from people-kusama chain with use of `--substrate-people-ws-url` (Available for Kusama & Westend)
-- Introduce run mode `once` where crunch tries to run payouts and exit; useful if you would like to setup crunch as cronjob;
+- Allow crunch to run payouts and exit with run mode `once`; useful if you would like to setup crunch as cronjob;
+- Connect to a specific network via smoldot with flag `--enable-light-client`; no need to specify an RPC endpoint via `--substrate-ws-url`; usage example `crunch kusama --enable-light-client rewards`.
 
 ## Changed
 - Update subxt v0.37.0 (make use of unstable subxt RPC reconnection feature)

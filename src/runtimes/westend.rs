@@ -47,6 +47,10 @@ use subxt::{
 
 use subxt_signer::sr25519::Keypair;
 
+pub const WESTEND_SPEC: &str = include_str!("../../chain_specs/westend.json");
+pub const PEOPLE_WESTEND_SPEC: &str =
+    include_str!("../../chain_specs/people-westend.json");
+
 #[subxt::subxt(
     runtime_metadata_path = "metadata/westend_metadata_small.scale",
     derive_for_all_types = "Clone, PartialEq"

@@ -22,7 +22,11 @@
 use codec;
 use reqwest;
 use std::{str::Utf8Error, string::String};
-use subxt::error::{DispatchError, MetadataError, RpcError};
+use subxt::{
+    error::{DispatchError, MetadataError, RpcError},
+    lightclient::LightClientError,
+};
+
 use thiserror::Error;
 
 /// Crunch specific error messages
@@ -32,6 +36,8 @@ pub enum CrunchError {
     SubxtError(#[from] subxt::Error),
     #[error("SubxtCore error: {0}")]
     SubxtCoreError(#[from] subxt::ext::subxt_core::Error),
+    #[error("LightClient error: {0}")]
+    LightClientError(#[from] LightClientError),
     #[error("Codec error: {0}")]
     CodecError(#[from] codec::Error),
     #[error("Utf8 error: {0}")]

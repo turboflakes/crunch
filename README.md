@@ -99,7 +99,7 @@ CRUNCH_MATRIX_BOT_PASSWORD="anotthateasypassword"
 # ONE-T configuration variables
 # ----------------------------------------------------------------
 CRUNCH_ONET_API_ENABLED=true
-CRUNCH_ONET_API_URL=https://kusama-onet-api-beta.turboflakes.io
+CRUNCH_ONET_API_URL=https://kusama-onet-api.turboflakes.io
 CRUNCH_ONET_API_KEY=crunch-101
 CRUNCH_ONET_NUMBER_LAST_SESSIONS=6
 # ----------------------------------------------------------------
@@ -250,6 +250,9 @@ USAGE:
     crunch [FLAGS] [OPTIONS] [CHAIN] [SUBCOMMAND]
 
 FLAGS:
+        --enable-light-client      Enable lightweight client to connect to substrate-based chains. With this option
+                                   enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url' or
+                                   'substrate-people-ws-url'
         --enable-unique-stashes    From all given stashes crunch will Sort by stash adddress and Remove duplicates.
     -h, --help                     Prints help information
     -V, --version                  Prints version information

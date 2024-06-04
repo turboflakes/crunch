@@ -42,6 +42,7 @@ use subxt::{
         },
     },
     ext::sp_core::crypto,
+    lightclient::{LightClient, LightClientError, LightClientRpc},
     utils::{validate_url_is_secure, AccountId32},
     OnlineClient, SubstrateConfig,
 };
@@ -94,6 +95,7 @@ pub async fn create_substrate_rpc_client_from_url(
     if let Err(_) = validate_url_is_secure(url) {
         warn!("Insecure URL provided: {}", url);
     };
+    info!("Using RPC endpoint {}", url);
     ReconnectingClient::builder()
         .retry_policy(
             ExponentialBackoff::from_millis(100)
@@ -112,18 +114,46 @@ pub async fn create_substrate_client_from_rpc_client(
         .map_err(|err| CrunchError::SubxtError(err.into()))
 }
 
-pub async fn create_or_await_substrate_node_client(
-    url: &str,
-) -> (
+pub async fn create_light_client_from_relay_chain_specs(
+    chain: &str,
+) -> Result<(LightClient, LightClientRpc), LightClientError> {
+    let (lc, rpc) =
+        LightClient::relay_chain(SupportedRuntime::from(chain).chain_specs())?;
+
+    Ok((lc, rpc))
+}
+
+pub async fn create_light_client_from_people_chain_specs(
+    chain: &str,
+) -> Result<LightClientRpc, LightClientError> {
+    let (lc, _) = create_light_client_from_relay_chain_specs(&chain).await?;
+    let runtime = SupportedRuntime::from(chain);
+    let people_runtime = runtime.people_runtime().unwrap();
+    lc.parachain(people_runtime.chain_specs())
+}
+
+pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
+    let config = CONFIG.clone();
+    if config.light_client_enabled {
+        let (_, rpc) =
+            create_light_client_from_relay_chain_specs(&config.chain_name).await?;
+        return Ok(rpc.into());
+    } else {
+        let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
+        return Ok(rpc.into());
+    }
+}
+
+pub async fn create_or_await_substrate_node_client() -> (
     OnlineClient<SubstrateConfig>,
     LegacyRpcMethods<SubstrateConfig>,
     SupportedRuntime,
 ) {
     loop {
-        match create_substrate_rpc_client_from_url(url).await {
+        match create_substrate_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -153,13 +183,11 @@ pub async fn create_or_await_substrate_node_client(
                     };
 
                 info!(
-                    "Connected to {} network using {} * Substrate node {} v{}",
-                    chain, url, name, version
+                    "Connected to {} network * client {} v{}",
+                    chain, name, version
                 );
 
-                match create_substrate_client_from_rpc_client(rpc_client.clone().into())
-                    .await
-                {
+                match create_substrate_client_from_rpc_client(rpc_client.clone()).await {
                     Ok(relay_client) => {
                         // Create people chain client depending on the runtime selected
                         let runtime = SupportedRuntime::from(chain_token_symbol);
@@ -167,14 +195,64 @@ pub async fn create_or_await_substrate_node_client(
                     }
                     Err(e) => {
                         error!("{}", e);
-                        info!("Awaiting for connection using {}", url);
                         thread::sleep(time::Duration::from_secs(6));
                     }
                 }
             }
             Err(e) => {
                 error!("{}", e);
-                info!("Awaiting for connection using {}", url);
+                thread::sleep(time::Duration::from_secs(6));
+            }
+        }
+    }
+}
+
+pub async fn create_people_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
+    let config = CONFIG.clone();
+    if config.light_client_enabled {
+        let runtime = SupportedRuntime::from(config.chain_name.clone());
+        if runtime.people_runtime().is_none() {
+            return Err(CrunchError::Other(format!(
+                "People chain not supported for the relay {}",
+                runtime.to_string()
+            )));
+        }
+        let rpc = create_light_client_from_people_chain_specs(&config.chain_name).await?;
+        return Ok(rpc.into());
+    } else {
+        let rpc =
+            create_substrate_rpc_client_from_url(&config.substrate_people_ws_url).await?;
+        return Ok(rpc.into());
+    }
+}
+
+pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
+    loop {
+        match create_people_rpc_client_from_config().await {
+            Ok(rpc_client) => {
+                let legacy_rpc =
+                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone());
+                let chain = legacy_rpc.system_chain().await.unwrap_or_default();
+                let name = legacy_rpc.system_name().await.unwrap_or_default();
+                let version = legacy_rpc.system_version().await.unwrap_or_default();
+
+                info!(
+                    "Connected to {} network * Substrate node {} v{}",
+                    chain, name, version
+                );
+
+                match create_substrate_client_from_rpc_client(rpc_client.clone()).await {
+                    Ok(client) => {
+                        break client;
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                        thread::sleep(time::Duration::from_secs(6));
+                    }
+                }
+            }
+            Err(e) => {
+                error!("{}", e);
                 thread::sleep(time::Duration::from_secs(6));
             }
         }
@@ -219,18 +297,18 @@ pub struct Crunch {
 impl Crunch {
     async fn new() -> Crunch {
         let config = CONFIG.clone();
-        // Initialize relay node client
-        let (client, rpc, runtime) =
-            create_or_await_substrate_node_client(&config.substrate_ws_url).await;
 
-        // Initialize people node client if supported by relay chain and url by user
+        // Initialize relay node client
+        let (client, rpc, runtime) = create_or_await_substrate_node_client().await;
+
+        // Initialize people node client if supported by relay chain and people url is defined by user if RPC selected
         let people_client_option = if let Some(people_runtime) = runtime.people_runtime()
         {
-            if !people_runtime.default_rpc_url().is_empty() {
-                let (people_client, _, _) = create_or_await_substrate_node_client(
-                    &people_runtime.default_rpc_url(),
-                )
-                .await;
+            if config.light_client_enabled {
+                let people_client = create_or_await_people_client().await;
+                Some(people_client)
+            } else if !people_runtime.default_rpc_url().is_empty() {
+                let people_client = create_or_await_people_client().await;
                 Some(people_client)
             } else {
                 None
