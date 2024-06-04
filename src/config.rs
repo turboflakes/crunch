@@ -144,6 +144,8 @@ pub struct Config {
     pub maximum_pool_members_calls: u32,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
+    #[serde(default)]
+    pub group_identity_enabled: bool,
     #[serde(default = "default_seed_path")]
     pub seed_path: String,
     pub stashes: Vec<String>,
@@ -540,6 +542,12 @@ fn get_config() -> Config {
           "From all given stashes crunch will Sort by stash adddress and Remove duplicates.",
         ))
     .arg(
+      Arg::with_name("enable-group-identity")
+        .long("enable-group-identity")
+        .help(
+          "Enables payouts and messages to be grouped and processed by main identity.",
+        ))
+    .arg(
       Arg::with_name("substrate-ws-url")
         .short("w")
         .long("substrate-ws-url")
@@ -653,6 +661,10 @@ fn get_config() -> Config {
 
     if matches.is_present("enable-unique-stashes") {
         env::set_var("CRUNCH_UNIQUE_STASHES_ENABLED", "true");
+    }
+
+    if matches.is_present("enable-group-identity") {
+        env::set_var("CRUNCH_GROUP_IDENTITY_ENABLED", "true");
     }
 
     match matches.subcommand() {

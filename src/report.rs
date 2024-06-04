@@ -220,21 +220,32 @@ impl From<RawData> for Report {
         let mut report = Report::new();
 
         let summary_crunch_desc = if data.payout_summary.calls_succeeded > 0 {
-            format!(
-                "{} crunched <b>{}</b> ({:.0}%) → ",
-                data.validators[0].parent_identity.clone(),
-                data.payout_summary.calls_succeeded,
-                (data.payout_summary.calls_succeeded as f32
-                    / data.payout_summary.calls as f32)
-                    * 100.0,
-            )
+            if config.group_identity_enabled {
+                format!(
+                    "{} crunched <b>{}</b> ({:.0}%) → ",
+                    data.validators[0].parent_identity.clone(),
+                    data.payout_summary.calls_succeeded,
+                    (data.payout_summary.calls_succeeded as f32
+                        / data.payout_summary.calls as f32)
+                        * 100.0,
+                )
+            } else {
+                format!(
+                    "Crunched <b>{}</b> ({:.0}%) → ",
+                    data.payout_summary.calls_succeeded,
+                    (data.payout_summary.calls_succeeded as f32
+                        / data.payout_summary.calls as f32)
+                        * 100.0,
+                )
+            }
         } else {
             format!("")
         };
+
         let mut prefix = "Next".to_string();
 
-        if data.payout_summary.calls_succeeded == 0 {
-            prefix = format!("{}, next", data.validators[0].parent_identity);
+        if data.payout_summary.calls_succeeded == 0 && config.group_identity_enabled {
+            prefix = format!("{} next", data.validators[0].parent_identity);
         }
 
         let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {
@@ -284,36 +295,8 @@ impl From<RawData> for Report {
             warn!("{}", warning);
         }
 
-        // Sort validators by identity, than by non-identity and push the stashes
-        // with warnings to bottom
-        let mut validators_with_warnings = data
-            .validators
-            .clone()
-            .into_iter()
-            .filter(|v| v.warnings.len() > 0)
-            .collect::<Vec<Validator>>();
-
-        validators_with_warnings.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
-
-        let validators_with_no_identity = data
-            .validators
-            .clone()
-            .into_iter()
-            .filter(|v| v.warnings.len() == 0 && !v.has_identity)
-            .collect::<Vec<Validator>>();
-
-        let mut validators = data
-            .validators
-            .into_iter()
-            .filter(|v| v.warnings.len() == 0 && v.has_identity)
-            .collect::<Vec<Validator>>();
-
-        validators.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
-        validators.extend(validators_with_no_identity);
-        validators.extend(validators_with_warnings);
-
         // Validators info
-        for validator in validators {
+        for validator in data.validators {
             report.add_break();
             let is_active_desc = if validator.is_active { "🟢" } else { "🔴" };
             report.add_raw_text(format!(
