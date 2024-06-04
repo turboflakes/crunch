@@ -234,12 +234,16 @@ crunch kusama rewards
 crunch polkadot rewards daily
 # or for Westend network and claiming rewards every 6 hours at a specific time
 crunch westend rewards turbo
+# or just once and exit
+crunch westend rewards once
 # or for Westend network with unique stashes verified and for all configured pools nominees and claiming rewards every era
 crunch westend --enable-unique-stashes rewards era --enable-pool-all-nominees-payout
 # or to auto-compound members rewards of nomination pools you operate
 crunch kusama rewards --enable-pool-members-compound
 # or to know which ONE-T grade a validator got from the last 6 sessions
 crunch kusama rewards --enable-onet-api
+# or why not and try crunch with light client usage
+crunch kusama --enable-light-client rewards once
 # or try flakes just for fun :)
 crunch flakes
 # to list all options try help
