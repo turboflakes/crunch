@@ -144,6 +144,8 @@ pub struct Config {
     pub maximum_pool_members_calls: u32,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
+    #[serde(default)]
+    pub group_identity_enabled: bool,
     #[serde(default = "default_seed_path")]
     pub seed_path: String,
     pub stashes: Vec<String>,
@@ -552,6 +554,12 @@ fn get_config() -> Config {
           "Enable lightweight client to connect to substrate-based chains. With this option enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url' or 'substrate-people-ws-url'",
         ))
     .arg(
+      Arg::with_name("enable-group-identity")
+        .long("enable-group-identity")
+        .help(
+          "Enables payouts and messages to be grouped and processed by main identity.",
+        ))
+    .arg(
       Arg::with_name("substrate-ws-url")
         .short("w")
         .long("substrate-ws-url")
@@ -670,6 +678,10 @@ fn get_config() -> Config {
 
     if matches.is_present("enable-light-client") {
         env::set_var("CRUNCH_LIGHT_CLIENT_ENABLED", "true");
+    }
+
+    if matches.is_present("enable-group-identity") {
+        env::set_var("CRUNCH_GROUP_IDENTITY_ENABLED", "true");
     }
 
     match matches.subcommand() {

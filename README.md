@@ -66,10 +66,19 @@ CRUNCH_STASHES=5GTD7ZeD823BjpmZBCSzBQp7cvHR1Gunq7oDkurZr9zUev2n
 # Please have a look at the file '.remote.stashes.example' as an example
 CRUNCH_STASHES_URL=https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example
 #
+# [CRUNCH_LIGHT_CLIENT_ENABLED] Enable lightweight client to connect to substrate-based chains. 
+# With this option enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url' 
+# or 'substrate-people-ws-url'
+CRUNCH_LIGHT_CLIENT_ENABLED=true
+#
 # [CRUNCH_SUBSTRATE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to
-# connect. (e.g. wss://kusama-rpc.polkadot.io) (NOTE: substrate_ws_url takes precedence
+# connect. (e.g. wss://rpc.turboflakes.io:443/kusama) (NOTE: substrate_ws_url takes precedence
 # than <CHAIN> argument) 
-#CRUNCH_SUBSTRATE_WS_URL=wss://westend-rpc.polkadot.io:443
+#CRUNCH_SUBSTRATE_WS_URL=ws://localhost:9944
+#
+# [CRUNCH_SUBSTRATE_PEOPLE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to 
+# connect and retrieve identities from. (e.g. wss://sys.turboflakes.io:443/people-kusama)
+#CRUNCH_SUBSTRATE_PEOPLE_WS_URL=wss://sys.turboflakes.io:443/people-kusama
 #
 # [CRUNCH_MAXIMUM_PAYOUTS] Maximum number of unclaimed eras for which an extrinsic payout
 # will be submitted. (e.g. a value of 4 means that if there are unclaimed eras in the last
@@ -250,6 +259,7 @@ USAGE:
     crunch [FLAGS] [OPTIONS] [CHAIN] [SUBCOMMAND]
 
 FLAGS:
+        --enable-group-identity    Enables payouts and messages to be grouped and processed by main identity.
         --enable-light-client      Enable lightweight client to connect to substrate-based chains. With this option
                                    enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url' or
                                    'substrate-people-ws-url'
@@ -279,7 +289,7 @@ OPTIONS:
 
 ARGS:
     <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [possible values: kusama,
-               polkadot, paseo]
+               polkadot, paseo, westend]
 
 SUBCOMMANDS:
     flakes     Crunch awesome flakes (rewards) every era, daily or in turbo mode -> 4x faster
@@ -379,7 +389,7 @@ ARGS:
     <MODE>    Sets how often staking rewards should be claimed from unclaimed eras. (e.g. the option 'era' sets
               'crunch' task to run as soon as the EraPaid on-chain event is triggered; the option 'daily' sets
               'crunch' task to be repeated every 24 hours; option 'turbo' sets 'crunch' task to be repeated every 6
-              hours;option 'once' tries to run the payout once and exit;) [default: era]  [possible values: era, 
+              hours;option 'once' tries to run the payout once and exit;) [default: era]  [possible values: era,
               daily, turbo, once]
 ```
 

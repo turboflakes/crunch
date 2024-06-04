@@ -31,12 +31,13 @@ use crate::report::{
     Batch, EraIndex, Network, NominationPoolsSummary, PageIndex, Payout, PayoutSummary,
     Points, RawData, Report, SignerDetails, Validator, Validators,
 };
-use crate::stats;
+use crate::{report, stats};
 use async_recursion::async_recursion;
 use log::{debug, info, warn};
 use std::{
     cmp, convert::TryFrom, convert::TryInto, result::Result, str::FromStr, thread, time,
 };
+
 use subxt::{
     config::polkadot::PolkadotExtrinsicParamsBuilder as TxParams,
     error::DispatchError,
@@ -153,7 +154,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
 
     // Get signer account identity
-    let (signer_name, _) = get_display_name(&crunch, &seed_account_id, None).await?;
+    let (signer_name, _, _) = get_display_name(&crunch, &seed_account_id, None).await?;
     let mut signer_details = SignerDetails {
         account: seed_account_id.clone(),
         name: signer_name,
@@ -167,7 +168,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     let seed_account_info_addr =
         node_runtime::storage().system().account(&seed_account_id);
-    if let Some(seed_account_info) = api
+        if let Some(seed_account_info) = api
         .storage()
         .at_latest()
         .await?
@@ -177,26 +178,19 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         if seed_account_info.data.free
             <= (config.existential_deposit_factor_warning as u128 * ed)
         {
+            let warning = "⚡ Signer account is running low on funds ⚡";
             signer_details
                 .warnings
-                .push("⚡ Signer account is running low on funds ⚡".to_string());
+                .push(warning.to_string());
+            warn!("{warning}");
         }
+    } else {
+        let chain_name = crunch.rpc().system_chain().await?;
+        warn!("Signer account {seed_account_id} not found on the {chain_name} network!");
     }
-
-    // Try run payouts in batches
-    let (mut validators, payout_summary) =
-        try_run_batch_payouts(&crunch, &signer_keypair).await?;
-
-    // Try run members in batches
-    let pools_summary = try_run_batch_pool_members(&crunch, &signer_keypair).await?;
 
     // Get Network name
     let chain_name = crunch.rpc().system_chain().await?;
-
-    // Try fetch ONE-T grade data
-    for v in &mut validators {
-        v.onet = try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone()).await?;
-    }
 
     // Get Era index
     let active_era_addr = node_runtime::storage().staking().active_era();
@@ -234,25 +228,101 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     // Set network info
     let network = Network {
-        name: chain_name,
+        name: chain_name.clone(),
         active_era: active_era_index,
         token_symbol,
         token_decimals,
     };
     debug!("network {:?}", network);
 
-    let data = RawData {
-        network,
-        signer_details,
-        validators,
-        payout_summary,
-        pools_summary,
-    };
+    // Check if group by identity is enabled by user to change the behaviour of how stashes are processed
+    if config.group_identity_enabled {
+        // Try run payouts in batches
+        let mut all_validators =
+            collect_validators_data(&crunch, active_era_index).await?;
 
-    let report = Report::from(data);
-    crunch
-        .send_message(&report.message(), &report.formatted_message())
-        .await?;
+        let parent_identities: Vec<String> =
+            get_distinct_parent_identites(all_validators.clone());
+
+        for parent in parent_identities {
+            // Filter validators by parent identity
+            let mut validators = all_validators
+                .clone()
+                .into_iter()
+                .filter(|v| report::replace_emoji_lowercase(&v.parent_identity) == parent)
+                .collect::<Validators>();
+
+            // Remove all processed validators from original vec so it don't get looked up again
+            all_validators.retain(|v| {
+                report::replace_emoji_lowercase(&v.parent_identity) != parent
+            });
+
+            if validators.len() > 0 {
+                // Try run payouts in batches
+                let payout_summary =
+                    try_run_batch_payouts(&crunch, &signer_keypair, &mut validators)
+                        .await?;
+
+                // Try fetch ONE-T grade data
+                for v in &mut validators {
+                    v.onet =
+                        try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone())
+                            .await?;
+                }
+
+                // NOTE: In the last iteration try to batch pools if any and include them in the report
+                // TODO: Eventually we could do a separate message containing only the pools report
+                let pools_summary: Option<NominationPoolsSummary> =
+                    if all_validators.len() == 0 {
+                        // Try run pool members in batches
+                        Some(try_run_batch_pool_members(&crunch, &signer_keypair).await?)
+                    } else {
+                        None
+                    };
+
+                let data = RawData {
+                    network: network.clone(),
+                    signer_details: signer_details.clone(),
+                    validators,
+                    payout_summary,
+                    pools_summary,
+                };
+
+                let report = Report::from(data);
+                crunch
+                    .send_message(&report.message(), &report.formatted_message())
+                    .await?;
+            }
+        }
+    } else {
+        let mut validators = collect_validators_data(&crunch, active_era_index).await?;
+
+        // Try run payouts in batches
+        let payout_summary =
+            try_run_batch_payouts(&crunch, &signer_keypair, &mut validators).await?;
+
+        // Try fetch ONE-T grade data
+        for v in &mut validators {
+            v.onet =
+                try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone()).await?;
+        }
+
+        // Try run members in batches
+        let pools_summary = try_run_batch_pool_members(&crunch, &signer_keypair).await?;
+
+        let data = RawData {
+            network,
+            signer_details,
+            validators,
+            payout_summary,
+            pools_summary: Some(pools_summary),
+        };
+
+        let report = Report::from(data);
+        crunch
+            .send_message(&report.message(), &report.formatted_message())
+            .await?;
+    }
 
     Ok(())
 }
@@ -425,32 +495,56 @@ pub async fn try_run_batch_pool_members(
     Ok(summary)
 }
 
+//Provides a distinct and sorted vector of parent identities by string
+//where there are entries without identities, these are placed to the end of the vector
+pub fn get_distinct_parent_identites(validators: Validators) -> Vec<String> {
+    let mut return_result: Vec<String> = vec![];
+    let mut has_none: bool = false;
+
+    //Obtains a sorted distinct list of parent identities
+    let mut parent_identities: Vec<String> = validators
+        .clone()
+        .iter()
+        .map(|val| report::replace_emoji_lowercase(&val.parent_identity))
+        .collect();
+    parent_identities.sort();
+    parent_identities.dedup();
+
+    //Filters out None
+    //TODO: Use array filter function
+    for parent in parent_identities {
+        if parent != "none" {
+            return_result.push(parent);
+        } else {
+            has_none = true;
+        }
+    }
+
+    //Sort the results without node
+    return_result.sort();
+
+    //If there's entries without identities i.e. parent has none then add it after sort
+    if has_none {
+        return_result.push("None".to_string())
+    }
+
+    return_result
+}
+
 pub async fn try_run_batch_payouts(
     crunch: &Crunch,
     signer: &Keypair,
-) -> Result<(Validators, PayoutSummary), CrunchError> {
+    validators: &mut Validators,
+) -> Result<PayoutSummary, CrunchError> {
     let config = CONFIG.clone();
     let api = crunch.client().clone();
 
-    // Get Era index
-    let active_era_addr = node_runtime::storage().staking().active_era();
-    let active_era_index = match api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&active_era_addr)
-        .await?
-    {
-        Some(info) => info.index,
-        None => return Err(CrunchError::Other("Active era not available".into())),
-    };
-
     // Add unclaimed eras into payout staker calls
     let mut calls_for_batch: Vec<Call> = vec![];
-    let mut validators = collect_validators_data(&crunch, active_era_index).await?;
+    // let mut validators = collect_validators_data(&crunch, active_era_index).await?;
     let mut summary: PayoutSummary = Default::default();
 
-    for v in &mut validators {
+    for v in validators.into_iter() {
         //
         if v.unclaimed.len() > 0 {
             let mut maximum_payouts = Some(config.maximum_payouts);
@@ -526,7 +620,9 @@ pub async fn try_run_batch_payouts(
                     calls_for_batch[call_start_index..call_end_index].to_vec();
 
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
-                let tx = node_runtime::tx()
+                let tx: subxt::tx::DefaultPayload<
+                    node_runtime::utility::calls::types::ForceBatch,
+                > = node_runtime::tx()
                     .utility()
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
@@ -582,11 +678,11 @@ pub async fn try_run_batch_payouts(
                                     // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
                                     //
                                     debug!("{:?}", ev);
-                                    let validator_index_ref = &mut validators
+                                    let validator_index_ref = validators
                                         .iter()
                                         .position(|v| v.stash == ev.validator_stash);
                                     era_index = ev.era_index;
-                                    validator_index = *validator_index_ref;
+                                    validator_index = validator_index_ref;
                                     validator_amount_value = 0;
                                     nominators_amount_value = 0;
                                     nominators_quantity = 0;
@@ -718,6 +814,7 @@ pub async fn try_run_batch_payouts(
                         _ => {}
                     }
                 }
+
                 iteration = Some(x + 1);
             }
         }
@@ -728,7 +825,7 @@ pub async fn try_run_batch_payouts(
     // Prepare summary report
     summary.total_validators = validators.len() as u32;
 
-    Ok((validators, summary))
+    Ok(summary)
 }
 
 async fn collect_validators_data(
@@ -767,7 +864,7 @@ async fn collect_validators_data(
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
-                (v.name, v.has_identity) =
+                (v.name, v.parent_identity, v.has_identity) =
                     get_display_name(&crunch, &stash, None).await?;
                 v.warnings = vec![format!("No controller bonded!")];
                 validators.push(v);
@@ -782,7 +879,8 @@ async fn collect_validators_data(
         v.controller = Some(controller.clone());
 
         // Get validator name
-        (v.name, v.has_identity) = get_display_name(&crunch, &stash, None).await?;
+        (v.name, v.parent_identity, v.has_identity) =
+            get_display_name(&crunch, &stash, None).await?;
 
         // Check if validator is in active set
         v.is_active = if let Some(ref av) = active_validators {
@@ -874,6 +972,40 @@ async fn collect_validators_data(
         }
         validators.push(v);
     }
+
+    // Sort validators by identity, than by non-identity and push the stashes
+    // with warnings to bottom
+    let mut validators_with_warnings = validators
+        .clone()
+        .into_iter()
+        .filter(|v| v.warnings.len() > 0)
+        .collect::<Vec<Validator>>();
+
+    validators_with_warnings.sort_by(|a, b| {
+        report::replace_emoji_lowercase(&a.name)
+            .partial_cmp(&report::replace_emoji_lowercase(&b.name))
+            .unwrap()
+    });
+
+    let validators_with_no_identity = validators
+        .clone()
+        .into_iter()
+        .filter(|v| v.warnings.len() == 0 && !v.has_identity)
+        .collect::<Vec<Validator>>();
+
+    let mut validators = validators
+        .into_iter()
+        .filter(|v| v.warnings.len() == 0 && v.has_identity)
+        .collect::<Vec<Validator>>();
+
+    validators.sort_by(|a, b| {
+        report::replace_emoji_lowercase(&a.name)
+            .partial_cmp(&report::replace_emoji_lowercase(&b.name))
+            .unwrap()
+    });
+    validators.extend(validators_with_no_identity);
+    validators.extend(validators_with_warnings);
+
     debug!("validators {:?}", validators);
     Ok(validators)
 }
@@ -950,12 +1082,17 @@ async fn get_validator_points_info(
     }
 }
 
+/*
+Recursive function that looks up the identity of a validator given its stash,
+outputs a tuple with [primary identity/ sub-identity], primary identity and whether
+an identity is present.
+*/
 #[async_recursion]
 async fn get_display_name(
     crunch: &Crunch,
     stash: &AccountId32,
     sub_account_name: Option<String>,
-) -> Result<(String, bool), CrunchError> {
+) -> Result<(String, String, bool), CrunchError> {
     let api = crunch.client().clone();
 
     let identity_of_addr = node_runtime::storage().identity().identity_of(stash);
@@ -970,10 +1107,10 @@ async fn get_display_name(
             debug!("identity {:?}", identity);
             let parent = parse_identity_data(identity.info.display);
             let name = match sub_account_name {
-                Some(child) => format!("{}/{}", parent, child),
-                None => parent,
+                Some(child) => format!("{}/{}", &parent, child),
+                None => parent.clone(),
             };
-            Ok((name, true))
+            Ok((name, parent.clone(), true))
         }
         None => {
             let super_of_addr = node_runtime::storage().identity().super_of(stash);
@@ -993,7 +1130,8 @@ async fn get_display_name(
                 .await;
             } else {
                 let s = &stash.to_string();
-                Ok((format!("{}...{}", &s[..6], &s[s.len() - 6..]), false))
+                let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
+                Ok((stash_address, "None".to_string(), false))
             }
         }
     }
@@ -1251,7 +1389,7 @@ pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
         stashes.extend(nominees);
     }
 
-    if config.unique_stashes_enabled {
+    if config.unique_stashes_enabled || config.group_identity_enabled {
         // sort and remove duplicates
         stashes.sort();
         stashes.dedup();

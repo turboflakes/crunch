@@ -22,8 +22,8 @@
 use crate::config::CONFIG;
 use crate::crunch::{
     get_account_id_from_storage_key, get_keypair_from_seed_file, random_wait,
-    try_fetch_onet_data, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount,
-    ValidatorAmount, ValidatorIndex,
+    try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
+    ValidatorIndex,
 };
 use crate::errors::CrunchError;
 use crate::pools::{nomination_pool_account, AccountType};
@@ -31,7 +31,7 @@ use crate::report::{
     Batch, EraIndex, Network, NominationPoolsSummary, PageIndex, Payout, PayoutSummary,
     Points, RawData, Report, SignerDetails, Validator, Validators,
 };
-use crate::stats;
+use crate::{report, stats};
 use async_recursion::async_recursion;
 use log::{debug, info, warn};
 use std::{
@@ -55,9 +55,9 @@ pub const PEOPLE_WESTEND_SPEC: &str =
     runtime_metadata_path = "metadata/westend_metadata_small.scale",
     derive_for_all_types = "Clone, PartialEq"
 )]
-mod relay_runtime {}
+mod node_runtime {}
 
-use relay_runtime::{
+use node_runtime::{
     runtime_types::bounded_collections::bounded_vec::BoundedVec,
     runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
     staking::events::EraPaid,
@@ -77,10 +77,10 @@ use relay_runtime::{
 )]
 mod people_runtime {}
 
-type Call = relay_runtime::runtime_types::westend_runtime::RuntimeCall;
-type StakingCall = relay_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
+type Call = node_runtime::runtime_types::westend_runtime::RuntimeCall;
+type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 type NominationPoolsCall =
-    relay_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
+    node_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
     crunch: &Crunch,
@@ -161,7 +161,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
 
     // Get signer account identity
-    let (signer_name, _) = get_display_name(&crunch, &seed_account_id, None).await?;
+    let (signer_name, _, _) = get_display_name(&crunch, &seed_account_id, None).await?;
     let mut signer_details = SignerDetails {
         account: seed_account_id.clone(),
         name: signer_name,
@@ -170,12 +170,12 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     debug!("signer_details {:?}", signer_details);
 
     // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
-    let ed_addr = relay_runtime::constants().balances().existential_deposit();
+    let ed_addr = node_runtime::constants().balances().existential_deposit();
     let ed = api.constants().at(&ed_addr)?;
 
     let seed_account_info_addr =
-        relay_runtime::storage().system().account(&seed_account_id);
-    if let Some(seed_account_info) = api
+        node_runtime::storage().system().account(&seed_account_id);
+        if let Some(seed_account_info) = api
         .storage()
         .at_latest()
         .await?
@@ -185,29 +185,22 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         if seed_account_info.data.free
             <= (config.existential_deposit_factor_warning as u128 * ed)
         {
+            let warning = "⚡ Signer account is running low on funds ⚡";
             signer_details
                 .warnings
-                .push("⚡ Signer account is running low on funds ⚡".to_string());
+                .push(warning.to_string());
+            warn!("{warning}");
         }
+    } else {
+        let chain_name = crunch.rpc().system_chain().await?;
+        warn!("Signer account {seed_account_id} not found on the {chain_name} network!");
     }
-
-    // Try run payouts in batches
-    let (mut validators, payout_summary) =
-        try_run_batch_payouts(&crunch, &signer_keypair).await?;
-
-    // Try run members in batches
-    let pools_summary = try_run_batch_pool_members(&crunch, &signer_keypair).await?;
 
     // Get Network name
     let chain_name = crunch.rpc().system_chain().await?;
 
-    // Try fetch ONE-T grade data
-    for v in &mut validators {
-        v.onet = try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone()).await?;
-    }
-
     // Get Era index
-    let active_era_addr = relay_runtime::storage().staking().active_era();
+    let active_era_addr = node_runtime::storage().staking().active_era();
     let active_era_index = match api
         .storage()
         .at_latest()
@@ -242,25 +235,88 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     // Set network info
     let network = Network {
-        name: chain_name,
+        name: chain_name.clone(),
         active_era: active_era_index,
         token_symbol,
         token_decimals,
     };
     debug!("network {:?}", network);
 
-    let data = RawData {
-        network,
-        signer_details,
-        validators,
-        payout_summary,
-        pools_summary,
-    };
+    // Check if group by identity is enabled by user to change the behaviour of how stashes are processed
+    if config.group_identity_enabled {
+        // Try run payouts in batches
+        let mut all_validators =
+            collect_validators_data(&crunch, active_era_index).await?;
 
-    let report = Report::from(data);
-    crunch
-        .send_message(&report.message(), &report.formatted_message())
-        .await?;
+        let parent_identities: Vec<String> =
+            get_distinct_parent_identites(all_validators.clone());
+
+        for parent in parent_identities {
+            // Filter validators by parent identity
+            let mut validators = all_validators
+                .clone()
+                .into_iter()
+                .filter(|v| report::replace_emoji_lowercase(&v.parent_identity) == parent)
+                .collect::<Validators>();
+
+            // Remove all processed validators from original vec so it don't get looked up again
+            all_validators.retain(|v| {
+                report::replace_emoji_lowercase(&v.parent_identity) != parent
+            });
+
+            if validators.len() > 0 {
+                // Try run payouts in batches
+                let payout_summary =
+                    try_run_batch_payouts(&crunch, &signer_keypair, &mut validators)
+                        .await?;
+
+                // NOTE: In the last iteration try to batch pools if any and include them in the report
+                // TODO: Eventually we could do a separate message containing only the pools report
+                let pools_summary: Option<NominationPoolsSummary> =
+                    if all_validators.len() == 0 {
+                        // Try run pool members in batches
+                        Some(try_run_batch_pool_members(&crunch, &signer_keypair).await?)
+                    } else {
+                        None
+                    };
+
+                let data = RawData {
+                    network: network.clone(),
+                    signer_details: signer_details.clone(),
+                    validators,
+                    payout_summary,
+                    pools_summary,
+                };
+
+                let report = Report::from(data);
+                crunch
+                    .send_message(&report.message(), &report.formatted_message())
+                    .await?;
+            }
+        }
+    } else {
+        let mut validators = collect_validators_data(&crunch, active_era_index).await?;
+
+        // Try run payouts in batches
+        let payout_summary =
+            try_run_batch_payouts(&crunch, &signer_keypair, &mut validators).await?;
+
+        // Try run members in batches
+        let pools_summary = try_run_batch_pool_members(&crunch, &signer_keypair).await?;
+
+        let data = RawData {
+            network,
+            signer_details,
+            validators,
+            payout_summary,
+            pools_summary: Some(pools_summary),
+        };
+
+        let report = Report::from(data);
+        crunch
+            .send_message(&report.message(), &report.formatted_message())
+            .await?;
+    }
 
     Ok(())
 }
@@ -328,7 +384,7 @@ pub async fn try_run_batch_pool_members(
                     calls_for_batch[call_start_index..call_end_index].to_vec();
 
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
-                let tx = relay_runtime::tx()
+                let tx = node_runtime::tx()
                     .utility()
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
@@ -433,32 +489,56 @@ pub async fn try_run_batch_pool_members(
     Ok(summary)
 }
 
+//Provides a distinct and sorted vector of parent identities by string
+//where there are entries without identities, these are placed to the end of the vector
+pub fn get_distinct_parent_identites(validators: Validators) -> Vec<String> {
+    let mut return_result: Vec<String> = vec![];
+    let mut has_none: bool = false;
+
+    //Obtains a sorted distinct list of parent identities
+    let mut parent_identities: Vec<String> = validators
+        .clone()
+        .iter()
+        .map(|val| report::replace_emoji_lowercase(&val.parent_identity))
+        .collect();
+    parent_identities.sort();
+    parent_identities.dedup();
+
+    //Filters out None
+    //TODO: Use array filter function
+    for parent in parent_identities {
+        if parent != "none" {
+            return_result.push(parent);
+        } else {
+            has_none = true;
+        }
+    }
+
+    //Sort the results without node
+    return_result.sort();
+
+    //If there's entries without identities i.e. parent has none then add it after sort
+    if has_none {
+        return_result.push("None".to_string())
+    }
+
+    return_result
+}
+
 pub async fn try_run_batch_payouts(
     crunch: &Crunch,
     signer: &Keypair,
-) -> Result<(Validators, PayoutSummary), CrunchError> {
+    validators: &mut Validators,
+) -> Result<PayoutSummary, CrunchError> {
     let config = CONFIG.clone();
     let api = crunch.client().clone();
 
-    // Get Era index
-    let active_era_addr = relay_runtime::storage().staking().active_era();
-    let active_era_index = match api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&active_era_addr)
-        .await?
-    {
-        Some(info) => info.index,
-        None => return Err(CrunchError::Other("Active era not available".into())),
-    };
-
     // Add unclaimed eras into payout staker calls
     let mut calls_for_batch: Vec<Call> = vec![];
-    let mut validators = collect_validators_data(&crunch, active_era_index).await?;
+    // let mut validators = collect_validators_data(&crunch, active_era_index).await?;
     let mut summary: PayoutSummary = Default::default();
 
-    for v in &mut validators {
+    for v in validators.into_iter() {
         //
         if v.unclaimed.len() > 0 {
             let mut maximum_payouts = Some(config.maximum_payouts);
@@ -534,7 +614,9 @@ pub async fn try_run_batch_payouts(
                     calls_for_batch[call_start_index..call_end_index].to_vec();
 
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
-                let tx = relay_runtime::tx()
+                let tx: subxt::tx::DefaultPayload<
+                    node_runtime::utility::calls::types::ForceBatch,
+                > = node_runtime::tx()
                     .utility()
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
@@ -590,11 +672,11 @@ pub async fn try_run_batch_payouts(
                                     // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
                                     //
                                     debug!("{:?}", ev);
-                                    let validator_index_ref = &mut validators
+                                    let validator_index_ref = validators
                                         .iter()
                                         .position(|v| v.stash == ev.validator_stash);
                                     era_index = ev.era_index;
-                                    validator_index = *validator_index_ref;
+                                    validator_index = validator_index_ref;
                                     validator_amount_value = 0;
                                     nominators_amount_value = 0;
                                     nominators_quantity = 0;
@@ -737,7 +819,7 @@ pub async fn try_run_batch_payouts(
     // Prepare summary report
     summary.total_validators = validators.len() as u32;
 
-    Ok((validators, summary))
+    Ok(summary)
 }
 
 async fn collect_validators_data(
@@ -747,7 +829,7 @@ async fn collect_validators_data(
     let api = crunch.client().clone();
 
     // Get unclaimed eras for the stash addresses
-    let active_validators_addr = relay_runtime::storage().session().validators();
+    let active_validators_addr = node_runtime::storage().session().validators();
     let active_validators = api
         .storage()
         .at_latest()
@@ -765,7 +847,7 @@ async fn collect_validators_data(
         })?;
 
         // Check if stash has bonded controller
-        let controller_addr = relay_runtime::storage().staking().bonded(&stash);
+        let controller_addr = node_runtime::storage().staking().bonded(&stash);
         let controller = match api
             .storage()
             .at_latest()
@@ -776,7 +858,7 @@ async fn collect_validators_data(
             Some(controller) => controller,
             None => {
                 let mut v = Validator::new(stash.clone());
-                (v.name, v.has_identity) =
+                (v.name, v.parent_identity, v.has_identity) =
                     get_display_name(&crunch, &stash, None).await?;
                 v.warnings = vec![format!("No controller bonded!")];
                 validators.push(v);
@@ -791,7 +873,8 @@ async fn collect_validators_data(
         v.controller = Some(controller.clone());
 
         // Get validator name
-        (v.name, v.has_identity) = get_display_name(&crunch, &stash, None).await?;
+        (v.name, v.parent_identity, v.has_identity) =
+            get_display_name(&crunch, &stash, None).await?;
 
         // Check if validator is in active set
         v.is_active = if let Some(ref av) = active_validators {
@@ -804,7 +887,7 @@ async fn collect_validators_data(
         let start_index = get_era_index_start(&crunch, era_index).await?;
 
         // Get staking info from ledger
-        let ledger_addr = relay_runtime::storage().staking().ledger(&controller);
+        let ledger_addr = node_runtime::storage().staking().ledger(&controller);
         if let Some(staking_ledger) =
             api.storage().at_latest().await?.fetch(&ledger_addr).await?
         {
@@ -826,7 +909,7 @@ async fn collect_validators_data(
                 }
 
                 // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
-                let claimed_rewards_addr = relay_runtime::storage()
+                let claimed_rewards_addr = node_runtime::storage()
                     .staking()
                     .claimed_rewards(&e, &stash);
                 if let Some(claimed_rewards) = api
@@ -837,7 +920,7 @@ async fn collect_validators_data(
                     .await?
                 {
                     // Verify if there are more pages to claim than the ones already claimed
-                    let eras_stakers_overview_addr = relay_runtime::storage()
+                    let eras_stakers_overview_addr = node_runtime::storage()
                         .staking()
                         .eras_stakers_overview(&e, &stash);
                     if let Some(exposure) = api
@@ -863,7 +946,7 @@ async fn collect_validators_data(
                     }
                 } else {
                     // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
-                    let eras_stakers_paged_addr = relay_runtime::storage()
+                    let eras_stakers_paged_addr = node_runtime::storage()
                         .staking()
                         .eras_stakers_paged_iter2(&e, &stash);
                     let mut iter = api
@@ -883,6 +966,40 @@ async fn collect_validators_data(
         }
         validators.push(v);
     }
+
+    // Sort validators by identity, than by non-identity and push the stashes
+    // with warnings to bottom
+    let mut validators_with_warnings = validators
+        .clone()
+        .into_iter()
+        .filter(|v| v.warnings.len() > 0)
+        .collect::<Vec<Validator>>();
+
+    validators_with_warnings.sort_by(|a, b| {
+        report::replace_emoji_lowercase(&a.name)
+            .partial_cmp(&report::replace_emoji_lowercase(&b.name))
+            .unwrap()
+    });
+
+    let validators_with_no_identity = validators
+        .clone()
+        .into_iter()
+        .filter(|v| v.warnings.len() == 0 && !v.has_identity)
+        .collect::<Vec<Validator>>();
+
+    let mut validators = validators
+        .into_iter()
+        .filter(|v| v.warnings.len() == 0 && v.has_identity)
+        .collect::<Vec<Validator>>();
+
+    validators.sort_by(|a, b| {
+        report::replace_emoji_lowercase(&a.name)
+            .partial_cmp(&report::replace_emoji_lowercase(&b.name))
+            .unwrap()
+    });
+    validators.extend(validators_with_no_identity);
+    validators.extend(validators_with_warnings);
+
     debug!("validators {:?}", validators);
     Ok(validators)
 }
@@ -894,7 +1011,7 @@ async fn get_era_index_start(
     let api = crunch.client().clone();
     let config = CONFIG.clone();
 
-    let history_depth_addr = relay_runtime::constants().staking().history_depth();
+    let history_depth_addr = node_runtime::constants().staking().history_depth();
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
     if era_index < cmp::min(config.maximum_history_eras, history_depth) {
@@ -917,7 +1034,7 @@ async fn get_validator_points_info(
 ) -> Result<Points, CrunchError> {
     let api = crunch.client().clone();
     // Get era reward points
-    let era_reward_points_addr = relay_runtime::storage()
+    let era_reward_points_addr = node_runtime::storage()
         .staking()
         .eras_reward_points(&era_index);
 
@@ -959,12 +1076,17 @@ async fn get_validator_points_info(
     }
 }
 
+/*
+Recursive function that looks up the identity of a validator given its stash,
+outputs a tuple with [primary identity/ sub-identity], primary identity and whether
+an identity is present.
+*/
 #[async_recursion]
 async fn get_display_name(
     crunch: &Crunch,
     stash: &AccountId32,
     sub_account_name: Option<String>,
-) -> Result<(String, bool), CrunchError> {
+) -> Result<(String, String, bool), CrunchError> {
     if let Some(api) = crunch.people_client().clone() {
         let identity_of_addr = people_runtime::storage().identity().identity_of(stash);
         match api
@@ -978,10 +1100,10 @@ async fn get_display_name(
                 debug!("identity {:?}", identity);
                 let parent = parse_identity_data(identity.info.display);
                 let name = match sub_account_name {
-                    Some(child) => format!("{}/{}", parent, child),
-                    None => parent,
+                    Some(child) => format!("{}/{}", &parent, child),
+                    None => parent.clone(),
                 };
-                Ok((name, true))
+                Ok((name, parent.clone(), true))
             }
             None => {
                 let super_of_addr = people_runtime::storage().identity().super_of(stash);
@@ -1001,13 +1123,15 @@ async fn get_display_name(
                     .await;
                 } else {
                     let s = &stash.to_string();
-                    Ok((format!("{}...{}", &s[..6], &s[s.len() - 6..]), false))
+                    let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
+                    Ok((stash_address, "None".to_string(), false))
                 }
             }
         }
     } else {
         let s = &stash.to_string();
-        Ok((format!("{}...{}", &s[..6], &s[s.len() - 6..]), false))
+        let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
+        Ok((stash_address, "None".to_string(), false))
     }
 }
 
@@ -1129,10 +1253,10 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     let stashes = get_stashes(&crunch).await?;
     info!("Inspect {} stashes -> {}", stashes.len(), stashes.join(","));
 
-    let history_depth_addr = relay_runtime::constants().staking().history_depth();
+    let history_depth_addr = node_runtime::constants().staking().history_depth();
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
-    let active_era_addr = relay_runtime::storage().staking().active_era();
+    let active_era_addr = node_runtime::storage().staking().active_era();
     let active_era_index = match api
         .storage()
         .at_latest()
@@ -1144,29 +1268,21 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         None => return Err(CrunchError::Other("Active era not available".into())),
     };
 
-    // try_fetch_pool_members_for_compound(&crunch).await?;
-
     for stash_str in stashes.iter() {
         let stash = AccountId32::from_str(stash_str).map_err(|e| {
             CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
         })?;
-        // fetch identity
-        let (identity, has_identity) = get_display_name(&crunch, &stash, None).await?;
-        if has_identity {
-            info!("{} * Stash account for {}", stash, identity);
-        } else {
-            info!("{} * Stash account", stash);
-        }
+        info!("{} * Stash account", stash);
 
         let start_index = active_era_index - history_depth;
         let mut unclaimed: Vec<(EraIndex, PageIndex)> = Vec::new();
         let mut claimed: Vec<(EraIndex, PageIndex)> = Vec::new();
 
-        let bonded_addr = relay_runtime::storage().staking().bonded(&stash);
+        let bonded_addr = node_runtime::storage().staking().bonded(&stash);
         if let Some(controller) =
             api.storage().at_latest().await?.fetch(&bonded_addr).await?
         {
-            let ledger_addr = relay_runtime::storage().staking().ledger(&controller);
+            let ledger_addr = node_runtime::storage().staking().ledger(&controller);
             if let Some(ledger_response) =
                 api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
@@ -1184,7 +1300,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                     }
 
                     // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
-                    let claimed_rewards_addr = relay_runtime::storage()
+                    let claimed_rewards_addr = node_runtime::storage()
                         .staking()
                         .claimed_rewards(&era_index, &stash);
                     if let Some(claimed_rewards) = api
@@ -1195,7 +1311,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                         .await?
                     {
                         // Verify if there are more pages to claim than the ones already claimed
-                        let eras_stakers_overview_addr = relay_runtime::storage()
+                        let eras_stakers_overview_addr = node_runtime::storage()
                             .staking()
                             .eras_stakers_overview(&era_index, &stash);
                         if let Some(exposure) = api
@@ -1221,7 +1337,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                         }
                     } else {
                         // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
-                        let eras_stakers_paged_addr = relay_runtime::storage()
+                        let eras_stakers_paged_addr = node_runtime::storage()
                             .staking()
                             .eras_stakers_paged_iter2(&era_index, &stash);
                         let mut iter = api
@@ -1271,7 +1387,7 @@ pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
         stashes.extend(nominees);
     }
 
-    if config.unique_stashes_enabled {
+    if config.unique_stashes_enabled || config.group_identity_enabled {
         // sort and remove duplicates
         stashes.sort();
         stashes.dedup();
@@ -1294,7 +1410,7 @@ pub async fn try_fetch_pool_operators_for_compound(
     let mut members: Vec<AccountId32> = Vec::new();
 
     for pool_id in &config.pool_ids {
-        let bonded_pool_addr = relay_runtime::storage()
+        let bonded_pool_addr = node_runtime::storage()
             .nomination_pools()
             .bonded_pools(pool_id);
         if let Some(pool) = api
@@ -1304,7 +1420,7 @@ pub async fn try_fetch_pool_operators_for_compound(
             .fetch(&bonded_pool_addr)
             .await?
         {
-            let permissions_addr = relay_runtime::storage()
+            let permissions_addr = node_runtime::storage()
                 .nomination_pools()
                 .claim_permissions(pool.roles.depositor.clone());
 
@@ -1364,7 +1480,7 @@ pub async fn try_fetch_pool_members_for_compound(
     let mut members: Vec<AccountId32> = Vec::new();
 
     // 1. get all members with permissions set as [PermissionlessCompound, PermissionlessAll]
-    let permissions_addr = relay_runtime::storage()
+    let permissions_addr = node_runtime::storage()
         .nomination_pools()
         .claim_permissions_iter();
 
@@ -1386,7 +1502,7 @@ pub async fn try_fetch_pool_members_for_compound(
             // debug!("member: {}", member);
 
             // 2 .Verify if member belongs to the pools configured
-            let pool_member_addr = relay_runtime::storage()
+            let pool_member_addr = node_runtime::storage()
                 .nomination_pools()
                 .pool_members(&member);
             if let Some(pool_member) = api
@@ -1429,7 +1545,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
         return Ok(None);
     }
 
-    let active_era_addr = relay_runtime::storage().staking().active_era();
+    let active_era_addr = node_runtime::storage().staking().active_era();
     let era_index = match api
         .storage()
         .at_latest()
@@ -1446,7 +1562,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
 
     for pool_id in config.pool_ids.iter() {
         let pool_stash_account = nomination_pool_account(AccountType::Bonded, *pool_id);
-        let nominators_addr = relay_runtime::storage()
+        let nominators_addr = node_runtime::storage()
             .staking()
             .nominators(&pool_stash_account);
         if let Some(nominations) = api
@@ -1470,7 +1586,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
             // NOTE_2: Ideally nominees shouldn't have any pending payouts, but is in the best interest of the pool members
             // that pool operators trigger payouts as a backup at least for the active nominees.
             for stash in targets {
-                let eras_stakers_addr = relay_runtime::storage()
+                let eras_stakers_addr = node_runtime::storage()
                     .staking()
                     .eras_stakers(era_index - 1, &stash);
                 if let Some(exposure) = api

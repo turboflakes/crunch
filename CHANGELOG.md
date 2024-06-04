@@ -8,12 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## New
-- Fetch identities from people-kusama chain with use of `--substrate-people-ws-url` (Available for Kusama & Westend)
+- Fetch identities from people-kusama/people-westend chain with use of `--substrate-people-ws-url` (Only available for Kusama & Westend)
 - Allow crunch to run payouts and exit with run mode `once`; useful if you would like to setup crunch as cronjob;
-- Connect to a specific network via smoldot with flag `--enable-light-client`; no need to specify an RPC endpoint via `--substrate-ws-url`; usage example `crunch kusama --enable-light-client rewards`.
+- Connect to a specific network via smoldot with flag `--enable-light-client`; no need to specify an RPC endpoint via `--substrate-ws-url`; usage example `crunch kusama --enable-light-client rewards once`.
+- Group payouts and report messages by validators main identity using flag `--enable-group-identity`; useful to organize long list of validator stashes with different identities; usage example `crunch kusama --enable-group-identity rewards era`.
 
 ## Changed
-- Update subxt v0.37.0 (make use of unstable subxt RPC reconnection feature)
+- Update subxt v0.37.0 (make use of unstable subxt RPC reconnection and unstable light client features)
 - Iterate transaction progress to only evaluate events when block is finalized, log and drop all other states
 - Generate only metadata from specific pallets
 - Update metadata polkadot/1002000

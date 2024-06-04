@@ -24,6 +24,7 @@ use crate::{
 };
 use log::{info, warn};
 use rand::Rng;
+use regex::Regex;
 use std::collections::HashSet;
 use subxt::{ext::sp_core::H256, utils::AccountId32};
 
@@ -60,6 +61,7 @@ pub struct Validator {
     pub stash: AccountId32,
     pub controller: Option<AccountId32>,
     pub name: String,
+    pub parent_identity: String,
     pub has_identity: bool,
     pub is_active: bool,
     pub is_previous_era_already_claimed: bool,
@@ -76,6 +78,7 @@ impl Validator {
             stash,
             controller: None,
             name: "".to_string(),
+            parent_identity: "".to_string(),
             has_identity: false,
             is_active: false,
             is_previous_era_already_claimed: false,
@@ -90,14 +93,14 @@ impl Validator {
 
 pub type Validators = Vec<Validator>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SignerDetails {
     pub account: AccountId32,
     pub name: String,
     pub warnings: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Network {
     pub active_era: EraIndex,
     pub name: String,
@@ -130,7 +133,7 @@ pub struct RawData {
     pub signer_details: SignerDetails,
     pub validators: Validators,
     pub payout_summary: PayoutSummary,
-    pub pools_summary: NominationPoolsSummary,
+    pub pools_summary: Option<NominationPoolsSummary>,
 }
 
 type Body = Vec<String>;
@@ -217,20 +220,38 @@ impl From<RawData> for Report {
         let mut report = Report::new();
 
         let summary_crunch_desc = if data.payout_summary.calls_succeeded > 0 {
-            format!(
-                "Crunched <b>{}</b> ({:.0}%) → ",
-                data.payout_summary.calls_succeeded,
-                (data.payout_summary.calls_succeeded as f32
-                    / data.payout_summary.calls as f32)
-                    * 100.0,
-            )
+            if config.group_identity_enabled {
+                format!(
+                    "{} crunched <b>{}</b> ({:.0}%) → ",
+                    data.validators[0].parent_identity.clone(),
+                    data.payout_summary.calls_succeeded,
+                    (data.payout_summary.calls_succeeded as f32
+                        / data.payout_summary.calls as f32)
+                        * 100.0,
+                )
+            } else {
+                format!(
+                    "Crunched <b>{}</b> ({:.0}%) → ",
+                    data.payout_summary.calls_succeeded,
+                    (data.payout_summary.calls_succeeded as f32
+                        / data.payout_summary.calls as f32)
+                        * 100.0,
+                )
+            }
         } else {
             format!("")
         };
 
+        let mut prefix = "Next".to_string();
+
+        if data.payout_summary.calls_succeeded == 0 && config.group_identity_enabled {
+            prefix = format!("{} next", data.validators[0].parent_identity);
+        }
+
         let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {
             format!(
-                "Next era expect <b>{}</b> ({:.0}%) {}",
+                "{} era expect <b>{}</b> ({:.0}%) {}",
+                prefix,
                 data.payout_summary.next_minimum_expected,
                 (data.payout_summary.next_minimum_expected as f32
                     / data.payout_summary.total_validators as f32)
@@ -238,7 +259,7 @@ impl From<RawData> for Report {
                 Random::Happy,
             )
         } else {
-            format!("Next era expect <b>NO</b> rewards {}", Random::Grumpy)
+            format!("{} era expect <b>NO</b> rewards {}", prefix, Random::Grumpy)
         };
 
         report.add_raw_text(format!(
@@ -274,36 +295,8 @@ impl From<RawData> for Report {
             warn!("{}", warning);
         }
 
-        // Sort validators by identity, than by non-identity and push the stashes
-        // with warnings to bottom
-        let mut validators_with_warnings = data
-            .validators
-            .clone()
-            .into_iter()
-            .filter(|v| v.warnings.len() > 0)
-            .collect::<Vec<Validator>>();
-
-        validators_with_warnings.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
-
-        let validators_with_no_identity = data
-            .validators
-            .clone()
-            .into_iter()
-            .filter(|v| v.warnings.len() == 0 && !v.has_identity)
-            .collect::<Vec<Validator>>();
-
-        let mut validators = data
-            .validators
-            .into_iter()
-            .filter(|v| v.warnings.len() == 0 && v.has_identity)
-            .collect::<Vec<Validator>>();
-
-        validators.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
-        validators.extend(validators_with_no_identity);
-        validators.extend(validators_with_warnings);
-
         // Validators info
-        for validator in validators {
+        for validator in data.validators {
             report.add_break();
             let is_active_desc = if validator.is_active { "🟢" } else { "🔴" };
             report.add_raw_text(format!(
@@ -354,7 +347,7 @@ impl From<RawData> for Report {
                         good_performance(
                             payout.points.validator.into(),
                             payout.points.ci99_9_interval.1,
-                            payout.points.outlier_limits.1
+                            payout.points.outlier_limits.1,
                         )
                     );
 
@@ -417,7 +410,7 @@ impl From<RawData> for Report {
 
                     // Block number
                     report.add_raw_text(format!(
-                        "💯 Payout for era <del>{}</del> finalized at block #{} 
+                        "💯 Payout for era <del>{}</del> finalized at block #{}
                         (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
                         payout.era_index,
                         payout.block_number,
@@ -431,12 +424,12 @@ impl From<RawData> for Report {
                 if validator.unclaimed.len() > 0 {
                     let symbols = number_to_symbols(validator.unclaimed.len(), "⚡", 84);
                     report.add_text(format!(
-                        "{} There are still {} eras left with {} to <code>crunch</code> {}",
-                        symbols,
-                        validator.unclaimed.len(),
-                        context(),
-                        symbols
-                    ));
+						"{} There are still {} eras left with {} to <code>crunch</code> {}",
+						symbols,
+						validator.unclaimed.len(),
+						context(),
+						symbols
+					));
                 } else {
                     report.add_text(format!(
                         "✌️ {} just run out of {} 💫 💙",
@@ -504,10 +497,13 @@ impl From<RawData> for Report {
 
         report.add_break();
 
-        // Nomination Pools coumpound info
-        if config.pool_members_compound_enabled
-            || config.pool_only_operator_compound_enabled
+        // Nomination Pools compound info
+        if (config.pool_members_compound_enabled
+            || config.pool_only_operator_compound_enabled)
+            && data.pools_summary.is_some()
         {
+            let pool_summary_data = data.pools_summary.unwrap();
+
             let threshold = format!(
                 "{:.4} {}",
                 config.pool_compound_threshold as f64
@@ -521,11 +517,11 @@ impl From<RawData> for Report {
                 format!("Pools {:?}", config.pool_ids)
             };
 
-            if data.pools_summary.total_members > 0 {
-                let members_desc = if data.pools_summary.total_members == 1 {
+            if pool_summary_data.total_members > 0 {
+                let members_desc = if pool_summary_data.total_members == 1 {
                     format!("1 reward")
                 } else {
-                    format!("{} rewards", data.pools_summary.total_members)
+                    format!("{} rewards", pool_summary_data.total_members)
                 };
 
                 if config.pool_only_operator_compound_enabled {
@@ -540,9 +536,9 @@ impl From<RawData> for Report {
                     ));
                 }
 
-                for batch in data.pools_summary.batches {
+                for batch in pool_summary_data.batches {
                     report.add_raw_text(format!(
-                        "💯 Batch finalized at block #{} 
+                        "💯 Batch finalized at block #{}
                     (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
                         batch.block_number,
                         data.network.name.to_lowercase().trim().replace(" ", ""),
@@ -585,6 +581,37 @@ impl From<RawData> for Report {
 
         report
     }
+}
+
+pub fn replace_emoji_lowercase(string: &String) -> String {
+    let regex = Regex::new(concat!(
+        "[",
+        "\u{01F600}-\u{01F64F}",
+        "\u{01F300}-\u{01F5FF}",
+        "\u{01F680}-\u{01F6FF}",
+        "\u{01F1E0}-\u{01F1FF}",
+        "\u{002702}-\u{0027B0}",
+        "\u{0024C2}-\u{01F251}",
+        "\u{002500}-\u{002BEF}",
+        "\u{01f926}-\u{01f937}",
+        "\u{010000}-\u{10ffff}",
+        "\u{2640}-\u{2642}",
+        "\u{2600}-\u{2B55}",
+        "\u{200d}",
+        "\u{23cf}",
+        "\u{23e9}",
+        "\u{231a}",
+        "\u{fe0f}",
+        "\u{3030}",
+        "\u{20e3}",
+        "\u{0020}",
+        "\u{000D}",
+        "\u{000A}",
+        "]+",
+    ))
+    .unwrap();
+
+    regex.replace_all(string, "").to_string().to_lowercase()
 }
 
 fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
