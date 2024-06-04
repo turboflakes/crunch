@@ -296,6 +296,12 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         let payout_summary =
             try_run_batch_payouts(&crunch, &signer_keypair, &mut validators).await?;
 
+        // Try fetch ONE-T grade data
+        for v in &mut validators {
+            v.onet =
+                try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone()).await?;
+        }
+
         // Try run members in batches
         let pools_summary = try_run_batch_pool_members(&crunch, &signer_keypair).await?;
 
