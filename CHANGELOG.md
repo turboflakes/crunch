@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update metadata westend/1011000
 - Update metadata paseo/1002000
 
-## [0.15.0] - 2023-04-26
+## [0.15.0] - 2024-04-26
 
 ## New
 - Add tip for block author optional with `--tx-tip`
@@ -34,40 +34,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Review no bonded controller message
 - Fix oversubscribed validators by checking all unclaimed pages
 
-## [0.14.0] - 2023-04-21
+## [0.14.0] - 2024-04-21
 
 ## Changed
 - Fixes breaking changes from latest Polkadot v1.2.0 runtime upgrade 
 - Update metadata Polkadot runtime/1002000
 
-## [0.13.2] - 2023-04-19
+## [0.13.2] - 2024-04-19
 
 ## Changed
 - Fixes claimed rewards from new storage 'staking.claimed_rewards'
 
-## [0.13.1] - 2023-04-19
+## [0.13.1] - 2024-04-19
 
 ## Changed
 - Fixes unclaimed eras from new storage 'staking.eras_stakers_paged'
 - update base64 crate version
 
-## [0.13.0] - 2023-04-18
+## [0.13.0] - 2024-04-18
 
 ## Changed
 - Fixes breaking changes from latest Kusama v1.2.0 runtime upgrade 
 - Update metadata Kusama runtime/1002000
 
-## [0.12.2] - 2023-02-29
+## [0.12.2] - 2024-02-29
 
 ## Bugfix
 - Fixes issue [#39](https://github.com/turboflakes/crunch/issues/39), removes control characters from seed file, before parsing content.
 
-## [0.12.1] - 2023-02-29
+## [0.12.1] - 2024-02-29
 
 ## Bugfix
 - Since v0.11.0 only mnemonic phrases were parsed correctly from the seed file, this release fixes this issue, allowing secret keys, mnemonic phrases or uri to be interpreted correctly.
 
-## [0.12.0] - 2023-02-28
+## [0.12.0] - 2024-02-28
 
 ## New
 - Add `medium` flag as another verbosity option
@@ -78,12 +78,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update metadata Polkadot runtime/1001002
 - Update metadata Kusama runtime/1001002
 
-## [0.11.2] - 2023-01-26
+## [0.11.2] - 2024-01-26
 
 ## Changed
 - Fix unsecure Urls.
 
-## [0.11.1] - 2023-01-26
+## [0.11.1] - 2024-01-26
 
 ## Changed
 - Fix `onet_api_url` to depend on the connected chain and remove default endpoint.
