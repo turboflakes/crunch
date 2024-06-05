@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2024-06-05
+
 ## New
 - Fetch identities from people-kusama/people-westend chain with use of `--substrate-people-ws-url` (Only available for Kusama & Westend)
 - Allow crunch to run payouts and exit with run mode `once`; useful if you would like to setup crunch as cronjob;
