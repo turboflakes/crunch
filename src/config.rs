@@ -69,7 +69,7 @@ fn default_maximum_history_eras() -> u32 {
 
 /// provides default value for maximum_calls if CRUNCH_MAXIMUM_CALLS env var is not set
 fn default_maximum_calls() -> u32 {
-    4
+    3
 }
 
 /// provides default value for existential_deposit_factor_warning if CRUNCH_EXISTENTIAL_DEPOSIT_FACTOR_WARNING env var is not set
@@ -262,7 +262,7 @@ fn get_config() -> Config {
         Arg::with_name("maximum-calls")
               .long("maximum-calls")
               .takes_value(true)
-              .help("Maximum number of calls in a single batch. [default: 8]"))
+              .help("Maximum number of calls in a single batch. [default: 3]"))
       .arg(
         Arg::with_name("debug")
           .long("debug")
