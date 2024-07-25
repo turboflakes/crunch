@@ -35,6 +35,7 @@ pub enum SupportedRuntime {
 impl SupportedRuntime {
     pub fn people_runtime(&self) -> Option<SupportedParasRuntime> {
         match &self {
+            Self::Polkadot => Some(SupportedParasRuntime::PeoplePolkadot),
             Self::Kusama => Some(SupportedParasRuntime::PeopleKusama),
             Self::Westend => Some(SupportedParasRuntime::PeopleWestend),
             _ => None,
@@ -108,6 +109,7 @@ impl std::fmt::Display for SupportedRuntime {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum SupportedParasRuntime {
+    PeoplePolkadot,
     PeopleKusama,
     PeopleWestend,
 }
@@ -116,12 +118,13 @@ impl SupportedParasRuntime {
     pub fn default_rpc_url(&self) -> String {
         let config = CONFIG.clone();
         match &self {
-            Self::PeopleKusama | Self::PeopleWestend => config.substrate_people_ws_url,
+            _ => config.substrate_people_ws_url,
         }
     }
 
     pub fn chain_specs(&self) -> &str {
         match &self {
+            Self::PeoplePolkadot => polkadot::PEOPLE_POLKADOT_SPEC,
             Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
             Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
         }
@@ -131,6 +134,7 @@ impl SupportedParasRuntime {
 impl std::fmt::Display for SupportedParasRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::PeoplePolkadot => write!(f, "People Polkadot"),
             Self::PeopleKusama => write!(f, "People Kusama"),
             Self::PeopleWestend => write!(f, "People Westend"),
         }

@@ -168,7 +168,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     let seed_account_info_addr =
         node_runtime::storage().system().account(&seed_account_id);
-        if let Some(seed_account_info) = api
+    if let Some(seed_account_info) = api
         .storage()
         .at_latest()
         .await?
@@ -179,9 +179,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
             <= (config.existential_deposit_factor_warning as u128 * ed)
         {
             let warning = "⚡ Signer account is running low on funds ⚡";
-            signer_details
-                .warnings
-                .push(warning.to_string());
+            signer_details.warnings.push(warning.to_string());
             warn!("{warning}");
         }
     } else {

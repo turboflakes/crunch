@@ -15,12 +15,13 @@ subxt metadata --url wss://rpc.turboflakes.io:443/westend --pallets System,Sessi
 subxt metadata --url wss://rpc.turboflakes.io:443/kusama -f bytes > metadata/kusama_metadata.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/kusama --pallets System,Session,Balances,Staking,Utility,NominationPools -f bytes > metadata/kusama_metadata_small.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/polkadot -f bytes > metadata/polkadot_metadata.scale
-subxt metadata --url wss://rpc.turboflakes.io:443/polkadot --pallets System,Session,Balances,Staking,Utility,NominationPools,Identity -f bytes > metadata/polkadot_metadata_small.scale
+subxt metadata --url wss://rpc.turboflakes.io:443/polkadot --pallets System,Session,Balances,Staking,Utility,NominationPools -f bytes > metadata/polkadot_metadata_small.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/paseo -f bytes > paseo_metadata.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/paseo --pallets System,Session,Balances,Staking,Utility,NominationPools,Identity -f bytes > metadata/paseo_metadata_small.scale
 # People Chains
 subxt metadata --url wss://sys.turboflakes.io:443/people-westend --pallets Identity -f bytes > metadata/people_westend_metadata_small.scale
 subxt metadata --url wss://sys.turboflakes.io:443/people-kusama --pallets Identity -f bytes > metadata/people_kusama_metadata_small.scale
+subxt metadata --url wss://sys.turboflakes.io:443/people-polkadot --pallets Identity -f bytes > metadata/people_polkadot_metadata_small.scale
 ```
 
 Generate runtime API client code from metadata.
@@ -29,8 +30,8 @@ Generate runtime API client code from metadata.
 subxt codegen --url wss://rpc.turboflakes.io:443/westend | rustfmt --edition=2018 --emit=stdout > westend_metadata.rs
 subxt codegen --url wss://rpc.turboflakes.io:443/kusama | rustfmt --edition=2018 --emit=stdout > kusama_runtime.rs
 subxt codegen --url wss://rpc.turboflakes.io:443/polkadot | rustfmt --edition=2018 --emit=stdout > polkadot_runtime.rs
-subxt codegen --url wss://rpc.turboflakes.io:443/kusama | rustfmt --edition=2018 --emit=stdout > kusama_runtime.rs
 subxt codegen --url wss://sys.turboflakes.io:443/people-kusama | rustfmt --edition=2018 --emit=stdout > people_kusama_runtime.rs
+subxt codegen --url wss://sys.turboflakes.io:443/people-polkadot | rustfmt --edition=2018 --emit=stdout > people_polkadot_runtime.rs
 ```
 
 Generate relay chain specs from subxt to be used under lightclient

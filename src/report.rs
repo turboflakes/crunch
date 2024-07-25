@@ -64,7 +64,6 @@ pub struct Validator {
     pub parent_identity: String,
     pub has_identity: bool,
     pub is_active: bool,
-    pub is_previous_era_already_claimed: bool,
     pub claimed: Vec<(EraIndex, PageIndex)>,
     pub unclaimed: Vec<(EraIndex, PageIndex)>,
     pub payouts: Vec<Payout>,
@@ -81,7 +80,6 @@ impl Validator {
             parent_identity: "".to_string(),
             has_identity: false,
             is_active: false,
-            is_previous_era_already_claimed: false,
             claimed: Vec::new(),
             unclaimed: Vec::new(),
             payouts: Vec::new(),
@@ -115,7 +113,6 @@ pub struct PayoutSummary {
     pub calls_failed: u32,
     pub next_minimum_expected: u32,
     pub total_validators: u32,
-    pub total_unclaimed_pages: u32,
 }
 
 #[derive(Debug, Default, Clone)]

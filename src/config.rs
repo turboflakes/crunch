@@ -630,6 +630,12 @@ fn get_config() -> Config {
                     "wss://rpc.turboflakes.io:443/polkadot",
                 );
             }
+            if env::var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_PEOPLE_WS_URL",
+                    "wss://sys.turboflakes.io:443/people-polkadot",
+                );
+            }
             env::set_var("CRUNCH_CHAIN_NAME", "polkadot");
         }
         Some("paseo") => {

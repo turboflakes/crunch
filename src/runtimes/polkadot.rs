@@ -37,7 +37,6 @@ use log::{debug, info, warn};
 use std::{
     cmp, convert::TryFrom, convert::TryInto, result::Result, str::FromStr, thread, time,
 };
-
 use subxt::{
     config::polkadot::PolkadotExtrinsicParamsBuilder as TxParams,
     error::DispatchError,
@@ -49,6 +48,8 @@ use subxt::{
 use subxt_signer::sr25519::Keypair;
 
 pub const POLKADOT_SPEC: &str = include_str!("../../chain_specs/polkadot.json");
+pub const PEOPLE_POLKADOT_SPEC: &str =
+    include_str!("../../chain_specs/people-polkadot.json");
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/polkadot_metadata_small.scale",
@@ -69,6 +70,12 @@ use node_runtime::{
     utility::events::ItemCompleted,
     utility::events::ItemFailed,
 };
+
+#[subxt::subxt(
+    runtime_metadata_path = "metadata/people_polkadot_metadata_small.scale",
+    derive_for_all_types = "Clone, PartialEq"
+)]
+mod people_runtime {}
 
 type Call = node_runtime::runtime_types::polkadot_runtime::RuntimeCall;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
@@ -160,7 +167,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         name: signer_name,
         warnings: Vec::new(),
     };
-    debug!("signer_details {:?}", signer_details);
+    info!("signer_details {:?}", signer_details);
 
     // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
     let ed_addr = node_runtime::constants().balances().existential_deposit();
@@ -168,7 +175,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
     let seed_account_info_addr =
         node_runtime::storage().system().account(&seed_account_id);
-        if let Some(seed_account_info) = api
+    if let Some(seed_account_info) = api
         .storage()
         .at_latest()
         .await?
@@ -179,9 +186,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
             <= (config.existential_deposit_factor_warning as u128 * ed)
         {
             let warning = "⚡ Signer account is running low on funds ⚡";
-            signer_details
-                .warnings
-                .push(warning.to_string());
+            signer_details.warnings.push(warning.to_string());
             warn!("{warning}");
         }
     } else {
@@ -1093,152 +1098,156 @@ async fn get_display_name(
     stash: &AccountId32,
     sub_account_name: Option<String>,
 ) -> Result<(String, String, bool), CrunchError> {
-    let api = crunch.client().clone();
-
-    let identity_of_addr = node_runtime::storage().identity().identity_of(stash);
-    match api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&identity_of_addr)
-        .await?
-    {
-        Some((identity, _)) => {
-            debug!("identity {:?}", identity);
-            let parent = parse_identity_data(identity.info.display);
-            let name = match sub_account_name {
-                Some(child) => format!("{}/{}", &parent, child),
-                None => parent.clone(),
-            };
-            Ok((name, parent.clone(), true))
-        }
-        None => {
-            let super_of_addr = node_runtime::storage().identity().super_of(stash);
-            if let Some((parent_account, data)) = api
-                .storage()
-                .at_latest()
-                .await?
-                .fetch(&super_of_addr)
-                .await?
-            {
-                let sub_account_name = parse_identity_data(data);
-                return get_display_name(
-                    &crunch,
-                    &parent_account,
-                    Some(sub_account_name.to_string()),
-                )
-                .await;
-            } else {
-                let s = &stash.to_string();
-                let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
-                Ok((stash_address, "None".to_string(), false))
+    if let Some(api) = crunch.people_client().clone() {
+        let identity_of_addr = people_runtime::storage().identity().identity_of(stash);
+        match api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&identity_of_addr)
+            .await?
+        {
+            Some((identity, _)) => {
+                debug!("identity {:?}", identity);
+                let parent = parse_identity_data(identity.info.display);
+                let name = match sub_account_name {
+                    Some(child) => format!("{}/{}", &parent, child),
+                    None => parent.clone(),
+                };
+                Ok((name, parent.clone(), true))
+            }
+            None => {
+                let super_of_addr = people_runtime::storage().identity().super_of(stash);
+                if let Some((parent_account, data)) = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&super_of_addr)
+                    .await?
+                {
+                    let sub_account_name = parse_identity_data(data);
+                    return get_display_name(
+                        &crunch,
+                        &parent_account,
+                        Some(sub_account_name.to_string()),
+                    )
+                    .await;
+                } else {
+                    let s = &stash.to_string();
+                    let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
+                    Ok((stash_address, "None".to_string(), false))
+                }
             }
         }
+    } else {
+        let s = &stash.to_string();
+        let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
+        Ok((stash_address, "None".to_string(), false))
     }
 }
 
 //
 fn parse_identity_data(
-    data: node_runtime::runtime_types::pallet_identity::types::Data,
+    data: people_runtime::runtime_types::pallet_identity::types::Data,
 ) -> String {
     match data {
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw0(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw0(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw1(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw1(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw2(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw2(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw3(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw3(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw4(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw4(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw5(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw5(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw6(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw6(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw7(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw7(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw8(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw8(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw9(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw9(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw10(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw10(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw11(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw11(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw12(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw12(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw13(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw13(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw14(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw14(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw15(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw15(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw16(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw16(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw17(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw17(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw18(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw18(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw19(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw19(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw20(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw20(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw21(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw21(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw22(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw22(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw23(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw23(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw24(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw24(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw25(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw25(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw26(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw26(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw27(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw27(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw28(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw28(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw29(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw29(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw30(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw30(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw31(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw31(bytes) => {
             str(bytes.to_vec())
         }
-        node_runtime::runtime_types::pallet_identity::types::Data::Raw32(bytes) => {
+        people_runtime::runtime_types::pallet_identity::types::Data::Raw32(bytes) => {
             str(bytes.to_vec())
         }
         _ => format!("???"),
