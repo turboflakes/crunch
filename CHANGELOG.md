@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2024-07-25
+
+## New
+- Fetch identities from people-polkadot chain with use of `--substrate-people-ws-url`
+
+## Changed
+- Update metadata polkadot/1002007
+- Update metadata people-polkadot/1002006
+
+
 ## [0.16.0] - 2024-06-05
 
 ## New
