@@ -48,8 +48,7 @@ use subxt::{
 use subxt_signer::sr25519::Keypair;
 
 pub const POLKADOT_SPEC: &str = include_str!("../../chain_specs/polkadot.json");
-pub const PEOPLE_POLKADOT_SPEC: &str =
-    include_str!("../../chain_specs/people-polkadot.json");
+pub const PEOPLE_POLKADOT_SPEC: &str = include_str!("../../chain_specs/people-polkadot.json");
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/polkadot_metadata_small.scale",
