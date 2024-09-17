@@ -38,6 +38,7 @@ impl SupportedRuntime {
             Self::Polkadot => Some(SupportedParasRuntime::PeoplePolkadot),
             Self::Kusama => Some(SupportedParasRuntime::PeopleKusama),
             Self::Westend => Some(SupportedParasRuntime::PeopleWestend),
+            Self::Paseo => Some(SupportedParasRuntime::PeoplePaseo),
             _ => None,
         }
     }
@@ -112,6 +113,7 @@ pub enum SupportedParasRuntime {
     PeoplePolkadot,
     PeopleKusama,
     PeopleWestend,
+    PeoplePaseo,
 }
 
 impl SupportedParasRuntime {
@@ -127,6 +129,7 @@ impl SupportedParasRuntime {
             Self::PeoplePolkadot => polkadot::PEOPLE_POLKADOT_SPEC,
             Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
             Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
+            Self::PeoplePaseo => paseo::PEOPLE_PASEO_SPEC,
         }
     }
 }
@@ -137,6 +140,7 @@ impl std::fmt::Display for SupportedParasRuntime {
             Self::PeoplePolkadot => write!(f, "People Polkadot"),
             Self::PeopleKusama => write!(f, "People Kusama"),
             Self::PeopleWestend => write!(f, "People Westend"),
+            Self::PeoplePaseo => write!(f, "People Paseo"),
         }
     }
 }

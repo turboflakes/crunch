@@ -48,7 +48,7 @@ use subxt::{
 use subxt_signer::sr25519::Keypair;
 
 pub const PASEO_SPEC: &str = include_str!("../../chain_specs/paseo.json");
-pub const PASEO_POLKADOT_SPEC: &str = include_str!("../../chain_specs/people-paseo.json");
+pub const PEOPLE_PASEO_SPEC: &str = include_str!("../../chain_specs/people-paseo.json");
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/paseo_metadata_small.scale",
