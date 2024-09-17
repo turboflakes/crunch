@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2024-09-17
+
+## Changed
+- Update metadata polkadot/1003000
+- Update metadata paseo/1003000
+- Add metadata people-paseo/1002007
+
 ## [0.17.1] - 2024-09-5
 
 ## Changed
