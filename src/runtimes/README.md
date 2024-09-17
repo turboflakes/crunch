@@ -22,6 +22,7 @@ subxt metadata --url wss://rpc.turboflakes.io:443/paseo --pallets System,Session
 subxt metadata --url wss://sys.turboflakes.io:443/people-westend --pallets Identity -f bytes > metadata/people_westend_metadata_small.scale
 subxt metadata --url wss://sys.turboflakes.io:443/people-kusama --pallets Identity -f bytes > metadata/people_kusama_metadata_small.scale
 subxt metadata --url wss://sys.turboflakes.io:443/people-polkadot --pallets Identity -f bytes > metadata/people_polkadot_metadata_small.scale
+subxt metadata --url wss://sys.turboflakes.io:443/people-paseo --pallets Identity -f bytes > metadata/people_paseo_metadata_small.scale
 ```
 
 Generate runtime API client code from metadata.
