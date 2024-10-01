@@ -98,9 +98,7 @@ pub async fn create_substrate_rpc_client_from_url(
     info!("Using RPC endpoint {}", url);
     ReconnectingClient::builder()
         .retry_policy(
-            ExponentialBackoff::from_millis(100)
-                .max_delay(time::Duration::from_secs(10))
-                .take(10),
+            ExponentialBackoff::from_millis(100).max_delay(time::Duration::from_secs(10)),
         )
         .build(url.to_string())
         .await

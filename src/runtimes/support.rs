@@ -20,7 +20,11 @@
 // SOFTWARE.
 
 use crate::config::CONFIG;
-use crate::runtimes::{kusama, paseo, polkadot, westend};
+use crate::runtimes::{
+    // kusama, paseo,
+    polkadot,
+    // westend
+};
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
@@ -46,9 +50,10 @@ impl SupportedRuntime {
     pub fn chain_specs(&self) -> &str {
         match &self {
             Self::Polkadot => polkadot::POLKADOT_SPEC,
-            Self::Kusama => kusama::KUSAMA_SPEC,
-            Self::Westend => westend::WESTEND_SPEC,
-            Self::Paseo => paseo::PASEO_SPEC,
+            _ => polkadot::POLKADOT_SPEC,
+            // Self::Kusama => kusama::KUSAMA_SPEC,
+            // Self::Westend => westend::WESTEND_SPEC,
+            // Self::Paseo => paseo::PASEO_SPEC,
         }
     }
 }
@@ -127,9 +132,10 @@ impl SupportedParasRuntime {
     pub fn chain_specs(&self) -> &str {
         match &self {
             Self::PeoplePolkadot => polkadot::PEOPLE_POLKADOT_SPEC,
-            Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
-            Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
-            Self::PeoplePaseo => paseo::PEOPLE_PASEO_SPEC,
+            _ => polkadot::PEOPLE_POLKADOT_SPEC,
+            // Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
+            // Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
+            // Self::PeoplePaseo => paseo::PEOPLE_PASEO_SPEC,
         }
     }
 }

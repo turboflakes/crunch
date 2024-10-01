@@ -48,7 +48,8 @@ use subxt::{
 use subxt_signer::sr25519::Keypair;
 
 pub const POLKADOT_SPEC: &str = include_str!("../../chain_specs/polkadot.json");
-pub const PEOPLE_POLKADOT_SPEC: &str = include_str!("../../chain_specs/people-polkadot.json");
+pub const PEOPLE_POLKADOT_SPEC: &str =
+    include_str!("../../chain_specs/people-polkadot.json");
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/polkadot_metadata_small.scale",
@@ -80,6 +81,7 @@ type Call = node_runtime::runtime_types::polkadot_runtime::RuntimeCall;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 type NominationPoolsCall =
     node_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
+type UtilityCall = node_runtime::runtime_types::pallet_utility::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
     crunch: &Crunch,
@@ -297,6 +299,8 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
                     .send_message(&report.message(), &report.formatted_message())
                     .await?;
             }
+            // NOTE: To prevent too many request from matrix API set a sleep here of 5 seconds before trying another identity payout
+            thread::sleep(time::Duration::from_secs(5));
         }
     } else {
         let mut validators = collect_validators_data(&crunch, active_era_index).await?;
@@ -410,6 +414,15 @@ pub async fn try_run_batch_pool_members(
                 } else {
                     TxParams::new().tip(config.tx_tip.into()).build()
                 };
+
+                // Log call data in debug mode
+                if config.is_debug {
+                    let batch_call = Call::Utility(UtilityCall::force_batch {
+                        calls: calls_for_batch_clipped.clone(),
+                    });
+
+                    debug!("call_data: 0x{}", hex::encode(batch_call.encode()));
+                }
 
                 let mut tx_progress = api
                     .tx()
@@ -642,6 +655,15 @@ pub async fn try_run_batch_payouts(
                 } else {
                     TxParams::new().tip(config.tx_tip.into()).build()
                 };
+
+                // Log call data in debug mode
+                if config.is_debug {
+                    let batch_call = Call::Utility(UtilityCall::force_batch {
+                        calls: calls_for_batch_clipped.clone(),
+                    });
+
+                    debug!("call_data: 0x{}", hex::encode(batch_call.encode()));
+                }
 
                 let mut tx_progress = api
                     .tx()
