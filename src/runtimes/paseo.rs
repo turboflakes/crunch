@@ -508,37 +508,28 @@ pub async fn try_run_batch_pool_members(
 //Provides a distinct and sorted vector of parent identities by string
 //where there are entries without identities, these are placed to the end of the vector
 pub fn get_distinct_parent_identites(validators: Validators) -> Vec<String> {
-    let mut return_result: Vec<String> = vec![];
-    let mut has_none: bool = false;
-
-    //Obtains a sorted distinct list of parent identities
+    // Obtains a sorted distinct list of valid identities
     let mut parent_identities: Vec<String> = validators
         .clone()
         .iter()
+        .filter(|val| val.has_identity)
         .map(|val| report::replace_emoji_lowercase(&val.parent_identity))
         .collect();
     parent_identities.sort();
     parent_identities.dedup();
 
-    //Filters out None
-    //TODO: Use array filter function
-    for parent in parent_identities {
-        if parent != "none" {
-            return_result.push(parent);
-        } else {
-            has_none = true;
-        }
+    // Note: If there are stashes/validators without identity they should be grouped in the bottom of the list
+    let none_counter = validators
+        .clone()
+        .iter()
+        .filter(|val| !val.has_identity)
+        .count();
+
+    if none_counter > 0 {
+        parent_identities.push("".to_string());
     }
 
-    //Sort the results without node
-    return_result.sort();
-
-    //If there's entries without identities i.e. parent has none then add it after sort
-    if has_none {
-        return_result.push("None".to_string())
-    }
-
-    return_result
+    parent_identities
 }
 
 pub async fn try_run_batch_payouts(
@@ -1149,14 +1140,14 @@ async fn get_display_name(
                 } else {
                     let s = &stash.to_string();
                     let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
-                    Ok((stash_address, "None".to_string(), false))
+                    Ok((stash_address, "".to_string(), false))
                 }
             }
         }
     } else {
         let s = &stash.to_string();
         let stash_address = format!("{}...{}", &s[..6], &s[s.len() - 6..]);
-        Ok((stash_address, "None".to_string(), false))
+        Ok((stash_address, "".to_string(), false))
     }
 }
 

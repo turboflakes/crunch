@@ -87,6 +87,14 @@ impl Validator {
             onet: None,
         }
     }
+
+    pub fn display_parent_identity(&self) -> String {
+        if self.has_identity {
+            self.parent_identity.clone()
+        } else {
+            "⚠️ No Identity ⚠️".to_string()
+        }
+    }
 }
 
 pub type Validators = Vec<Validator>;
@@ -220,7 +228,7 @@ impl From<RawData> for Report {
             if config.group_identity_enabled {
                 format!(
                     "{} crunched <b>{}</b> ({:.0}%) → ",
-                    data.validators[0].parent_identity.clone(),
+                    data.validators[0].display_parent_identity(),
                     data.payout_summary.calls_succeeded,
                     (data.payout_summary.calls_succeeded as f32
                         / data.payout_summary.calls as f32)
@@ -242,7 +250,7 @@ impl From<RawData> for Report {
         let mut prefix = "Next".to_string();
 
         if data.payout_summary.calls_succeeded == 0 && config.group_identity_enabled {
-            prefix = format!("{} next", data.validators[0].parent_identity);
+            prefix = format!("{} next", data.validators[0].display_parent_identity());
         }
 
         let summary_next_desc = if data.payout_summary.next_minimum_expected > 0 {

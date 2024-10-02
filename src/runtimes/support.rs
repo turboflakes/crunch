@@ -39,7 +39,6 @@ impl SupportedRuntime {
             Self::Kusama => Some(SupportedParasRuntime::PeopleKusama),
             Self::Westend => Some(SupportedParasRuntime::PeopleWestend),
             Self::Paseo => Some(SupportedParasRuntime::PeoplePaseo),
-            _ => None,
         }
     }
 
