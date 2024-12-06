@@ -43,11 +43,11 @@ jobs:
 
       - name: Get Rustc version
         id: get_rustc
-        run: echo ::set-output name=rustc::$(rustc -V)
+        run: echo "rustc=$(rustc -V)" >> $GITHUB_OUTPUT
 
       - name: Get Tag version
         id: get_tag
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       
       - name: Create release
         id: create_release
