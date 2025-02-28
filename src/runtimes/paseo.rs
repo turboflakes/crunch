@@ -173,6 +173,52 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let ed_addr = node_runtime::constants().balances().existential_deposit();
     let ed = api.constants().at(&ed_addr)?;
 
+    // Preventive measure to ensure that the signer account has not spent more than the threshold defined by the user
+    // See issue https://github.com/turboflakes/crunch/issues/49
+    let block_number_addr = node_runtime::storage().system().number();
+    if let Some(block_number) = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&block_number_addr)
+        .await?
+    {
+        info!("Block_number: {block_number} : {} ", block_number - 14400);
+        let block_hash_addr = node_runtime::storage()
+            .system()
+            .block_hash(block_number - 14400);
+        if let Some(block_hash) = api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&block_hash_addr)
+            .await?
+        {
+            let seed_account_addr =
+                node_runtime::storage().system().account(&seed_account_id);
+            if let Some(previous_seed_account_info) = api
+                .storage()
+                .at(block_hash)
+                .fetch(&seed_account_addr)
+                .await?
+            {
+                let balance = previous_seed_account_info.data.free;
+                info!("Balance: {balance}");
+            }
+        }
+
+        let storage_query = node_runtime::storage().system().account(&seed_account_id);
+        let result = api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&storage_query)
+            .await?;
+
+        let v = result.unwrap().data.free;
+        info!("Free Balance: {v}");
+    }
+
     let seed_account_info_addr =
         node_runtime::storage().system().account(&seed_account_id);
     if let Some(seed_account_info) = api
