@@ -493,8 +493,8 @@ fn spawn_crunch_once() {
 }
 
 pub fn random_wait(max: u64) -> u64 {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(0..max)
+    let mut rng = rand::rng();
+    rng.random_range(0..max)
 }
 
 pub async fn try_fetch_stashes_from_remote_url(

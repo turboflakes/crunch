@@ -736,8 +736,8 @@ impl std::fmt::Display for Random {
 }
 
 fn random_index(len: usize) -> usize {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(0..len - 1)
+    let mut rng = rand::rng();
+    rng.random_range(0..len - 1)
 }
 
 fn context() -> String {
