@@ -1106,7 +1106,7 @@ async fn get_display_name(
             .fetch(&identity_of_addr)
             .await?
         {
-            Some((identity, _)) => {
+            Some(identity) => {
                 debug!("identity {:?}", identity);
                 let parent = parse_identity_data(identity.info.display);
                 let name = match sub_account_name {
@@ -1596,17 +1596,24 @@ pub async fn try_fetch_stashes_from_pool_ids(
             // NOTE_2: Ideally nominees shouldn't have any pending payouts, but is in the best interest of the pool members
             // that pool operators trigger payouts as a backup at least for the active nominees.
             for stash in targets {
-                let eras_stakers_addr = node_runtime::storage()
+                // Check if any of the nominees had exposure in the previous era
+                let eras_stakers_paged_addr = node_runtime::storage()
                     .staking()
-                    .eras_stakers(era_index - 1, &stash);
-                if let Some(exposure) = api
+                    .eras_stakers_paged_iter2(era_index - 1, &stash);
+                let mut iter = api
                     .storage()
                     .at_latest()
                     .await?
-                    .fetch(&eras_stakers_addr)
-                    .await?
-                {
-                    if exposure.others.iter().any(|x| x.who == pool_stash_account) {
+                    .iter(eras_stakers_paged_addr)
+                    .await?;
+
+                while let Some(Ok(data)) = iter.next().await {
+                    if data
+                        .value
+                        .others
+                        .iter()
+                        .any(|x| x.who == pool_stash_account)
+                    {
                         active.push(stash.to_string());
                     }
                 }
