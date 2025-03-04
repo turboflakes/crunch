@@ -26,7 +26,7 @@ use log::{info, warn};
 use rand::Rng;
 use regex::Regex;
 use std::collections::HashSet;
-use subxt::{ext::sp_core::H256, utils::AccountId32};
+use subxt::{utils::AccountId32, utils::H256};
 
 pub type EraIndex = u32;
 pub type PageIndex = u32;

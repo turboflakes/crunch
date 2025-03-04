@@ -23,6 +23,7 @@ use codec;
 use reqwest;
 use std::{str::Utf8Error, string::String};
 use subxt::{
+    backend::rpc::reconnecting_rpc_client::RpcError as ReconnectingRpcError,
     error::{DispatchError, MetadataError, RpcError},
     lightclient::LightClientError,
 };
@@ -46,8 +47,10 @@ pub enum CrunchError {
     MetadataError(#[from] MetadataError),
     #[error("Dispatch error: {0}")]
     DispatchError(#[from] DispatchError),
-    #[error("{0}")]
+    #[error("Rpc error: {0}")]
     RpcError(#[from] RpcError),
+    #[error("Reconnecting Rpc error: {0}")]
+    ReconnectingRpcError(#[from] ReconnectingRpcError),
     #[error("Matrix error: {0}")]
     MatrixError(String),
     #[error("Subscription finished")]

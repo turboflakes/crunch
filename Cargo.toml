@@ -9,8 +9,13 @@ edition = "2018"
 
 [dependencies]
 # crunch dependencies
+async-std = { version = "1.13.0", features = ["attributes", "tokio1"] }
+codec = { package = "parity-scale-codec", version = "3.7.4", default-features = false, features = ["derive", "full", "bit-vec"] }
 dotenv = "0.15"
 envy = "0.4"
+env_logger = "0.11.6"
+futures = "0.3.31"
+hex = "0.4.3"
 log = "0.4"
 clap = "2.33"
 lazy_static = "1.5"
@@ -25,10 +30,7 @@ url = "2.5.4"
 base64 = "0.22.1"
 rand = "0.9.0"
 # subxt dependencies
-subxt = { version = "0.37.0", features = ["substrate-compat", "native", "unstable-reconnecting-rpc-client", "unstable-light-client"] }
-subxt-signer = { version = "0.37.0", features = ["subxt"] }
-async-std = { version = "1.13.0", features = ["attributes", "tokio1"] }
-env_logger = "0.11.6"
-futures = "0.3.31"
-codec = { package = "parity-scale-codec", version = "3.7.4", default-features = false, features = ["derive", "full", "bit-vec"] }
-hex = "0.4.3"
+subxt = { version = "0.39.0", features = ["native", "reconnecting-rpc-client", "unstable-light-client"] }
+subxt-signer = { version = "0.39.0", features = ["subxt"] }
+# substrate dependencies
+sp-core = "35.0.0"

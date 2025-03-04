@@ -60,8 +60,8 @@ pub fn nomination_pool_account(account_type: AccountType, pool_id: u32) -> Accou
     // convert to hex
     let buffer_hex = buffer.encode_hex::<String>();
     // NOTE: subxt::utils::AccountId32 currently doesn't support from hex conversion
-    let acc = subxt::ext::sp_runtime::AccountId32::from_str(&buffer_hex).unwrap();
-    return AccountId32::from_str(&acc.to_string()).unwrap();
+    let acc = sp_core::crypto::AccountId32::from_str(&buffer_hex).unwrap();
+    AccountId32::from_str(&acc.to_string()).unwrap()
 }
 
 #[test]

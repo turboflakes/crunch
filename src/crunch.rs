@@ -33,20 +33,21 @@ use regex::Regex;
 use serde::Deserialize;
 use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
 
+use sp_core::crypto;
 use subxt::{
     backend::{
         legacy::{rpc_methods::StorageKey, LegacyRpcMethods},
         rpc::{
-            reconnecting_rpc_client::{Client as ReconnectingClient, ExponentialBackoff},
+            reconnecting_rpc_client::{
+                ExponentialBackoff, RpcClient as ReconnectingClient,
+            },
             RpcClient,
         },
     },
-    ext::sp_core::crypto,
     lightclient::{LightClient, LightClientError, LightClientRpc},
     utils::{validate_url_is_secure, AccountId32},
     OnlineClient, SubstrateConfig,
 };
-
 use subxt_signer::{sr25519::Keypair, SecretUri};
 
 pub type ValidatorIndex = Option<usize>;
@@ -91,7 +92,7 @@ impl MessageTrait for Message {
 
 pub async fn create_substrate_rpc_client_from_url(
     url: &str,
-) -> Result<ReconnectingClient, subxt::error::RpcError> {
+) -> Result<ReconnectingClient, CrunchError> {
     if let Err(_) = validate_url_is_secure(url) {
         warn!("Insecure URL provided: {}", url);
     };
@@ -102,6 +103,7 @@ pub async fn create_substrate_rpc_client_from_url(
         )
         .build(url.to_string())
         .await
+        .map_err(|err| CrunchError::ReconnectingRpcError(err.into()))
 }
 
 pub async fn create_substrate_client_from_rpc_client(
