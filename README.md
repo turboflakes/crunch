@@ -31,7 +31,7 @@ For Pool Operators to auto-compound members rewards above certain threshold.
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.18.0/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.19.0/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
@@ -139,6 +139,12 @@ CRUNCH_POOL_ONLY_OPERATOR_COMPOUND_ENABLED=true
 # [CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED] Enable payouts for ALL nominees assigned to the pools 
 # previously selected by CRUNCH_POOL_IDS.
 #CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED=true
+#
+# [CRUNCH_POOL_CLAIM_COMMISSION_ENABLED] Enable permissionless claim pool commission
+# NOTE: Is only possible for the pool commission to be claimed permissionless, if the nomination pool root account
+# explicitly sets this feature via extrinsic `set_commission_claim_permission`.
+CRUNCH_POOL_CLAIM_COMMISSION_ENABLED=true
+#
 ```
 
 Create a seed private file `.private.seed` inside `crunch-bot` folder and write the private seed phrase of the account responsible to sign the extrinsic payout call as in [`.private.seed.example`](https://github.com/turboflakes/crunch/blob/main/.private.seed.example) (Note: `.private.seed` is the default name and a hidden file, if you want something different you can adjust it later with the option `crunch flakes --seed-path ~/crunch-bot/.kusama.private.seed` )
@@ -331,6 +337,9 @@ FLAGS:
                                                 defined in 'pool-ids'. (e.g. with this flag active 'crunch' will try to
                                                 trigger payouts for ALL nominees and not only the active ones - the ones
                                                 the stake of the Nomination Pool was allocated).
+        --enable-pool-claim-commission          Allow 'crunch' to claim the pool commission. Note that the nomination
+                                                pool root account has to explicitly set this feature via extrinsic
+                                                `set_commission_claim_permission`.
         --enable-pool-members-compound          Allow 'crunch' to compound rewards for every member that belongs to the
                                                 pools previously selected by '--pool-ids' option. Note that members have
                                                 to have their permissions set as PermissionlessCompound or
@@ -414,14 +423,6 @@ crunch polkadot view
 ```
 
 Note: You can run `crunch` inside a tmux session and leave it, or using something like `systemd` to run `crunch` on server restarts for example. By default `crunch` will wake up every X hours to claim rewards if there are any to claim.
-
-## Common issue on Ubuntu 22.04 when using the crunch binary
-
-Install previous openssl version from:
-```
-wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.23_amd64.deb
-dpkg -i libssl1.1_1.1.1f-1ubuntu2.23_amd64.deb
-```
 
 ## Development / Build from Source
 
