@@ -129,7 +129,14 @@ pub struct NominationPoolsSummary {
     pub calls_succeeded: u32,
     pub calls_failed: u32,
     pub total_members: u32,
+    pub pool_commissions: Vec<NominationPoolCommission>,
     pub batches: Vec<Batch>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct NominationPoolCommission {
+    pub pool_id: u32,
+    pub commission: u128,
 }
 
 #[derive(Debug)]
@@ -504,7 +511,8 @@ impl From<RawData> for Report {
 
         // Nomination Pools compound info
         if (config.pool_members_compound_enabled
-            || config.pool_only_operator_compound_enabled)
+            || config.pool_only_operator_compound_enabled
+            || config.pool_claim_commission_enabled)
             && data.pools_summary.is_some()
         {
             let pool_summary_data = data.pools_summary.unwrap();
@@ -522,7 +530,9 @@ impl From<RawData> for Report {
                 format!("Pools {:?}", config.pool_ids)
             };
 
-            if pool_summary_data.total_members > 0 {
+            if pool_summary_data.total_members > 0
+                || pool_summary_data.pool_commissions.len() > 0
+            {
                 let members_desc = if pool_summary_data.total_members == 1 {
                     format!("1 reward")
                 } else {
@@ -539,6 +549,21 @@ impl From<RawData> for Report {
                         "♻️ {} compounded from {}",
                         members_desc, pools_desc
                     ));
+                }
+
+                if pool_summary_data.pool_commissions.len() > 0 {
+                    for pool_commission in pool_summary_data.pool_commissions {
+                        let commission_amount = format!(
+                            "{:.4} {}",
+                            pool_commission.commission as f64
+                                / 10f64.powi(data.network.token_decimals.into()),
+                            data.network.token_symbol,
+                        );
+                        report.add_raw_text(format!(
+                            "💸 {} commission from Pool {}",
+                            commission_amount, pool_commission.pool_id
+                        ));
+                    }
                 }
 
                 for batch in pool_summary_data.batches {

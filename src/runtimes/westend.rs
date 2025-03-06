@@ -28,8 +28,9 @@ use crate::crunch::{
 use crate::errors::CrunchError;
 use crate::pools::{nomination_pool_account, AccountType};
 use crate::report::{
-    Batch, EraIndex, Network, NominationPoolsSummary, PageIndex, Payout, PayoutSummary,
-    Points, RawData, Report, SignerDetails, Validator, Validators,
+    Batch, EraIndex, Network, NominationPoolCommission, NominationPoolsSummary,
+    PageIndex, Payout, PayoutSummary, Points, RawData, Report, SignerDetails, Validator,
+    Validators,
 };
 use crate::{report, stats};
 use async_recursion::async_recursion;
@@ -58,6 +59,7 @@ pub const PEOPLE_WESTEND_SPEC: &str =
 mod node_runtime {}
 
 use node_runtime::{
+    nomination_pools::events::PoolCommissionClaimed,
     runtime_types::bounded_collections::bounded_vec::BoundedVec,
     runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
     staking::events::EraPaid,
@@ -332,6 +334,7 @@ pub async fn try_run_batch_pool_members(
     let mut calls_for_batch: Vec<Call> = vec![];
     let mut summary: NominationPoolsSummary = Default::default();
 
+    // Fetch pool members and add member rewards calls to the batch
     if let Some(members) = try_fetch_pool_members_for_compound(&crunch).await? {
         //
         for member in &members {
@@ -346,6 +349,17 @@ pub async fn try_run_batch_pool_members(
         summary.total_members = members.len() as u32;
     }
 
+    // Add claim commission calls if enabled and pool ids are set
+    if config.pool_claim_commission_enabled {
+        for pool_id in config.pool_ids.clone() {
+            let call = Call::NominationPools(NominationPoolsCall::claim_commission {
+                pool_id: pool_id.clone(),
+            });
+            calls_for_batch.push(call);
+            summary.calls += 1;
+        }
+    }
+
     if calls_for_batch.len() > 0 {
         // TODO check batch call weight or maximum_calls [default: 8]
         //
@@ -353,7 +367,7 @@ pub async fn try_run_batch_pool_members(
         // and the number of calls to be sent
         //
         let maximum_batch_calls = (calls_for_batch.len() as f32
-            / config.maximum_pool_members_calls as f32)
+            / config.maximum_pool_calls as f32)
             .ceil() as u32;
         let mut iteration = Some(0);
         while let Some(x) = iteration {
@@ -361,23 +375,22 @@ pub async fn try_run_batch_pool_members(
                 iteration = None;
             } else {
                 let call_start_index: usize =
-                    (x * config.maximum_pool_members_calls).try_into().unwrap();
-                let call_end_index: usize = if config.maximum_pool_members_calls
+                    (x * config.maximum_pool_calls).try_into().unwrap();
+                let call_end_index: usize = if config.maximum_pool_calls
                     > calls_for_batch[call_start_index..].len() as u32
                 {
-                    ((x * config.maximum_pool_members_calls)
+                    ((x * config.maximum_pool_calls)
                         + calls_for_batch[call_start_index..].len() as u32)
                         .try_into()
                         .unwrap()
                 } else {
-                    ((x * config.maximum_pool_members_calls)
-                        + config.maximum_pool_members_calls)
+                    ((x * config.maximum_pool_calls) + config.maximum_pool_calls)
                         .try_into()
                         .unwrap()
                 };
 
                 debug!(
-                    "batch pool_members_calls indexes [{:?} : {:?}]",
+                    "batch pool_calls indexes [{:?} : {:?}]",
                     call_start_index, call_end_index
                 );
 
@@ -448,15 +461,23 @@ pub async fn try_run_batch_pool_members(
                                     // summary: A single item within a Batch of dispatches has completed with error.
                                     //
                                     summary.calls_failed += 1;
+                                } else if let Some(ev) =
+                                    event.as_event::<PoolCommissionClaimed>()?
+                                {
+                                    let p = NominationPoolCommission {
+                                        pool_id: ev.pool_id,
+                                        commission: ev.commission,
+                                    };
+                                    summary.pool_commissions.push(p);
                                 } else if let Some(_ev) =
                                     event.as_event::<BatchCompleted>()?
                                 {
                                     // https://polkadot.js.org/docs/substrate/events#batchcompleted
                                     // summary: Batch of dispatches completed fully with no error.
                                     info!(
-                            "Nomination Pools Compound Batch Completed ({} calls)",
-                            calls_for_batch_clipped.len()
-                        );
+                                        "Nomination Pools Batch Completed ({} calls)",
+                                        calls_for_batch_clipped.len()
+                                    );
                                     let b = Batch {
                                         block_number,
                                         extrinsic: tx_events.extrinsic_hash(),
@@ -468,7 +489,7 @@ pub async fn try_run_batch_pool_members(
                                     // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
                                     // summary: Batch of dispatches completed but has errors.
                                     info!(
-                            "Nomination Pools Compound Batch Completed with errors ({} calls)",
+                            "Nomination Pools Batch Completed with errors ({} calls)",
                             calls_for_batch_clipped.len()
                         );
                                     let b = Batch {

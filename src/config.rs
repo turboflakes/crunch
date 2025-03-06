@@ -94,8 +94,8 @@ fn default_pool_compound_threshold() -> u64 {
     100000000000
 }
 
-/// provides default value for maximum_pool_members_calls if CRUNCH_MAXIMUM_POOL_MEMBERS_CALLS env var is not set
-fn default_maximum_pool_members_calls() -> u32 {
+/// provides default value for maximum_pool_calls if CRUNCH_MAXIMUM_POOL_CALLS env var is not set
+fn default_maximum_pool_calls() -> u32 {
     128
 }
 
@@ -135,13 +135,15 @@ pub struct Config {
     #[serde(default)]
     pub pool_all_nominees_payout_enabled: bool,
     #[serde(default)]
+    pub pool_claim_commission_enabled: bool,
+    #[serde(default)]
     pub pool_members_compound_enabled: bool,
     #[serde(default)]
     pub pool_only_operator_compound_enabled: bool,
     #[serde(default = "default_pool_compound_threshold")]
     pub pool_compound_threshold: u64,
-    #[serde(default = "default_maximum_pool_members_calls")]
-    pub maximum_pool_members_calls: u32,
+    #[serde(default = "default_maximum_pool_calls")]
+    pub maximum_pool_calls: u32,
     #[serde(default)]
     pub unique_stashes_enabled: bool,
     #[serde(default)]
@@ -348,6 +350,12 @@ fn get_config() -> Config {
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
           ))
       .arg(
+        Arg::with_name("enable-pool-claim-commission")
+          .long("enable-pool-claim-commission")
+          .help(
+            "Allow 'crunch' to claim the pool commission. Note that the nomination pool root account has to explicitly set this feature via extrinsic `set_commission_claim_permission`.",
+          ))
+      .arg(
         Arg::with_name("enable-pool-only-operator-compound")
           .long("enable-pool-only-operator-compound")
           .help(
@@ -490,6 +498,12 @@ fn get_config() -> Config {
           .long("enable-pool-members-compound")
           .help(
             "Allow 'crunch' to compound rewards for every member that belongs to the pools previously selected by '--pool-ids' option. Note that members have to have their permissions set as PermissionlessCompound or PermissionlessAll.",
+          ))
+      .arg(
+        Arg::with_name("enable-pool-claim-commission")
+          .long("enable-pool-claim-commission")
+          .help(
+            "Allow 'crunch' to claim the pool commission. Note that the nomination pool root account has to explicitly set this feature via extrinsic `set_commission_claim_permission`.",
           ))
       .arg(
         Arg::with_name("enable-pool-only-operator-compound")
@@ -788,6 +802,10 @@ fn get_config() -> Config {
 
             if flakes_matches.is_present("enable-pool-members-compound") {
                 env::set_var("CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED", "true");
+            }
+
+            if flakes_matches.is_present("enable-pool-claim-commission") {
+                env::set_var("CRUNCH_POOL_CLAIM_COMMISSION_ENABLED", "true");
             }
 
             if flakes_matches.is_present("enable-pool-active-nominees-payout") {
