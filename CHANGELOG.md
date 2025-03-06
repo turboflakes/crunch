@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2025-03-06
+
+## New
+- [#55] Add nomination pools claim commission feature by adding option `--enable-pool-claim-commission` or env variable `CRUNCH_POOL_CLAIM_COMMISSION_ENABLED=true`. Note that the nomination pool root account has to explicitly sets this feature via extrinsic `set_commission_claim_permission`;
+
+## Changed
+- [#56] Crunch binary release has been changed to `ubuntu-latest`;
+- Update subxt to `v0.40.0`
+- Update metadata polkadot/1004001
+- Update metadata people-polkadot/1004000
+- Update metadata kusama/1004001
+- Update metadata people-kusama/1004000
+- Update metadata paseo/1003004
+- Update metadata people-paseo/1003003
+- Update metadata westend/1018000
+- Update metadata people-westend/1018000
+
 ## [0.18.1] - 2024-09-17
 
 ## Changed
@@ -32,7 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 - Update metadata polkadot/1002007
 - Update metadata people-polkadot/1002006
-
 
 ## [0.16.0] - 2024-06-05
 
@@ -66,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.14.0] - 2024-04-21
 
 ## Changed
-- Fixes breaking changes from latest Polkadot v1.2.0 runtime upgrade 
+- Fixes breaking changes from latest Polkadot v1.2.0 runtime upgrade
 - Update metadata Polkadot runtime/1002000
 
 ## [0.13.2] - 2024-04-19
@@ -83,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.13.0] - 2024-04-18
 
 ## Changed
-- Fixes breaking changes from latest Kusama v1.2.0 runtime upgrade 
+- Fixes breaking changes from latest Kusama v1.2.0 runtime upgrade
 - Update metadata Kusama runtime/1002000
 
 ## [0.12.2] - 2024-02-29
