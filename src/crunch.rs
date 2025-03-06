@@ -387,7 +387,7 @@ impl Crunch {
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Paseo => paseo::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
-            _ => unreachable!(),
+            // _ => unreachable!(),
         }
     }
 
