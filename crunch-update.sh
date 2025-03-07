@@ -24,7 +24,7 @@
 # > make a file executable
 # chmod +x ./crunch-update.sh
 
-DIRNAME="/opt/crunch-cli"
+DIRNAME="~/crunch-bot"
 FILENAME="$DIRNAME/crunch"
 
 read -p "Enter the Crunch version that you would like to download (e.g.: 0.20.0): " INPUT_VERSION
