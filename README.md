@@ -31,7 +31,7 @@ For Pool Operators to auto-compound members rewards above certain threshold.
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.19.0/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.19.1/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
@@ -54,10 +54,10 @@ Configuration file example: [`.env.example`](https://github.com/turboflakes/crun
 
 ```bash
 # ----------------------------------------------------------------
-# crunch CLI configuration variables 
+# crunch CLI configuration variables
 # ----------------------------------------------------------------
 # [CRUNCH_STASHES] Validator stash addresses for which 'crunch flakes', 'crunch rewards'
-# or 'crunch view' will be applied. 
+# or 'crunch view' will be applied.
 # If needed specify more than one (e.g. stash_1,stash_2,stash_3).
 CRUNCH_STASHES=5GTD7ZeD823BjpmZBCSzBQp7cvHR1Gunq7oDkurZr9zUev2n
 #
@@ -66,17 +66,17 @@ CRUNCH_STASHES=5GTD7ZeD823BjpmZBCSzBQp7cvHR1Gunq7oDkurZr9zUev2n
 # Please have a look at the file '.remote.stashes.example' as an example
 CRUNCH_STASHES_URL=https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example
 #
-# [CRUNCH_LIGHT_CLIENT_ENABLED] Enable lightweight client to connect to substrate-based chains. 
-# With this option enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url' 
+# [CRUNCH_LIGHT_CLIENT_ENABLED] Enable lightweight client to connect to substrate-based chains.
+# With this option enabled there is no need to specify specific RPCs endpoints for 'substrate-ws-url'
 # or 'substrate-people-ws-url'
 CRUNCH_LIGHT_CLIENT_ENABLED=true
 #
 # [CRUNCH_SUBSTRATE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to
 # connect. (e.g. wss://rpc.turboflakes.io:443/kusama) (NOTE: substrate_ws_url takes precedence
-# than <CHAIN> argument) 
+# than <CHAIN> argument)
 #CRUNCH_SUBSTRATE_WS_URL=ws://localhost:9944
 #
-# [CRUNCH_SUBSTRATE_PEOPLE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to 
+# [CRUNCH_SUBSTRATE_PEOPLE_WS_URL] Substrate websocket endpoint for which 'crunch' will try to
 # connect and retrieve identities from. (e.g. wss://sys.turboflakes.io:443/people-kusama)
 #CRUNCH_SUBSTRATE_PEOPLE_WS_URL=wss://sys.turboflakes.io:443/people-kusama
 #
@@ -85,16 +85,16 @@ CRUNCH_LIGHT_CLIENT_ENABLED=true
 # 84 the maximum unclaimed payout calls for each stash address will be 4). [default: 4]
 CRUNCH_MAXIMUM_PAYOUTS=4
 #
-# [CRUNCH_MAXIMUM_HISTORY_ERAS] Maximum number of history eras for which crunch will look for 
+# [CRUNCH_MAXIMUM_HISTORY_ERAS] Maximum number of history eras for which crunch will look for
 # unclaimed rewards. The maximum value supported is the one defined by constant history_depth
-# (e.g. a value of 4 means that crunch will only check in the latest 4 eras if there are any 
+# (e.g. a value of 4 means that crunch will only check in the latest 4 eras if there are any
 # unclaimed rewards for each stash address). [default: 4]
 CRUNCH_MAXIMUM_HISTORY_ERAS=4
 #
 # [CRUNCH_MAXIMUM_CALLS] Maximum number of calls in a single batch. [default: 4]
 CRUNCH_MAXIMUM_CALLS=4
 #
-# [CRUNCH_SEED_PATH] File path containing the private seed phrase to Sign the extrinsic 
+# [CRUNCH_SEED_PATH] File path containing the private seed phrase to Sign the extrinsic
 # payout call. [default: .private.seed]
 #CRUNCH_SEED_PATH=.private.seed.example
 # ----------------------------------------------------------------
@@ -118,25 +118,25 @@ CRUNCH_ONET_NUMBER_LAST_SESSIONS=6
 # `crunch` will try to fetch the nominees of the respective pool id predefined here before triggering the respective payouts
 CRUNCH_POOL_IDS=10,15
 #
-# [CRUNCH_POOL_COMPOUND_THRESHOLD] Define minimum pending rewards threshold in PLANCKS. 
+# [CRUNCH_POOL_COMPOUND_THRESHOLD] Define minimum pending rewards threshold in PLANCKS.
 # Note: only pending rewards above the threshold are included in the auto-compound batch.
 CRUNCH_POOL_COMPOUND_THRESHOLD=100000000000
 #
-# [CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED] Enable auto-compound rewards for every member that belongs to the pools 
-# previously selected by CRUNCH_POOL_IDS. Note that members have to have their permissions 
+# [CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED] Enable auto-compound rewards for every member that belongs to the pools
+# previously selected by CRUNCH_POOL_IDS. Note that members have to have their permissions
 # set as PermissionlessCompound or PermissionlessAll.
 #CRUNCH_POOL_MEMBERS_COMPOUND_ENABLED=true
 #
-# [CRUNCH_POOL_ONLY_OPERATOR_COMPOUND_ENABLED] Enable auto-compound rewards for the pool operator member that belongs to the pools 
-# previously selected by CRUNCH_POOL_IDS. Note that operator member account have to have their permissions 
+# [CRUNCH_POOL_ONLY_OPERATOR_COMPOUND_ENABLED] Enable auto-compound rewards for the pool operator member that belongs to the pools
+# previously selected by CRUNCH_POOL_IDS. Note that operator member account have to have their permissions
 # set as PermissionlessCompound or PermissionlessAll.
 CRUNCH_POOL_ONLY_OPERATOR_COMPOUND_ENABLED=true
 #
-# [CRUNCH_POOL_ACTIVE_NOMINEES_PAYOUT_ENABLED] Enable payouts only for ACTIVE nominees assigned to the pools 
+# [CRUNCH_POOL_ACTIVE_NOMINEES_PAYOUT_ENABLED] Enable payouts only for ACTIVE nominees assigned to the pools
 # previously selected by CRUNCH_POOL_IDS.
 #CRUNCH_POOL_ACTIVE_NOMINEES_PAYOUT_ENABLED=true
 #
-# [CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED] Enable payouts for ALL nominees assigned to the pools 
+# [CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED] Enable payouts for ALL nominees assigned to the pools
 # previously selected by CRUNCH_POOL_IDS.
 #CRUNCH_POOL_ALL_NOMINEES_PAYOUT_ENABLED=true
 #
@@ -151,7 +151,7 @@ Create a seed private file `.private.seed` inside `crunch-bot` folder and write 
 
 ```bash
 #!/bin/bash
-# create a file with a file editor (Vim in this case) and write the private seed phrase 
+# create a file with a file editor (Vim in this case) and write the private seed phrase
 # of the account responsible to sign the extrinsic payout call
 vi /crunch-bot/.private.seed
 # when ready write and quit (:wq!)
@@ -414,7 +414,7 @@ Note: The `crunch view` mode only logs information into the terminal.
 
 ```bash
 #!/bin/bash
-# log unclaimed rewards for Westend network 
+# log unclaimed rewards for Westend network
 crunch westend view
 # or for Kusama network
 crunch kusama view
@@ -542,7 +542,7 @@ Any feedback is welcome.
 `crunch` was made by **TurboFlakes**. Visit us at <a href="https://turboflakes.io" target="_blank" rel="noreferrer">turboflakes.io</a> to know more about our work.
 
 If you like this project
-  - 🚀 Share our work 
+  - 🚀 Share our work
   - ✌️ Visit us at <a href="https://turboflakes.io" target="_blank" rel="noreferrer">turboflakes.io</a>
   - ✨ Or you could also star the Github project :)
 
