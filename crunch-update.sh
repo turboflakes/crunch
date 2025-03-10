@@ -27,13 +27,13 @@
 DIRNAME="~/crunch-bot"
 FILENAME="$DIRNAME/crunch"
 
-read -p "Enter the Crunch version that you would like to download (e.g.: 0.19.1): " INPUT_VERSION
+read -p "Enter the Crunch version that you would like to download (e.g.: 0.20.0): " INPUT_VERSION
 
 if [ "$INPUT_VERSION" = "" ]; then
-        INPUT_VERSION="0.19.1"
+        INPUT_VERSION="0.20.0"
 fi
 
-read -p "Enter a specific Ubuntu version the release was built on, or leave empty for latest. Available options: [ubuntu-22.04, ubuntu-20.04]: " TARGET_VERSION
+read -p "Enter a specific Ubuntu version the release was built on, or leave empty for latest. Available options: [ubuntu-22.04, ubuntu-20.04, linux-musl]: " TARGET_VERSION
 
 if [ "$TARGET_VERSION" != "" ]; then
         TARGET_VERSION=".${TARGET_VERSION//.}"

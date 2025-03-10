@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.19.1] - 2025-03-09
+## [0.20.0] - 2025-03-10
 
 ## Changed
-- Crunch binary available for multiple releases [`ubuntu-latest`, `ubuntu-22.04`, `ubuntu-20.04`];
+- Crunch binary available for multiple releases [`ubuntu-latest`, `ubuntu-22.04`, `ubuntu-20.04`, `linux-musl`];
 - Update `crunch-update.sh` script to support multiple releases;
 
 ## [0.19.0] - 2025-03-06
