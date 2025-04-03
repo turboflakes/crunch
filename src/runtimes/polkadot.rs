@@ -1494,7 +1494,7 @@ pub async fn try_fetch_pool_operators_for_compound(
 
                     let claimable: u128 = Decode::decode(&mut &*bytes)?;
 
-                    if claimable > config.pool_compound_threshold.into() {
+                    if claimable > config.pool_compound_threshold as u128 {
                         members.push(pool.roles.depositor.clone());
                     }
                 }
@@ -1566,7 +1566,7 @@ pub async fn try_fetch_pool_members_for_compound(
 
                     let claimable: u128 = Decode::decode(&mut &*bytes)?;
 
-                    if claimable > config.pool_compound_threshold.into() {
+                    if claimable > config.pool_compound_threshold as u128 {
                         members.push(member);
                     }
                 }

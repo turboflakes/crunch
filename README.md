@@ -517,10 +517,10 @@ The config and seed files can be mounted from the host. Any options supported by
 
 ```bash
 docker run --rm -it \
-  --volume=/etc/crunch/env:/.env:U \
-  --volume=/etc/crunch/private.seed:/.private.seed:U \
+  --volume=/etc/env:/.env:ro \
+  --volume=/etc/private.seed:/.private.seed:ro \
   localhost/crunch:latest \
-    rewards era
+    kusama rewards era
 ```
 
 ## Inspiration

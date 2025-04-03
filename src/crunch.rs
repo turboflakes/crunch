@@ -54,8 +54,10 @@ pub type ValidatorIndex = Option<usize>;
 pub type ValidatorAmount = u128;
 pub type NominatorsAmount = u128;
 
+#[allow(dead_code)]
 type Message = Vec<String>;
 
+#[allow(dead_code)]
 trait MessageTrait {
     fn log(&self);
     fn show_or_hide(&mut self, value: String, hidden: bool);
@@ -531,6 +533,7 @@ pub async fn try_fetch_stashes_from_remote_url(
 }
 
 #[derive(Deserialize, Clone, Debug)]
+#[allow(dead_code)]
 pub struct OnetData {
     pub address: String,
     pub grade: String,

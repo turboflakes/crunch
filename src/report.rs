@@ -100,6 +100,7 @@ impl Validator {
 pub type Validators = Vec<Validator>;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SignerDetails {
     pub account: AccountId32,
     pub name: String,
