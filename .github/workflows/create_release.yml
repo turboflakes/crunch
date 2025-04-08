@@ -102,56 +102,6 @@ jobs:
           name: crunch.sha256.ubuntu-2204
           path: target/release
 
-  build-ubuntu-2004:
-    name: Build on Ubuntu 20.04
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust latest stable
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        env:
-          CRUNCH_CONFIG_FILENAME: .env.example
-        with:
-          command: test
-
-      - name: Run cargo build
-        uses: actions-rs/cargo@v1
-        env:
-          CRUNCH_CONFIG_FILENAME: .env.example
-        with:
-          command: build
-          args: --release
-
-      - name: Generate SHA-256 hash file
-        run: |
-          cd ./target/release
-          sha256sum crunch > crunch.sha256
-
-      - name: Rename the binary and sha256 file to include the target version
-        run: |
-          mv target/release/crunch target/release/crunch.ubuntu-2004
-          mv target/release/crunch.sha256 target/release/crunch.sha256.ubuntu-2004
-
-      # Upload the binary and sha256 file as artifacts
-      - uses: actions/upload-artifact@v4
-        with:
-          name: crunch.ubuntu-2004
-          path: target/release
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: crunch.sha256.ubuntu-2004
-          path: target/release
-
   build-linux-musl:
     name: Build on Ubuntu and target Linux musl
     runs-on: ubuntu-latest
@@ -213,7 +163,6 @@ jobs:
     needs:
       - build-ubuntu-latest
       - build-ubuntu-2204
-      - build-ubuntu-2004
       - build-linux-musl
     runs-on: ubuntu-latest
     steps:
@@ -306,36 +255,6 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: target/release/crunch.sha256.ubuntu-2204
           asset_name: crunch.sha256.ubuntu-2204
-          asset_content_type: text/plain
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: crunch.ubuntu-2004
-          path: target/release
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: crunch.sha256.ubuntu-2004
-          path: target/release
-
-      - name: Upload crunch binary on Ubuntu 20.04
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/release/crunch.ubuntu-2004
-          asset_name: crunch.ubuntu-2004
-          asset_content_type: application/octet-stream
-
-      - name: Upload crunch sha256 on Ubuntu 20.04
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/release/crunch.sha256.ubuntu-2004
-          asset_name: crunch.sha256.ubuntu-2004
           asset_content_type: text/plain
 
       - uses: actions/download-artifact@v4
