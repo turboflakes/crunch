@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2025-04-08
+
+## Changed
+- Fix Dockerfile example
+- Fix matrix `home_server` missing field from authentication API
+- Update all chains specs to be used under lightclient feature
+- Update metadata paseo/1004001
+- Update metadata people-paseo/1004001
+- Update metadata westend/1018001
+- Update metadata people-westend/1018000
+
 ## [0.20.0] - 2025-03-10
 
 ## Changed
