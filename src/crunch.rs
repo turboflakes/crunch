@@ -416,7 +416,7 @@ impl Crunch {
             }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
-            } //  _ => unreachable!(),
+            } // _ => unreachable!(),
         }
     }
 }
