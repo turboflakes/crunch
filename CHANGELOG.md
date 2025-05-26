@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2025-05-26
+
+## Changed
+- Fix light-client support
+- Fix Polkadot, Paseo and Kusama subscription support
+- Update metadata polkadot/1005001
+- Update metadata people-polkadot/1005001
+
+
 ## [0.22.0] - 2025-05-26
 
 ## Changed
