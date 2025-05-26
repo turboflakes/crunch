@@ -18,37 +18,67 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::config::CONFIG;
-use crate::errors::CrunchError;
-use crate::matrix::Matrix;
-use crate::runtimes::{
-    kusama, paseo, polkadot,
-    support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
-    westend,
+use crate::{
+    config::CONFIG,
+    errors::CrunchError,
+    matrix::Matrix,
+    runtimes::{
+        kusama,
+        paseo,
+        polkadot,
+        support::{
+            ChainPrefix,
+            ChainTokenSymbol,
+            SupportedRuntime,
+        },
+        westend,
+    },
 };
 use async_std::task;
-use log::{debug, error, info, warn};
+use log::{
+    debug,
+    error,
+    info,
+    warn,
+};
 use rand::Rng;
 use regex::Regex;
 use serde::Deserialize;
-use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
+use std::{
+    convert::TryInto,
+    fs,
+    result::Result,
+    str::FromStr,
+    thread,
+    time,
+};
 
 use sp_core::crypto;
 use subxt::{
     backend::{
-        legacy::{rpc_methods::StorageKey, LegacyRpcMethods},
-        rpc::{
-            reconnecting_rpc_client::{
-                ExponentialBackoff, RpcClient as ReconnectingClient,
-            },
+        legacy::{
+            rpc_methods::StorageKey,
+            LegacyRpcMethods,
+        },
+        rpc::reconnecting_rpc_client::{
+            ExponentialBackoff,
             RpcClient,
         },
     },
-    lightclient::{LightClient, LightClientError, LightClientRpc},
-    utils::{validate_url_is_secure, AccountId32},
-    OnlineClient, SubstrateConfig,
+    ext::subxt_rpcs::utils::validate_url_is_secure,
+    lightclient::{
+        LightClient,
+        LightClientError,
+        LightClientRpc,
+    },
+    utils::AccountId32,
+    OnlineClient,
+    SubstrateConfig,
 };
-use subxt_signer::{sr25519::Keypair, SecretUri};
+use subxt_signer::{
+    sr25519::Keypair,
+    SecretUri,
+};
 
 pub type ValidatorIndex = Option<usize>;
 pub type ValidatorAmount = u128;
@@ -94,18 +124,18 @@ impl MessageTrait for Message {
 
 pub async fn create_substrate_rpc_client_from_url(
     url: &str,
-) -> Result<ReconnectingClient, CrunchError> {
+) -> Result<RpcClient, CrunchError> {
     if let Err(_) = validate_url_is_secure(url) {
         warn!("Insecure URL provided: {}", url);
     };
     info!("Using RPC endpoint {}", url);
-    ReconnectingClient::builder()
+    RpcClient::builder()
         .retry_policy(
             ExponentialBackoff::from_millis(100).max_delay(time::Duration::from_secs(10)),
         )
         .build(url.to_string())
         .await
-        .map_err(|err| CrunchError::ReconnectingRpcError(err.into()))
+        .map_err(|err| CrunchError::RpcError(err.into()))
 }
 
 pub async fn create_substrate_client_from_rpc_client(
@@ -136,14 +166,15 @@ pub async fn create_light_client_from_people_chain_specs(
 
 pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
     let config = CONFIG.clone();
-    if config.light_client_enabled {
-        let (_, rpc) =
-            create_light_client_from_relay_chain_specs(&config.chain_name).await?;
-        return Ok(rpc.into());
-    } else {
-        let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
-        return Ok(rpc.into());
-    }
+    // TODO: enable light client feature
+    // if config.light_client_enabled {
+    //     let (_, rpc) =
+    //         create_light_client_from_relay_chain_specs(&config.chain_name).await?;
+    //     return Ok(rpc.into());
+    // } else {
+    let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
+    return Ok(rpc.into());
+    // }
 }
 
 pub async fn create_or_await_substrate_node_client() -> (
@@ -155,7 +186,7 @@ pub async fn create_or_await_substrate_node_client() -> (
         match create_substrate_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone());
+                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -211,21 +242,22 @@ pub async fn create_or_await_substrate_node_client() -> (
 
 pub async fn create_people_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
     let config = CONFIG.clone();
-    if config.light_client_enabled {
-        let runtime = SupportedRuntime::from(config.chain_name.clone());
-        if runtime.people_runtime().is_none() {
-            return Err(CrunchError::Other(format!(
-                "People chain not supported for the relay {}",
-                runtime.to_string()
-            )));
-        }
-        let rpc = create_light_client_from_people_chain_specs(&config.chain_name).await?;
-        return Ok(rpc.into());
-    } else {
-        let rpc =
-            create_substrate_rpc_client_from_url(&config.substrate_people_ws_url).await?;
-        return Ok(rpc.into());
-    }
+    // TODO: enable light client feature
+    // if config.light_client_enabled {
+    //     let runtime = SupportedRuntime::from(config.chain_name.clone());
+    //     if runtime.people_runtime().is_none() {
+    //         return Err(CrunchError::Other(format!(
+    //             "People chain not supported for the relay {}",
+    //             runtime.to_string()
+    //         )));
+    //     }
+    //     let rpc = create_light_client_from_people_chain_specs(&config.chain_name).await?;
+    //     return Ok(rpc.into());
+    // } else {
+    let rpc =
+        create_substrate_rpc_client_from_url(&config.substrate_people_ws_url).await?;
+    return Ok(rpc.into());
+    // }
 }
 
 pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
@@ -233,7 +265,7 @@ pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
         match create_people_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone());
+                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -405,18 +437,19 @@ impl Crunch {
 
     async fn run_and_subscribe_era_paid_events(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            SupportedRuntime::Polkadot => {
-                polkadot::run_and_subscribe_era_paid_events(self).await
-            }
+            // SupportedRuntime::Polkadot => {
+            //     polkadot::run_and_subscribe_era_paid_events(self).await
+            // }
             SupportedRuntime::Kusama => {
                 kusama::run_and_subscribe_era_paid_events(self).await
             }
-            SupportedRuntime::Paseo => {
-                paseo::run_and_subscribe_era_paid_events(self).await
-            }
-            SupportedRuntime::Westend => {
-                westend::run_and_subscribe_era_paid_events(self).await
-            } // _ => unreachable!(),
+            // SupportedRuntime::Paseo => {
+            //         paseo::run_and_subscribe_era_paid_events(self).await
+            //     }
+            //     SupportedRuntime::Westend => {
+            //         westend::run_and_subscribe_era_paid_events(self).await
+            //     }
+            _ => unreachable!(),
         }
     }
 }
@@ -575,10 +608,12 @@ pub async fn try_fetch_onet_data(
                 reqwest::StatusCode::OK => {
                     match response.json::<OnetData>().await {
                         Ok(parsed) => return Ok(Some(parsed)),
-                        Err(e) => error!(
-                            "Unable to parse ONE-T response for stash {} error: {:?}",
-                            stash, e
-                        ),
+                        Err(e) => {
+                            error!(
+                                "Unable to parse ONE-T response for stash {} error: {:?}",
+                                stash, e
+                            )
+                        }
                     };
                 }
                 other => {

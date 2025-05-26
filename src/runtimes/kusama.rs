@@ -19,31 +19,72 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::config::CONFIG;
-use crate::crunch::{
-    get_account_id_from_storage_key, get_keypair_from_seed_file, random_wait,
-    try_fetch_onet_data, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount,
-    ValidatorAmount, ValidatorIndex,
+use crate::{
+    config::CONFIG,
+    crunch::{
+        get_account_id_from_storage_key,
+        get_keypair_from_seed_file,
+        random_wait,
+        try_fetch_onet_data,
+        try_fetch_stashes_from_remote_url,
+        Crunch,
+        NominatorsAmount,
+        ValidatorAmount,
+        ValidatorIndex,
+    },
+    errors::CrunchError,
+    pools::{
+        nomination_pool_account,
+        AccountType,
+    },
+    report,
+    report::{
+        Batch,
+        EraIndex,
+        Network,
+        NominationPoolCommission,
+        NominationPoolsSummary,
+        PageIndex,
+        Payout,
+        PayoutSummary,
+        Points,
+        RawData,
+        Report,
+        SignerDetails,
+        Validator,
+        Validators,
+    },
+    stats,
 };
-use crate::errors::CrunchError;
-use crate::pools::{nomination_pool_account, AccountType};
-use crate::report::{
-    Batch, EraIndex, Network, NominationPoolCommission, NominationPoolsSummary,
-    PageIndex, Payout, PayoutSummary, Points, RawData, Report, SignerDetails, Validator,
-    Validators,
-};
-use crate::{report, stats};
 use async_recursion::async_recursion;
-use log::{debug, info, warn};
+use log::{
+    debug,
+    info,
+    warn,
+};
 use std::{
-    cmp, convert::TryFrom, convert::TryInto, result::Result, str::FromStr, thread, time,
+    cmp,
+    convert::{
+        TryFrom,
+        TryInto,
+    },
+    result::Result,
+    str::FromStr,
+    thread,
+    time,
 };
 use subxt::{
     config::polkadot::PolkadotExtrinsicParamsBuilder as TxParams,
     error::DispatchError,
-    ext::codec::{Decode, Encode},
+    ext::codec::{
+        Decode,
+        Encode,
+    },
     tx::TxStatus,
-    utils::{AccountId32, MultiAddress},
+    utils::{
+        AccountId32,
+        MultiAddress,
+    },
 };
 
 use subxt_signer::sr25519::Keypair;
@@ -59,17 +100,26 @@ mod node_runtime {}
 
 use node_runtime::{
     nomination_pools::events::PoolCommissionClaimed,
-    runtime_types::bounded_collections::bounded_vec::BoundedVec,
-    runtime_types::pallet_nomination_pools::{BondExtra, ClaimPermission},
-    staking::events::EraPaid,
-    staking::events::PayoutStarted,
-    staking::events::Rewarded,
+    runtime_types::{
+        bounded_collections::bounded_vec::BoundedVec,
+        pallet_nomination_pools::{
+            BondExtra,
+            ClaimPermission,
+        },
+    },
+    staking::events::{
+        EraPaid,
+        PayoutStarted,
+        Rewarded,
+    },
     system::events::ExtrinsicFailed,
-    utility::events::BatchCompleted,
-    utility::events::BatchCompletedWithErrors,
-    utility::events::BatchInterrupted,
-    utility::events::ItemCompleted,
-    utility::events::ItemFailed,
+    utility::events::{
+        BatchCompleted,
+        BatchCompletedWithErrors,
+        BatchInterrupted,
+        ItemCompleted,
+        ItemFailed,
+    },
 };
 
 #[subxt::subxt(
@@ -417,11 +467,9 @@ pub async fn try_run_batch_pool_members(
 
                 // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
                 let tx_params = if config.tx_mortal_period > 0 {
-                    // Get latest block to be submitted in tx params
-                    let latest_block = api.blocks().at_latest().await?;
                     TxParams::new()
                         .tip(config.tx_tip.into())
-                        .mortal(latest_block.header(), config.tx_mortal_period)
+                        .mortal(config.tx_mortal_period)
                         .build()
                 } else {
                     TxParams::new().tip(config.tx_tip.into()).build()
@@ -532,8 +580,8 @@ pub async fn try_run_batch_pool_members(
     Ok(summary)
 }
 
-//Provides a distinct and sorted vector of parent identities by string
-//where there are entries without identities, these are placed to the end of the vector
+// Provides a distinct and sorted vector of parent identities by string
+// where there are entries without identities, these are placed to the end of the vector
 pub fn get_distinct_parent_identites(validators: Validators) -> Vec<String> {
     // Obtains a sorted distinct list of valid identities
     let mut parent_identities: Vec<String> = validators
@@ -657,11 +705,9 @@ pub async fn try_run_batch_payouts(
 
                 // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
                 let tx_params = if config.tx_mortal_period > 0 {
-                    // Get latest block to be submitted in tx params
-                    let latest_block = api.blocks().at_latest().await?;
                     TxParams::new()
                         .tip(config.tx_tip.into())
-                        .mortal(latest_block.header(), config.tx_mortal_period)
+                        .mortal(config.tx_mortal_period)
                         .build()
                 } else {
                     TxParams::new().tip(config.tx_tip.into()).build()
@@ -1119,11 +1165,9 @@ async fn get_validator_points_info(
     }
 }
 
-/*
-Recursive function that looks up the identity of a validator given its stash,
-outputs a tuple with [primary identity/ sub-identity], primary identity and whether
-an identity is present.
-*/
+// Recursive function that looks up the identity of a validator given its stash,
+// outputs a tuple with [primary identity/ sub-identity], primary identity and whether
+// an identity is present.
 #[async_recursion]
 async fn get_display_name(
     crunch: &Crunch,
@@ -1139,7 +1183,7 @@ async fn get_display_name(
             .fetch(&identity_of_addr)
             .await?
         {
-            Some((identity, _)) => {
+            Some(identity) => {
                 debug!("identity {:?}", identity);
                 let parent = parse_identity_data(identity.info.display);
                 let name = match sub_account_name {

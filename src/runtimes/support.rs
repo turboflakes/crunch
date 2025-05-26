@@ -19,8 +19,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::config::CONFIG;
-use crate::runtimes::{kusama, paseo, polkadot, westend};
+use crate::{
+    config::CONFIG,
+    runtimes::{
+        kusama,
+        paseo,
+        polkadot,
+        westend,
+    },
+};
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
@@ -58,7 +65,7 @@ impl From<ChainPrefix> for SupportedRuntime {
             0 => Self::Polkadot,
             2 => Self::Kusama,
             42 => Self::Westend,
-            //TODO: Add Paseo for completeness
+            // TODO: Add Paseo for completeness
             _ => unimplemented!("Chain prefix not supported"),
         }
     }
