@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2025-05-26
+
+## Changed
+- Disable light-client feature (to be available in an upcoming release)
+- Update subxt to `v0.42.1`
+- Update metadata polkadot/1004001
+- Update metadata people-polkadot/1004000
+- Update metadata people-kusama/1005001
+- Update metadata kusama/1005001
+- Update metadata people-kusama/1005001
+- Update metadata paseo/1004003
+- Update metadata people-paseo/1004003
+- Update metadata westend/1018005
+- Update metadata people-westend/1018000
+
 ## [0.21.0] - 2025-04-08
 
 ## Changed
