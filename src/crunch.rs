@@ -60,8 +60,11 @@ use subxt::{
             rpc_methods::StorageKey,
             LegacyRpcMethods,
         },
-        rpc::reconnecting_rpc_client::{
-            ExponentialBackoff,
+        rpc::{
+            reconnecting_rpc_client::{
+                ExponentialBackoff,
+                RpcClient as ReconnectingRpcClient,
+            },
             RpcClient,
         },
     },
@@ -124,12 +127,12 @@ impl MessageTrait for Message {
 
 pub async fn create_substrate_rpc_client_from_url(
     url: &str,
-) -> Result<RpcClient, CrunchError> {
+) -> Result<ReconnectingRpcClient, CrunchError> {
     if let Err(_) = validate_url_is_secure(url) {
         warn!("Insecure URL provided: {}", url);
     };
     info!("Using RPC endpoint {}", url);
-    RpcClient::builder()
+    ReconnectingRpcClient::builder()
         .retry_policy(
             ExponentialBackoff::from_millis(100).max_delay(time::Duration::from_secs(10)),
         )
@@ -166,15 +169,15 @@ pub async fn create_light_client_from_people_chain_specs(
 
 pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
     let config = CONFIG.clone();
-    // TODO: enable light client feature
-    // if config.light_client_enabled {
-    //     let (_, rpc) =
-    //         create_light_client_from_relay_chain_specs(&config.chain_name).await?;
-    //     return Ok(rpc.into());
-    // } else {
-    let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
-    return Ok(rpc.into());
-    // }
+
+    if config.light_client_enabled {
+        let (_, rpc) =
+            create_light_client_from_relay_chain_specs(&config.chain_name).await?;
+        return Ok(rpc.into());
+    } else {
+        let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
+        return Ok(rpc.into());
+    }
 }
 
 pub async fn create_or_await_substrate_node_client() -> (
@@ -242,22 +245,22 @@ pub async fn create_or_await_substrate_node_client() -> (
 
 pub async fn create_people_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
     let config = CONFIG.clone();
-    // TODO: enable light client feature
-    // if config.light_client_enabled {
-    //     let runtime = SupportedRuntime::from(config.chain_name.clone());
-    //     if runtime.people_runtime().is_none() {
-    //         return Err(CrunchError::Other(format!(
-    //             "People chain not supported for the relay {}",
-    //             runtime.to_string()
-    //         )));
-    //     }
-    //     let rpc = create_light_client_from_people_chain_specs(&config.chain_name).await?;
-    //     return Ok(rpc.into());
-    // } else {
-    let rpc =
-        create_substrate_rpc_client_from_url(&config.substrate_people_ws_url).await?;
-    return Ok(rpc.into());
-    // }
+
+    if config.light_client_enabled {
+        let runtime = SupportedRuntime::from(config.chain_name.clone());
+        if runtime.people_runtime().is_none() {
+            return Err(CrunchError::Other(format!(
+                "People chain not supported for the relay {}",
+                runtime.to_string()
+            )));
+        }
+        let rpc = create_light_client_from_people_chain_specs(&config.chain_name).await?;
+        return Ok(rpc.into());
+    } else {
+        let rpc =
+            create_substrate_rpc_client_from_url(&config.substrate_people_ws_url).await?;
+        return Ok(rpc.into());
+    }
 }
 
 pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
@@ -421,7 +424,6 @@ impl Crunch {
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Paseo => paseo::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
-            // _ => unreachable!(),
         }
     }
 
@@ -431,25 +433,23 @@ impl Crunch {
             SupportedRuntime::Kusama => kusama::try_crunch(self).await,
             SupportedRuntime::Paseo => paseo::try_crunch(self).await,
             SupportedRuntime::Westend => westend::try_crunch(self).await,
-            // _ => unreachable!(),
         }
     }
 
     async fn run_and_subscribe_era_paid_events(&self) -> Result<(), CrunchError> {
         match self.runtime {
-            // SupportedRuntime::Polkadot => {
-            //     polkadot::run_and_subscribe_era_paid_events(self).await
-            // }
+            SupportedRuntime::Polkadot => {
+                polkadot::run_and_subscribe_era_paid_events(self).await
+            }
             SupportedRuntime::Kusama => {
                 kusama::run_and_subscribe_era_paid_events(self).await
             }
-            // SupportedRuntime::Paseo => {
-            //         paseo::run_and_subscribe_era_paid_events(self).await
-            //     }
-            //     SupportedRuntime::Westend => {
-            //         westend::run_and_subscribe_era_paid_events(self).await
-            //     }
-            _ => unreachable!(),
+            SupportedRuntime::Paseo => {
+                paseo::run_and_subscribe_era_paid_events(self).await
+            }
+            SupportedRuntime::Westend => {
+                westend::run_and_subscribe_era_paid_events(self).await
+            }
         }
     }
 }
