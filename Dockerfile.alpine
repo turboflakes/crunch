@@ -1,0 +1,27 @@
+FROM alpine:3.19
+
+# Install required dependencies
+RUN apk add --no-cache wget ca-certificates jq bash libc6-compat
+
+WORKDIR /app
+
+# Download the latest alpine release
+RUN set -x && \
+    LATEST_RELEASE=$(wget -qO- https://api.github.com/repos/turboflakes/crunch/releases/latest | jq -r '.tag_name') && \
+    echo "Latest release: ${LATEST_RELEASE}" && \
+    wget -q https://github.com/turboflakes/crunch/releases/download/${LATEST_RELEASE}/crunch.linux-musl -O /usr/local/bin/crunch && \
+    chmod +x /usr/local/bin/crunch
+
+# Create a non-root user to run the application
+RUN addgroup -S crunch && adduser -S -G crunch -s /bin/sh crunch
+USER crunch
+
+# Set environment variables
+ENV RUST_BACKTRACE=1
+ENV RUST_LOG="info"
+
+# Verify installation
+RUN /usr/local/bin/crunch --version
+
+# Set the entrypoint
+ENTRYPOINT ["/usr/local/bin/crunch"]

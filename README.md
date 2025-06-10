@@ -499,12 +499,18 @@ subxt codegen --url https://westend-rpc.polkadot.io | rustfmt --edition=2018 --e
 
 `crunch` can also be built and run from a Docker container.
 
-Build Image
+Build docker container by cloning repo and building from source:
 
 ```bash
 git clone http://github.com/turboflakes/crunch
 cd crunch
 docker build -t localhost/crunch .
+```
+
+Or build a docker container with the latest pre-built Alpine binary available:
+
+```bash
+docker build -t localhost/crunch -f Dockerfile.alpine .
 ```
 
 Run Container
@@ -521,6 +527,12 @@ docker run --rm -it \
   --volume=/etc/private.seed:/.private.seed:ro \
   localhost/crunch:latest \
     kusama rewards era
+```
+
+## Docker (use latest pre-built binary)
+
+```bash
+docker build -t localhost/crunch -f Dockerfile.download-release .
 ```
 
 ## Inspiration
