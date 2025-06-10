@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add Dockerfile.alpine example
+
 ## [0.22.1] - 2025-05-26
 
 ## Changed
