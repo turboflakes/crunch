@@ -529,10 +529,10 @@ docker run --rm -it \
     --config-path /.env kusama rewards daily -f /.private.seed
 ```
 
-Or via Docker Compose (`docker-compose.yaml`) to easily running `crunch` in a container.
+Or via Docker Compose [`docker-compose.yaml`](https://github.com/turboflakes/crunch/blob/main/docker-compose.yaml) to easily run `crunch` in a container.
 
 ```bash
-# start detachedservice
+# start detached service
 docker compose up -d
 # follow logs
 docker compose logs -f
