@@ -526,13 +526,18 @@ docker run --rm -it \
   --volume=/etc/env:/.env:ro \
   --volume=/etc/private.seed:/.private.seed:ro \
   localhost/crunch:latest \
-    kusama rewards era
+    --config-path /.env kusama rewards daily -f /.private.seed
 ```
 
-## Docker (use latest pre-built binary)
+Or via Docker Compose (`docker-compose.yaml`) to easily running `crunch` in a container.
 
 ```bash
-docker build -t localhost/crunch -f Dockerfile.download-release .
+# start detachedservice
+docker compose up -d
+# follow logs
+docker compose logs -f
+# stop service
+docker compose down
 ```
 
 ## Inspiration

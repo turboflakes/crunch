@@ -1,0 +1,8 @@
+version: "3"
+services:
+  crunch:
+    image: localhost/crunch:latest
+    volumes:
+      - ./.env:/.env
+      - ./.private.seed:/.private.seed
+    command: --config-path /.env polkadot rewards daily -f /.private.seed
