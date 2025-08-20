@@ -1,4 +1,4 @@
-# crunch &middot; ![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)
+# crunch &middot; [![latest release](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml/badge.svg)](https://github.com/turboflakes/crunch/actions/workflows/create_release.yml)
 
 <p align="center">
   <img src="https://github.com/turboflakes/crunch/blob/main/assets/crunchbot-github-header.png?raw=true">
