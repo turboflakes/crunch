@@ -72,6 +72,7 @@ impl SupportedRuntime {
         }
     }
 
+    // Useful to be used as the subdomain in Subscan hyperlinks
     pub fn subdomain(&self) -> String {
         if self.is_staking_on_asset_hub() {
             return match &self {

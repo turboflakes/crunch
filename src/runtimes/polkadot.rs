@@ -242,9 +242,12 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         12
     };
 
+    let subdomain = crunch.subdomain();
+
     // Set network info
     let network = Network {
         name: chain_name.clone(),
+        subdomain,
         active_era: active_era_index,
         token_symbol,
         token_decimals,

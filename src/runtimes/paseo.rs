@@ -245,7 +245,6 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         12
     };
 
-    // Get chain subdomain
     let subdomain = crunch.subdomain();
 
     // Set network info

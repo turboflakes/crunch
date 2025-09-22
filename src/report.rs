@@ -435,7 +435,7 @@ impl From<RawData> for Report {
                 if validator.unclaimed.len() > 0 {
                     let symbols = number_to_symbols(validator.unclaimed.len(), "⚡", 84);
                     report.add_text(format!(
-						"{} There are still {} eras left with {} to <code>crunch</code> {}",
+						"{} There are still {} payouts left with {} to <code>crunch</code> {}",
 						symbols,
 						validator.unclaimed.len(),
 						context(),
