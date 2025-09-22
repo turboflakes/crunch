@@ -23,65 +23,35 @@ use crate::{
     errors::CrunchError,
     matrix::Matrix,
     runtimes::{
-        kusama,
-        paseo,
-        polkadot,
-        support::{
-            ChainPrefix,
-            ChainTokenSymbol,
-            SupportedRuntime,
-        },
+        kusama, paseo, polkadot,
+        support::{ChainPrefix, ChainTokenSymbol, SupportedRuntime},
         westend,
     },
 };
 use async_std::task;
-use log::{
-    debug,
-    error,
-    info,
-    warn,
-};
+use log::{debug, error, info, warn};
 use rand::Rng;
 use regex::Regex;
 use serde::Deserialize;
-use std::{
-    convert::TryInto,
-    fs,
-    result::Result,
-    str::FromStr,
-    thread,
-    time,
-};
+use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
 
 use sp_core::crypto;
 use subxt::{
     backend::{
-        legacy::{
-            rpc_methods::StorageKey,
-            LegacyRpcMethods,
-        },
+        legacy::{rpc_methods::StorageKey, LegacyRpcMethods},
         rpc::{
             reconnecting_rpc_client::{
-                ExponentialBackoff,
-                RpcClient as ReconnectingRpcClient,
+                ExponentialBackoff, RpcClient as ReconnectingRpcClient,
             },
             RpcClient,
         },
     },
     ext::subxt_rpcs::utils::validate_url_is_secure,
-    lightclient::{
-        LightClient,
-        LightClientError,
-        LightClientRpc,
-    },
+    lightclient::{LightClient, LightClientError, LightClientRpc},
     utils::AccountId32,
-    OnlineClient,
-    SubstrateConfig,
+    OnlineClient, SubstrateConfig,
 };
-use subxt_signer::{
-    sr25519::Keypair,
-    SecretUri,
-};
+use subxt_signer::{sr25519::Keypair, SecretUri};
 
 pub type ValidatorIndex = Option<usize>;
 pub type ValidatorAmount = u128;
@@ -167,14 +137,37 @@ pub async fn create_light_client_from_people_chain_specs(
     lc.parachain(people_runtime.chain_specs())
 }
 
+pub async fn create_light_client_from_asset_hub_chain_specs(
+    chain: &str,
+) -> Result<LightClientRpc, LightClientError> {
+    let (lc, _) = create_light_client_from_relay_chain_specs(&chain).await?;
+    let runtime = SupportedRuntime::from(chain);
+    let asset_hub_runtime = runtime.asset_hub_runtime().unwrap();
+    lc.parachain(asset_hub_runtime.chain_specs())
+}
+
 pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
     let config = CONFIG.clone();
+    let runtime = SupportedRuntime::from(config.chain_name.clone());
 
     if config.light_client_enabled {
+        if runtime.is_staking_on_asset_hub() {
+            let rpc = create_light_client_from_asset_hub_chain_specs(
+                &config.chain_name.clone(),
+            )
+            .await?;
+            return Ok(rpc.into());
+        }
         let (_, rpc) =
             create_light_client_from_relay_chain_specs(&config.chain_name).await?;
         return Ok(rpc.into());
     } else {
+        if runtime.is_staking_on_asset_hub() {
+            let rpc =
+                create_substrate_rpc_client_from_url(&config.substrate_asset_hub_ws_url)
+                    .await?;
+            return Ok(rpc.into());
+        };
         let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
         return Ok(rpc.into());
     }
@@ -225,7 +218,7 @@ pub async fn create_or_await_substrate_node_client() -> (
 
                 match create_substrate_client_from_rpc_client(rpc_client.clone()).await {
                     Ok(relay_client) => {
-                        // Create people chain client depending on the runtime selected
+                        // Identify supported runtime based on token symbol
                         let runtime = SupportedRuntime::from(chain_token_symbol);
                         break (relay_client, legacy_rpc, runtime);
                     }
@@ -335,7 +328,7 @@ impl Crunch {
     async fn new() -> Crunch {
         let config = CONFIG.clone();
 
-        // Initialize relay node client
+        // NOTE: initialize relay or asset hub client depending if staking is enabled on asset hub.
         let (client, rpc, runtime) = create_or_await_substrate_node_client().await;
 
         // Initialize people node client if supported by relay chain and people url is defined by user if RPC selected
@@ -385,6 +378,10 @@ impl Crunch {
     /// Returns the matrix configuration
     pub fn matrix(&self) -> &Matrix {
         &self.matrix
+    }
+
+    pub fn subdomain(&self) -> String {
+        self.runtime.subdomain()
     }
 
     pub async fn send_message(

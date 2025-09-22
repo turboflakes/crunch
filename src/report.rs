@@ -111,6 +111,7 @@ pub struct SignerDetails {
 pub struct Network {
     pub active_era: EraIndex,
     pub name: String,
+    pub subdomain: String,
     pub token_symbol: String,
     pub token_decimals: u8,
 }
@@ -314,10 +315,7 @@ impl From<RawData> for Report {
             let is_active_desc = if validator.is_active { "🟢" } else { "🔴" };
             report.add_raw_text(format!(
                 "{} <b><a href=\"https://{}.subscan.io/validator/{}\">{}</a></b>",
-                is_active_desc,
-                data.network.name.to_lowercase().trim().replace(" ", ""),
-                validator.stash,
-                validator.name,
+                is_active_desc, data.network.subdomain, validator.stash, validator.name,
             ));
             // Show validator warnings
             if validator.warnings.len() > 0 {
@@ -427,7 +425,7 @@ impl From<RawData> for Report {
                         (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
                         payout.era_index,
                         payout.block_number,
-                        data.network.name.to_lowercase().trim().replace(" ", ""),
+                        data.network.subdomain,
                         payout.extrinsic,
                         payout.extrinsic.to_string()
                     ));
@@ -572,7 +570,7 @@ impl From<RawData> for Report {
                         "💯 Batch finalized at block #{}
                     (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
                         batch.block_number,
-                        data.network.name.to_lowercase().trim().replace(" ", ""),
+                        data.network.subdomain,
                         batch.extrinsic,
                         batch.extrinsic.to_string()
                     ));
