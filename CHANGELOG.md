@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2025-09-23
+
+## Changed
+- Support staking on asset-hub test networks (Paseo, Westend) and deprecate from respective relay chains
 - Add Dockerfile.alpine example
+- Update all chain-specs required for lightclient use
+- Update subxt to `v0.43.0`
+- Update metadata polkadot/1006002
+- Update metadata people-polkadot/1006001
+- Update metadata kusama/1007001
+- Update metadata people-kusama/1007001
+- Update metadata asset-hub-paseo/1006002
+- Update metadata people-paseo/1007001
+- Update metadata asset-hub-westend/1020000
+- Update metadata people-westend/1020000
+
+## [0.23.0] - 2025-05-26
+
+## Changed
+- Fix light client support
+- Fix #61 Polkadot, Paseo, Westend subscription support
 
 ## [0.22.1] - 2025-05-26
 
