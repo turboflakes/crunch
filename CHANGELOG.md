@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1] - 2025-09-23
+
+## Changed
+- Add flag `--substrate-asset-hub-ws-url` to set a custom AssetHub RPC endpoint
+
 ## [0.24.0] - 2025-09-23
 
 ## Changed
