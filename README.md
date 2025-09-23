@@ -290,12 +290,15 @@ OPTIONS:
         --stashes-url <stashes-url>
             Remote stashes endpoint for which 'crunch' will try to fetch the validator stash addresses (e.g.
             https://raw.githubusercontent.com/turboflakes/crunch/main/.remote.stashes.example).
+        --substrate-asset-hub-ws-url <substrate-asset-hub-ws-url>
+            NOTE: Only available for Paseo or Westend chains. Substrate websocket endpoint for which 'crunch' will try
+            to connect and crunch rewards from. (e.g. wss://asset-hub-paseo.rpc.turboflakes.io:443)
         --substrate-people-ws-url <substrate-people-ws-url>
             Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g.
-            wss://sys.turboflakes.io:443/people-kusama)
+            wss://people-polkadot.rpc.turboflakes.io:443)
     -w, --substrate-ws-url <substrate-ws-url>
             Substrate websocket endpoint for which 'crunch' will try to connect. (e.g.
-            wss://rpc.turboflakes.io:443/kusama) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
+            wss://polkadot.rpc.turboflakes.io:443) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)
 
 ARGS:
     <CHAIN>    Sets the substrate-based chain for which 'crunch' will try to connect [possible values: kusama,

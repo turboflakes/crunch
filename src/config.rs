@@ -581,14 +581,22 @@ fn get_config() -> Config {
         .long("substrate-ws-url")
         .takes_value(true)
         .help(
-          "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://rpc.turboflakes.io:443/kusama) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
+          "Substrate websocket endpoint for which 'crunch' will try to connect. (e.g. wss://polkadot.rpc.turboflakes.io:443) (NOTE: substrate_ws_url takes precedence than <CHAIN> argument)",
         ))
     .arg(
       Arg::with_name("substrate-people-ws-url")
         .long("substrate-people-ws-url")
         .takes_value(true)
         .help(
-          "Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g. wss://sys.turboflakes.io:443/people-kusama)",
+          "Substrate websocket endpoint for which 'crunch' will try to connect and retrieve identities from. (e.g. wss://people-polkadot.rpc.turboflakes.io:443)",
+        ),
+    )
+    .arg(
+      Arg::with_name("substrate-asset-hub-ws-url")
+        .long("substrate-asset-hub-ws-url")
+        .takes_value(true)
+        .help(
+          "NOTE: Only available for Paseo or Westend chains. Substrate websocket endpoint for which 'crunch' will try to connect and crunch rewards from. (e.g. wss://asset-hub-paseo.rpc.turboflakes.io:443)",
         ),
     )
     .arg(
