@@ -21,12 +21,7 @@
 
 use crate::{
     config::CONFIG,
-    runtimes::{
-        kusama,
-        paseo,
-        polkadot,
-        westend,
-    },
+    runtimes::{kusama, paseo, polkadot, westend},
 };
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
@@ -40,6 +35,15 @@ pub enum SupportedRuntime {
 }
 
 impl SupportedRuntime {
+    pub fn asset_hub_runtime(&self) -> Option<SupportedParasRuntime> {
+        match &self {
+            Self::Polkadot => Some(SupportedParasRuntime::AssetHubPolkadot),
+            Self::Kusama => Some(SupportedParasRuntime::AssetHubKusama),
+            Self::Westend => Some(SupportedParasRuntime::AssetHubWestend),
+            Self::Paseo => Some(SupportedParasRuntime::AssetHubPaseo),
+        }
+    }
+
     pub fn people_runtime(&self) -> Option<SupportedParasRuntime> {
         match &self {
             Self::Polkadot => Some(SupportedParasRuntime::PeoplePolkadot),
@@ -55,6 +59,34 @@ impl SupportedRuntime {
             Self::Kusama => kusama::KUSAMA_SPEC,
             Self::Westend => westend::WESTEND_SPEC,
             Self::Paseo => paseo::PASEO_SPEC,
+        }
+    }
+
+    // NOTE: Hardcoded here to support staking on asset hub after asset hub migration finished
+    pub fn is_staking_on_asset_hub(&self) -> bool {
+        match &self {
+            Self::Polkadot => false,
+            Self::Kusama => false,
+            Self::Westend => true,
+            Self::Paseo => true,
+        }
+    }
+
+    // Useful to be used as the subdomain in Subscan hyperlinks
+    pub fn subdomain(&self) -> String {
+        if self.is_staking_on_asset_hub() {
+            return match &self {
+                Self::Polkadot => "assethub-polkadot".to_string(),
+                Self::Kusama => "assethub-kusama".to_string(),
+                Self::Westend => "assethub-westend".to_string(),
+                Self::Paseo => "assethub-paseo".to_string(),
+            };
+        }
+        match &self {
+            Self::Polkadot => "polkadot".to_string(),
+            Self::Kusama => "kusama".to_string(),
+            Self::Westend => "westend".to_string(),
+            Self::Paseo => "paseo".to_string(),
         }
     }
 }
@@ -120,6 +152,10 @@ pub enum SupportedParasRuntime {
     PeopleKusama,
     PeopleWestend,
     PeoplePaseo,
+    AssetHubPolkadot,
+    AssetHubKusama,
+    AssetHubPaseo,
+    AssetHubWestend,
 }
 
 impl SupportedParasRuntime {
@@ -136,6 +172,10 @@ impl SupportedParasRuntime {
             Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
             Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
             Self::PeoplePaseo => paseo::PEOPLE_PASEO_SPEC,
+            Self::AssetHubPolkadot => polkadot::ASSET_HUB_POLKADOT_SPEC,
+            Self::AssetHubKusama => kusama::ASSET_HUB_KUSAMA_SPEC,
+            Self::AssetHubWestend => westend::ASSET_HUB_WESTEND_SPEC,
+            Self::AssetHubPaseo => paseo::ASSET_HUB_PASEO_SPEC,
         }
     }
 }
@@ -147,6 +187,10 @@ impl std::fmt::Display for SupportedParasRuntime {
             Self::PeopleKusama => write!(f, "People Kusama"),
             Self::PeopleWestend => write!(f, "People Westend"),
             Self::PeoplePaseo => write!(f, "People Paseo"),
+            Self::AssetHubPolkadot => write!(f, "Asset Hub Polkadot"),
+            Self::AssetHubKusama => write!(f, "Asset Hub Kusama"),
+            Self::AssetHubWestend => write!(f, "Asset Hub Westend"),
+            Self::AssetHubPaseo => write!(f, "Asset Hub Paseo"),
         }
     }
 }

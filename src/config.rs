@@ -125,6 +125,8 @@ pub struct Config {
     #[serde(default)]
     pub substrate_people_ws_url: String,
     #[serde(default)]
+    pub substrate_asset_hub_ws_url: String,
+    #[serde(default)]
     pub stashes_url: String,
     #[serde(default)]
     pub github_pat: String,
@@ -618,21 +620,39 @@ fn get_config() -> Config {
         Some("westend") => {
             env::set_var(
                 "CRUNCH_SUBSTRATE_WS_URL",
-                "wss://rpc.turboflakes.io:443/westend",
+                "wss://westend.rpc.turboflakes.io:443",
             );
+            if env::var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_PEOPLE_WS_URL",
+                    "wss://people-westend.rpc.turboflakes.io:443",
+                );
+            }
+            if env::var("CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL",
+                    "wss://asset-hub-westend.rpc.turboflakes.io:443",
+                );
+            }
             env::set_var("CRUNCH_CHAIN_NAME", "westend");
         }
         Some("kusama") => {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
                 env::set_var(
                     "CRUNCH_SUBSTRATE_WS_URL",
-                    "wss://rpc.turboflakes.io:443/kusama",
+                    "wss://kusama.rpc.turboflakes.io:443",
                 );
             }
             if env::var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL").is_err() {
                 env::set_var(
                     "CRUNCH_SUBSTRATE_PEOPLE_WS_URL",
-                    "wss://sys.turboflakes.io:443/people-kusama",
+                    "wss://people-kusama.rpc.turboflakes.io:443",
+                );
+            }
+            if env::var("CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL",
+                    "wss://asset-hub-kusama.rpc.turboflakes.io:443",
                 );
             }
             env::set_var("CRUNCH_CHAIN_NAME", "kusama");
@@ -641,13 +661,19 @@ fn get_config() -> Config {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
                 env::set_var(
                     "CRUNCH_SUBSTRATE_WS_URL",
-                    "wss://rpc.turboflakes.io:443/polkadot",
+                    "wss://polkadot.rpc.turboflakes.io:443",
                 );
             }
             if env::var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL").is_err() {
                 env::set_var(
                     "CRUNCH_SUBSTRATE_PEOPLE_WS_URL",
-                    "wss://sys.turboflakes.io:443/people-polkadot",
+                    "wss://people-polkadot.rpc.turboflakes.io:443",
+                );
+            }
+            if env::var("CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL",
+                    "wss://asset-hub-polkadot.rpc.turboflakes.io:443",
                 );
             }
             env::set_var("CRUNCH_CHAIN_NAME", "polkadot");
@@ -656,7 +682,19 @@ fn get_config() -> Config {
             if env::var("CRUNCH_SUBSTRATE_WS_URL").is_err() {
                 env::set_var(
                     "CRUNCH_SUBSTRATE_WS_URL",
-                    "wss://rpc.turboflakes.io:443/paseo",
+                    "wss://paseo.rpc.turboflakes.io:443",
+                );
+            }
+            if env::var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_PEOPLE_WS_URL",
+                    "wss://people-paseo.rpc.turboflakes.io:443",
+                );
+            }
+            if env::var("CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL").is_err() {
+                env::set_var(
+                    "CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL",
+                    "wss://asset-hub-paseo.rpc.turboflakes.io:443",
                 );
             }
             env::set_var("CRUNCH_CHAIN_NAME", "paseo");
@@ -674,6 +712,15 @@ fn get_config() -> Config {
 
     if let Some(substrate_people_ws_url) = matches.value_of("substrate-people-ws-url") {
         env::set_var("CRUNCH_SUBSTRATE_PEOPLE_WS_URL", substrate_people_ws_url);
+    }
+
+    if let Some(substrate_asset_hub_ws_url) =
+        matches.value_of("substrate-asset-hub-ws-url")
+    {
+        env::set_var(
+            "CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL",
+            substrate_asset_hub_ws_url,
+        );
     }
 
     if let Some(seed_path) = matches.value_of("seed-path") {
