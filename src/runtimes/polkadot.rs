@@ -22,7 +22,7 @@
 use crate::{
     config::CONFIG,
     crunch::{
-        get_account_id_from_storage_key, get_keypair_from_seed_file, random_wait,
+        get_account_id_from_storage_key, get_keypair_from_seed_file, random_wait, to_hex,
         try_fetch_onet_data, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount,
         ValidatorAmount, ValidatorIndex,
     },
@@ -91,7 +91,6 @@ type Call = node_runtime::runtime_types::polkadot_runtime::RuntimeCall;
 type StakingCall = node_runtime::runtime_types::pallet_staking::pallet::pallet::Call;
 type NominationPoolsCall =
     node_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
-type UtilityCall = node_runtime::runtime_types::pallet_utility::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
     crunch: &Crunch,
@@ -184,8 +183,9 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let ed_addr = node_runtime::constants().balances().existential_deposit();
     let ed = api.constants().at(&ed_addr)?;
 
-    let seed_account_info_addr =
-        node_runtime::storage().system().account(&seed_account_id);
+    let seed_account_info_addr = node_runtime::storage()
+        .system()
+        .account(seed_account_id.clone());
     if let Some(seed_account_info) = api
         .storage()
         .at_latest()
@@ -439,11 +439,9 @@ pub async fn try_run_batch_pool_members(
 
                 // Log call data in debug mode
                 if config.is_debug {
-                    let batch_call = Call::Utility(UtilityCall::force_batch {
-                        calls: calls_for_batch_clipped.clone(),
-                    });
-
-                    debug!("call_data: 0x{}", hex::encode(batch_call.encode()));
+                    let call_data = api.tx().call_data(&tx)?;
+                    let hex_call_data = to_hex(&call_data);
+                    debug!("call_data: {hex_call_data}");
                 }
 
                 let mut tx_progress = api
@@ -677,11 +675,9 @@ pub async fn try_run_batch_payouts(
 
                 // Log call data in debug mode
                 if config.is_debug {
-                    let batch_call = Call::Utility(UtilityCall::force_batch {
-                        calls: calls_for_batch_clipped.clone(),
-                    });
-
-                    debug!("call_data: 0x{}", hex::encode(batch_call.encode()));
+                    let call_data = api.tx().call_data(&tx)?;
+                    let hex_call_data = to_hex(&call_data);
+                    debug!("call_data: {hex_call_data}");
                 }
 
                 let mut tx_progress = api
@@ -898,7 +894,7 @@ async fn collect_validators_data(
         })?;
 
         // Check if stash has bonded controller
-        let controller_addr = node_runtime::storage().staking().bonded(&stash);
+        let controller_addr = node_runtime::storage().staking().bonded(stash.clone());
         let controller = match api
             .storage()
             .at_latest()
@@ -938,7 +934,7 @@ async fn collect_validators_data(
         let start_index = get_era_index_start(&crunch, era_index).await?;
 
         // Get staking info from ledger
-        let ledger_addr = node_runtime::storage().staking().ledger(&controller);
+        let ledger_addr = node_runtime::storage().staking().ledger(controller.clone());
         if let Some(staking_ledger) =
             api.storage().at_latest().await?.fetch(&ledger_addr).await?
         {
@@ -951,18 +947,18 @@ async fn collect_validators_data(
                 staking_ledger.legacy_claimed_rewards;
 
             // Find unclaimed eras in previous 84 eras (reverse order)
-            for e in (start_index..era_index).rev() {
+            for era in (start_index..era_index).rev() {
                 // TODO: legacy methods to be deprecated in the future
                 // check https://github.com/paritytech/polkadot-sdk/pull/1189
-                if legacy_claimed_rewards.contains(&e) {
-                    v.claimed.push((e, 0));
+                if legacy_claimed_rewards.contains(&era) {
+                    v.claimed.push((era, 0));
                     continue;
                 }
 
                 // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
                 let claimed_rewards_addr = node_runtime::storage()
                     .staking()
-                    .claimed_rewards(&e, &stash);
+                    .claimed_rewards(era, stash.clone());
                 if let Some(claimed_rewards) = api
                     .storage()
                     .at_latest()
@@ -973,7 +969,7 @@ async fn collect_validators_data(
                     // Verify if there are more pages to claim than the ones already claimed
                     let eras_stakers_overview_addr = node_runtime::storage()
                         .staking()
-                        .eras_stakers_overview(&e, &stash);
+                        .eras_stakers_overview(era, stash.clone());
                     if let Some(exposure) = api
                         .storage()
                         .at_latest()
@@ -984,22 +980,22 @@ async fn collect_validators_data(
                         // Check if all pages are claimed or not
                         for page_index in 0..exposure.page_count {
                             if claimed_rewards.contains(&page_index) {
-                                v.claimed.push((e, page_index));
+                                v.claimed.push((era, page_index));
                             } else {
-                                v.unclaimed.push((e, page_index));
+                                v.unclaimed.push((era, page_index));
                             }
                         }
                     } else {
                         // If eras_stakers_overview is not available set all pages claimed
                         for page_index in claimed_rewards {
-                            v.claimed.push((e, page_index));
+                            v.claimed.push((era, page_index));
                         }
                     }
                 } else {
                     // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
                     let eras_stakers_paged_addr = node_runtime::storage()
                         .staking()
-                        .eras_stakers_paged_iter2(&e, &stash);
+                        .eras_stakers_paged_iter2(era, stash.clone());
                     let mut iter = api
                         .storage()
                         .at_latest()
@@ -1009,7 +1005,7 @@ async fn collect_validators_data(
 
                     let mut page_index = 0;
                     while let Some(Ok(_)) = iter.next().await {
-                        v.unclaimed.push((e, page_index));
+                        v.unclaimed.push((era, page_index));
                         page_index += 1;
                     }
                 }
@@ -1087,7 +1083,7 @@ async fn get_validator_points_info(
     // Get era reward points
     let era_reward_points_addr = node_runtime::storage()
         .staking()
-        .eras_reward_points(&era_index);
+        .eras_reward_points(era_index);
 
     if let Some(era_reward_points) = api
         .storage()
@@ -1137,7 +1133,9 @@ async fn get_display_name(
     sub_account_name: Option<String>,
 ) -> Result<(String, String, bool), CrunchError> {
     if let Some(api) = crunch.people_client().clone() {
-        let identity_of_addr = people_runtime::storage().identity().identity_of(stash);
+        let identity_of_addr = people_runtime::storage()
+            .identity()
+            .identity_of(stash.clone());
         match api
             .storage()
             .at_latest()
@@ -1155,7 +1153,8 @@ async fn get_display_name(
                 Ok((name, parent.clone(), true))
             }
             None => {
-                let super_of_addr = people_runtime::storage().identity().super_of(stash);
+                let super_of_addr =
+                    people_runtime::storage().identity().super_of(stash.clone());
                 if let Some((parent_account, data)) = api
                     .storage()
                     .at_latest()
@@ -1327,11 +1326,12 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         let mut unclaimed: Vec<(EraIndex, PageIndex)> = Vec::new();
         let mut claimed: Vec<(EraIndex, PageIndex)> = Vec::new();
 
-        let bonded_addr = node_runtime::storage().staking().bonded(&stash);
+        let bonded_addr = node_runtime::storage().staking().bonded(stash.clone());
         if let Some(controller) =
             api.storage().at_latest().await?.fetch(&bonded_addr).await?
         {
-            let ledger_addr = node_runtime::storage().staking().ledger(&controller);
+            let ledger_addr =
+                node_runtime::storage().staking().ledger(controller.clone());
             if let Some(ledger_response) =
                 api.storage().at_latest().await?.fetch(&ledger_addr).await?
             {
@@ -1351,7 +1351,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                     // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
                     let claimed_rewards_addr = node_runtime::storage()
                         .staking()
-                        .claimed_rewards(&era_index, &stash);
+                        .claimed_rewards(era_index, stash.clone());
                     if let Some(claimed_rewards) = api
                         .storage()
                         .at_latest()
@@ -1362,7 +1362,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                         // Verify if there are more pages to claim than the ones already claimed
                         let eras_stakers_overview_addr = node_runtime::storage()
                             .staking()
-                            .eras_stakers_overview(&era_index, &stash);
+                            .eras_stakers_overview(era_index, stash.clone());
                         if let Some(exposure) = api
                             .storage()
                             .at_latest()
@@ -1388,7 +1388,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                         // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
                         let eras_stakers_paged_addr = node_runtime::storage()
                             .staking()
-                            .eras_stakers_paged_iter2(&era_index, &stash);
+                            .eras_stakers_paged_iter2(era_index, stash.clone());
                         let mut iter = api
                             .storage()
                             .at_latest()
@@ -1461,7 +1461,7 @@ pub async fn try_fetch_pool_operators_for_compound(
     for pool_id in &config.pool_ids {
         let bonded_pool_addr = node_runtime::storage()
             .nomination_pools()
-            .bonded_pools(pool_id);
+            .bonded_pools(*pool_id);
         if let Some(pool) = api
             .storage()
             .at_latest()
@@ -1553,7 +1553,7 @@ pub async fn try_fetch_pool_members_for_compound(
             // 2 .Verify if member belongs to the pools configured
             let pool_member_addr = node_runtime::storage()
                 .nomination_pools()
-                .pool_members(&member);
+                .pool_members(member.clone());
             if let Some(pool_member) = api
                 .storage()
                 .at_latest()
@@ -1613,7 +1613,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
         let pool_stash_account = nomination_pool_account(AccountType::Bonded, *pool_id);
         let nominators_addr = node_runtime::storage()
             .staking()
-            .nominators(&pool_stash_account);
+            .nominators(pool_stash_account.clone());
         if let Some(nominations) = api
             .storage()
             .at_latest()
@@ -1637,7 +1637,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
             for stash in targets {
                 let eras_stakers_addr = node_runtime::storage()
                     .staking()
-                    .eras_stakers(era_index - 1, &stash);
+                    .eras_stakers(era_index - 1, stash.clone());
                 if let Some(exposure) = api
                     .storage()
                     .at_latest()

@@ -628,3 +628,7 @@ pub fn get_account_id_from_storage_key(key: StorageKey) -> AccountId32 {
     let v: [u8; 32] = s.try_into().expect("slice with incorrect length");
     v.into()
 }
+
+pub fn to_hex(bytes: impl AsRef<[u8]>) -> String {
+    format!("0x{}", hex::encode(bytes.as_ref()))
+}

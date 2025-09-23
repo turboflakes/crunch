@@ -176,6 +176,7 @@ impl SupportedParasRuntime {
             Self::AssetHubKusama => kusama::ASSET_HUB_KUSAMA_SPEC,
             Self::AssetHubWestend => westend::ASSET_HUB_WESTEND_SPEC,
             Self::AssetHubPaseo => paseo::ASSET_HUB_PASEO_SPEC,
+            _ => unimplemented!("Chain not supported"),
         }
     }
 }

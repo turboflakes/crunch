@@ -34,12 +34,12 @@ url = "2.5.4"
 base64 = "0.22.1"
 rand = "0.9.0"
 # subxt dependencies
-subxt = { version = "0.42.1", features = [
+subxt = { version = "0.43.0", features = [
     "native",
     "reconnecting-rpc-client",
     "unstable-light-client",
 ] }
-subxt-signer = { version = "0.42.1", features = ["subxt"] }
+subxt-signer = { version = "0.43.0", features = ["subxt"] }
 # substrate dependencies
 sp-core = "35.0.0"
 
