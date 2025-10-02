@@ -8,13 +8,13 @@
 #
 # Relay Chains
 # subxt metadata --url wss://rpc.turboflakes.io:443/westend -f bytes > metadata/westend_metadata.scale
-subxt metadata --url wss://rpc.turboflakes.io:443/westend --pallets System,Session,Balances,Staking,Utility,NominationPools -f bytes > metadata/westend_metadata_small.scale
+subxt metadata --url wss://rpc.turboflakes.io:443/westend --pallets Session -f bytes > metadata/westend_metadata_small.scale
 #subxt metadata --url wss://rpc.turboflakes.io:443/kusama -f bytes > metadata/kusama_metadata.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/kusama --pallets System,Session,Balances,Staking,Utility,NominationPools -f bytes > metadata/kusama_metadata_small.scale
 #subxt metadata --url wss://rpc.turboflakes.io:443/polkadot -f bytes > metadata/polkadot_metadata.scale
 subxt metadata --url wss://rpc.turboflakes.io:443/polkadot --pallets System,Session,Balances,Staking,Utility,NominationPools -f bytes > metadata/polkadot_metadata_small.scale
 #subxt metadata --url wss://rpc.turboflakes.io:443/paseo -f bytes > metadata/paseo_metadata.scale
-subxt metadata --url wss://rpc.turboflakes.io:443/paseo --pallets System,Session,Balances,Staking,Utility,NominationPools,Identity -f bytes > metadata/paseo_metadata_small.scale
+subxt metadata --url wss://rpc.turboflakes.io:443/paseo --pallets Session -f bytes > metadata/paseo_metadata_small.scale
 
 # AssetHub Chains
 subxt metadata --url wss://asset-hub-westend.rpc.turboflakes.io:443 --pallets System,Session,Balances,Staking,Utility,NominationPools,Identity -f bytes > metadata/asset_hub_westend_metadata_small.scale

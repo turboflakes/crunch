@@ -28,11 +28,10 @@ use crate::{
     },
     errors::CrunchError,
     pools::{nomination_pool_account, AccountType},
-    report,
     report::{
-        Batch, EraIndex, Network, NominationPoolCommission, NominationPoolsSummary,
-        PageIndex, Payout, PayoutSummary, Points, RawData, Report, SignerDetails,
-        Validator, Validators,
+        replace_emoji_lowercase, Batch, EraIndex, Network, NominationPoolCommission,
+        NominationPoolsSummary, PageIndex, Payout, PayoutSummary, Points, RawData,
+        Report, SignerDetails, Validator, Validators,
     },
     stats,
 };
@@ -60,12 +59,18 @@ pub const ASSET_HUB_PASEO_SPEC: &str =
     include_str!("../../chain_specs/asset-hub-paseo.json");
 
 #[subxt::subxt(
+    runtime_metadata_path = "metadata/paseo_metadata_small.scale",
+    derive_for_all_types = "Clone, PartialEq"
+)]
+mod rc_metadata {}
+
+#[subxt::subxt(
     runtime_metadata_path = "metadata/asset_hub_paseo_metadata_small.scale",
     derive_for_all_types = "Clone, PartialEq"
 )]
-mod node_runtime {}
+mod ah_metadata {}
 
-use node_runtime::{
+use ah_metadata::{
     nomination_pools::events::PoolCommissionClaimed,
     runtime_types::{
         bounded_collections::{
@@ -86,13 +91,12 @@ use node_runtime::{
     runtime_metadata_path = "metadata/people_paseo_metadata_small.scale",
     derive_for_all_types = "Clone, PartialEq"
 )]
-mod people_runtime {}
+mod people_metadata {}
 
-type Call = node_runtime::runtime_types::asset_hub_paseo_runtime::RuntimeCall;
-type StakingCall =
-    node_runtime::runtime_types::pallet_staking_async::pallet::pallet::Call;
+type Call = ah_metadata::runtime_types::asset_hub_paseo_runtime::RuntimeCall;
+type StakingCall = ah_metadata::runtime_types::pallet_staking_async::pallet::pallet::Call;
 type NominationPoolsCall =
-    node_runtime::runtime_types::pallet_nomination_pools::pallet::Call;
+    ah_metadata::runtime_types::pallet_nomination_pools::pallet::Call;
 
 pub async fn run_and_subscribe_era_paid_events(
     crunch: &Crunch,
@@ -102,7 +106,10 @@ pub async fn run_and_subscribe_era_paid_events(
     try_crunch(&crunch).await?;
     let mut latest_block_number_processed: Option<u32> = Some(0);
     info!("Subscribe 'EraPaid' on-chain finalized event");
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
     let mut block_sub = api.blocks().subscribe_finalized().await?;
     while let Some(block) = block_sub.next().await {
         // let block = block?;
@@ -167,7 +174,10 @@ pub async fn run_and_subscribe_era_paid_events(
 
 pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let signer_keypair: Keypair = get_keypair_from_seed_file()?;
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
@@ -182,10 +192,10 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     info!("signer_details {:?}", signer_details);
 
     // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
-    let ed_addr = node_runtime::constants().balances().existential_deposit();
+    let ed_addr = ah_metadata::constants().balances().existential_deposit();
     let ed = api.constants().at(&ed_addr)?;
 
-    let seed_account_info_addr = node_runtime::storage()
+    let seed_account_info_addr = ah_metadata::storage()
         .system()
         .account(seed_account_id.clone());
     if let Some(seed_account_info) = api
@@ -211,7 +221,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let chain_name = crunch.rpc().system_chain().await?;
 
     // Get Era index
-    let active_era_addr = node_runtime::storage().staking().active_era();
+    let active_era_addr = ah_metadata::storage().staking().active_era();
     let active_era_index = match api
         .storage()
         .at_latest()
@@ -270,13 +280,12 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
             let mut validators = all_validators
                 .clone()
                 .into_iter()
-                .filter(|v| report::replace_emoji_lowercase(&v.parent_identity) == parent)
+                .filter(|v| replace_emoji_lowercase(&v.parent_identity) == parent)
                 .collect::<Validators>();
 
             // Remove all processed validators from original vec so it don't get looked up again
-            all_validators.retain(|v| {
-                report::replace_emoji_lowercase(&v.parent_identity) != parent
-            });
+            all_validators
+                .retain(|v| replace_emoji_lowercase(&v.parent_identity) != parent);
 
             if validators.len() > 0 {
                 // Try run payouts in batches
@@ -355,7 +364,10 @@ pub async fn try_run_batch_pool_members(
     signer: &Keypair,
 ) -> Result<NominationPoolsSummary, CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let mut calls_for_batch: Vec<Call> = vec![];
     let mut summary: NominationPoolsSummary = Default::default();
@@ -424,7 +436,7 @@ pub async fn try_run_batch_pool_members(
                     calls_for_batch[call_start_index..call_end_index].to_vec();
 
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
-                let tx = node_runtime::tx()
+                let tx = ah_metadata::tx()
                     .utility()
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
@@ -550,7 +562,7 @@ pub fn get_distinct_parent_identites(validators: Validators) -> Vec<String> {
         .clone()
         .iter()
         .filter(|val| val.has_identity)
-        .map(|val| report::replace_emoji_lowercase(&val.parent_identity))
+        .map(|val| replace_emoji_lowercase(&val.parent_identity))
         .collect();
     parent_identities.sort();
     parent_identities.dedup();
@@ -575,7 +587,10 @@ pub async fn try_run_batch_payouts(
     validators: &mut Validators,
 ) -> Result<PayoutSummary, CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     // Add unclaimed eras into payout staker calls
     let mut calls_for_batch: Vec<Call> = vec![];
@@ -659,8 +674,8 @@ pub async fn try_run_batch_payouts(
 
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
                 let tx: subxt::tx::DefaultPayload<
-                    node_runtime::utility::calls::types::ForceBatch,
-                > = node_runtime::tx()
+                    ah_metadata::utility::calls::types::ForceBatch,
+                > = ah_metadata::tx()
                     .utility()
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
@@ -875,11 +890,15 @@ async fn collect_validators_data(
     crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<Validators, CrunchError> {
-    let api = crunch.client().clone();
+    let rc_api = crunch.client().clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     // Get unclaimed eras for the stash addresses
-    let active_validators_addr = node_runtime::storage().session().validators();
-    let active_validators = api
+    let active_validators_addr = rc_metadata::storage().session().validators();
+    let active_validators = rc_api
         .storage()
         .at_latest()
         .await?
@@ -896,8 +915,8 @@ async fn collect_validators_data(
         })?;
 
         // Check if stash has bonded controller
-        let controller_addr = node_runtime::storage().staking().bonded(stash.clone());
-        let controller = match api
+        let controller_addr = ah_metadata::storage().staking().bonded(stash.clone());
+        let controller = match ah_api
             .storage()
             .at_latest()
             .await?
@@ -938,10 +957,10 @@ async fn collect_validators_data(
         // Find unclaimed eras in previous 84 eras (reverse order)
         for era in (start_index..era_index).rev() {
             // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
-            let claimed_rewards_addr = node_runtime::storage()
+            let claimed_rewards_addr = ah_metadata::storage()
                 .staking()
                 .claimed_rewards(era, stash.clone());
-            if let Some(WeakBoundedVec(claimed_rewards)) = api
+            if let Some(WeakBoundedVec(claimed_rewards)) = ah_api
                 .storage()
                 .at_latest()
                 .await?
@@ -949,10 +968,10 @@ async fn collect_validators_data(
                 .await?
             {
                 // Verify if there are more pages to claim than the ones already claimed
-                let eras_stakers_overview_addr = node_runtime::storage()
+                let eras_stakers_overview_addr = ah_metadata::storage()
                     .staking()
                     .eras_stakers_overview(era, stash.clone());
-                if let Some(exposure) = api
+                if let Some(exposure) = ah_api
                     .storage()
                     .at_latest()
                     .await?
@@ -975,10 +994,10 @@ async fn collect_validators_data(
                 }
             } else {
                 // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
-                let eras_stakers_paged_addr = node_runtime::storage()
+                let eras_stakers_paged_addr = ah_metadata::storage()
                     .staking()
                     .eras_stakers_paged_iter2(era, stash.clone());
-                let mut iter = api
+                let mut iter = ah_api
                     .storage()
                     .at_latest()
                     .await?
@@ -1004,8 +1023,8 @@ async fn collect_validators_data(
         .collect::<Vec<Validator>>();
 
     validators_with_warnings.sort_by(|a, b| {
-        report::replace_emoji_lowercase(&a.name)
-            .partial_cmp(&report::replace_emoji_lowercase(&b.name))
+        replace_emoji_lowercase(&a.name)
+            .partial_cmp(&replace_emoji_lowercase(&b.name))
             .unwrap()
     });
 
@@ -1021,8 +1040,8 @@ async fn collect_validators_data(
         .collect::<Vec<Validator>>();
 
     validators.sort_by(|a, b| {
-        report::replace_emoji_lowercase(&a.name)
-            .partial_cmp(&report::replace_emoji_lowercase(&b.name))
+        replace_emoji_lowercase(&a.name)
+            .partial_cmp(&replace_emoji_lowercase(&b.name))
             .unwrap()
     });
     validators.extend(validators_with_no_identity);
@@ -1036,10 +1055,13 @@ async fn get_era_index_start(
     crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<EraIndex, CrunchError> {
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
     let config = CONFIG.clone();
 
-    let history_depth_addr = node_runtime::constants().staking().history_depth();
+    let history_depth_addr = ah_metadata::constants().staking().history_depth();
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
     if era_index < cmp::min(config.maximum_history_eras, history_depth) {
@@ -1060,9 +1082,12 @@ async fn get_validator_points_info(
     era_index: EraIndex,
     stash: &AccountId32,
 ) -> Result<Points, CrunchError> {
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
     // Get era reward points
-    let era_reward_points_addr = node_runtime::storage()
+    let era_reward_points_addr = ah_metadata::storage()
         .staking()
         .eras_reward_points(era_index);
 
@@ -1109,7 +1134,7 @@ async fn get_display_name(
     sub_account_name: Option<String>,
 ) -> Result<(String, String, bool), CrunchError> {
     if let Some(api) = crunch.people_client().clone() {
-        let identity_of_addr = people_runtime::storage()
+        let identity_of_addr = people_metadata::storage()
             .identity()
             .identity_of(stash.clone());
         match api
@@ -1129,8 +1154,9 @@ async fn get_display_name(
                 Ok((name, parent.clone(), true))
             }
             None => {
-                let super_of_addr =
-                    people_runtime::storage().identity().super_of(stash.clone());
+                let super_of_addr = people_metadata::storage()
+                    .identity()
+                    .super_of(stash.clone());
                 if let Some((parent_account, data)) = api
                     .storage()
                     .at_latest()
@@ -1161,106 +1187,106 @@ async fn get_display_name(
 
 //
 fn parse_identity_data(
-    data: people_runtime::runtime_types::pallet_identity::types::Data,
+    data: people_metadata::runtime_types::pallet_identity::types::Data,
 ) -> String {
     match data {
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw0(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw0(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw1(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw1(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw2(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw2(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw3(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw3(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw4(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw4(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw5(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw5(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw6(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw6(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw7(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw7(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw8(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw8(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw9(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw9(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw10(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw10(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw11(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw11(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw12(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw12(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw13(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw13(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw14(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw14(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw15(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw15(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw16(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw16(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw17(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw17(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw18(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw18(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw19(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw19(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw20(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw20(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw21(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw21(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw22(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw22(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw23(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw23(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw24(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw24(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw25(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw25(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw26(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw26(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw27(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw27(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw28(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw28(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw29(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw29(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw30(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw30(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw31(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw31(bytes) => {
             str(bytes.to_vec())
         }
-        people_runtime::runtime_types::pallet_identity::types::Data::Raw32(bytes) => {
+        people_metadata::runtime_types::pallet_identity::types::Data::Raw32(bytes) => {
             str(bytes.to_vec())
         }
         _ => format!("???"),
@@ -1272,15 +1298,18 @@ fn str(bytes: Vec<u8>) -> String {
 }
 
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let stashes = get_stashes(&crunch).await?;
     info!("Inspect {} stashes -> {}", stashes.len(), stashes.join(","));
 
-    let history_depth_addr = node_runtime::constants().staking().history_depth();
+    let history_depth_addr = ah_metadata::constants().staking().history_depth();
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
-    let active_era_addr = node_runtime::storage().staking().active_era();
+    let active_era_addr = ah_metadata::storage().staking().active_era();
     let active_era_index = match api
         .storage()
         .at_latest()
@@ -1305,7 +1334,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         // Find unclaimed eras in previous 84 eras
         for era_index in start_index..active_era_index {
             // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
-            let claimed_rewards_addr = node_runtime::storage()
+            let claimed_rewards_addr = ah_metadata::storage()
                 .staking()
                 .claimed_rewards(era_index, stash.clone());
             if let Some(WeakBoundedVec(claimed_rewards)) = api
@@ -1316,7 +1345,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 .await?
             {
                 // Verify if there are more pages to claim than the ones already claimed
-                let eras_stakers_overview_addr = node_runtime::storage()
+                let eras_stakers_overview_addr = ah_metadata::storage()
                     .staking()
                     .eras_stakers_overview(era_index, stash.clone());
                 if let Some(exposure) = api
@@ -1342,7 +1371,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 }
             } else {
                 // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
-                let eras_stakers_paged_addr = node_runtime::storage()
+                let eras_stakers_paged_addr = ah_metadata::storage()
                     .staking()
                     .eras_stakers_paged_iter2(era_index, stash.clone());
                 let mut iter = api
@@ -1408,12 +1437,15 @@ pub async fn try_fetch_pool_operators_for_compound(
         return Ok(None);
     }
 
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let mut members: Vec<AccountId32> = Vec::new();
 
     for pool_id in &config.pool_ids {
-        let bonded_pool_addr = node_runtime::storage()
+        let bonded_pool_addr = ah_metadata::storage()
             .nomination_pools()
             .bonded_pools(*pool_id);
         if let Some(pool) = api
@@ -1423,7 +1455,7 @@ pub async fn try_fetch_pool_operators_for_compound(
             .fetch(&bonded_pool_addr)
             .await?
         {
-            let permissions_addr = node_runtime::storage()
+            let permissions_addr = ah_metadata::storage()
                 .nomination_pools()
                 .claim_permissions(pool.roles.depositor.clone());
 
@@ -1478,12 +1510,15 @@ pub async fn try_fetch_pool_members_for_compound(
         return try_fetch_pool_operators_for_compound(&crunch).await;
     }
 
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let mut members: Vec<AccountId32> = Vec::new();
 
     // 1. get all members with permissions set as [PermissionlessCompound, PermissionlessAll]
-    let permissions_addr = node_runtime::storage()
+    let permissions_addr = ah_metadata::storage()
         .nomination_pools()
         .claim_permissions_iter();
 
@@ -1505,7 +1540,7 @@ pub async fn try_fetch_pool_members_for_compound(
             // debug!("member: {}", member);
 
             // 2 .Verify if member belongs to the pools configured
-            let pool_member_addr = node_runtime::storage()
+            let pool_member_addr = ah_metadata::storage()
                 .nomination_pools()
                 .pool_members(member.clone());
             if let Some(pool_member) = api
@@ -1539,7 +1574,6 @@ pub async fn try_fetch_pool_members_for_compound(
 pub async fn try_fetch_stashes_from_pool_ids(
     crunch: &Crunch,
 ) -> Result<Option<Vec<String>>, CrunchError> {
-    let api = crunch.client().clone();
     let config = CONFIG.clone();
     if config.pool_ids.len() == 0
         || (!config.pool_active_nominees_payout_enabled
@@ -1548,7 +1582,12 @@ pub async fn try_fetch_stashes_from_pool_ids(
         return Ok(None);
     }
 
-    let active_era_addr = node_runtime::storage().staking().active_era();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    let active_era_addr = ah_metadata::storage().staking().active_era();
     let era_index = match api
         .storage()
         .at_latest()
@@ -1565,7 +1604,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
 
     for pool_id in config.pool_ids.iter() {
         let pool_stash_account = nomination_pool_account(AccountType::Bonded, *pool_id);
-        let nominators_addr = node_runtime::storage()
+        let nominators_addr = ah_metadata::storage()
             .staking()
             .nominators(pool_stash_account.clone());
         if let Some(nominations) = api
@@ -1589,7 +1628,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
             // NOTE_2: Ideally nominees shouldn't have any pending payouts, but is in the best interest of the pool members
             // that pool operators trigger payouts as a backup at least for the active nominees.
             for stash in targets {
-                let eras_stakers_paged_addr = node_runtime::storage()
+                let eras_stakers_paged_addr = ah_metadata::storage()
                     .staking()
                     .eras_stakers_paged_iter2(era_index - 1, stash.clone());
                 let mut iter = api

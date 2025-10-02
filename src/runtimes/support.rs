@@ -23,6 +23,9 @@ use crate::{
     config::CONFIG,
     runtimes::{kusama, paseo, polkadot, westend},
 };
+use serde_json::{Result, Value};
+use std::str::FromStr;
+use subxt::utils::H256;
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
@@ -37,8 +40,8 @@ pub enum SupportedRuntime {
 impl SupportedRuntime {
     pub fn asset_hub_runtime(&self) -> Option<SupportedParasRuntime> {
         match &self {
-            Self::Polkadot => Some(SupportedParasRuntime::AssetHubPolkadot),
-            Self::Kusama => Some(SupportedParasRuntime::AssetHubKusama),
+            Self::Polkadot => None,
+            Self::Kusama => None,
             Self::Westend => Some(SupportedParasRuntime::AssetHubWestend),
             Self::Paseo => Some(SupportedParasRuntime::AssetHubPaseo),
         }
@@ -59,6 +62,15 @@ impl SupportedRuntime {
             Self::Kusama => kusama::KUSAMA_SPEC,
             Self::Westend => westend::WESTEND_SPEC,
             Self::Paseo => paseo::PASEO_SPEC,
+        }
+    }
+
+    pub fn chain_state_root_hash(&self) -> H256 {
+        match &self {
+            Self::Polkadot => get_state_root_hash(polkadot::POLKADOT_SPEC),
+            Self::Kusama => get_state_root_hash(kusama::KUSAMA_SPEC),
+            Self::Westend => get_state_root_hash(westend::WESTEND_SPEC),
+            Self::Paseo => get_state_root_hash(paseo::PASEO_SPEC),
         }
     }
 
@@ -159,10 +171,17 @@ pub enum SupportedParasRuntime {
 }
 
 impl SupportedParasRuntime {
-    pub fn default_rpc_url(&self) -> String {
+    pub fn rpc_url(&self) -> String {
         let config = CONFIG.clone();
         match &self {
-            _ => config.substrate_people_ws_url,
+            Self::PeoplePolkadot
+            | Self::PeopleKusama
+            | Self::PeopleWestend
+            | Self::PeoplePaseo => config.substrate_people_ws_url,
+            Self::AssetHubPolkadot
+            | Self::AssetHubKusama
+            | Self::AssetHubWestend
+            | Self::AssetHubPaseo => config.substrate_asset_hub_ws_url,
         }
     }
 
@@ -176,6 +195,21 @@ impl SupportedParasRuntime {
             Self::AssetHubKusama => kusama::ASSET_HUB_KUSAMA_SPEC,
             Self::AssetHubWestend => westend::ASSET_HUB_WESTEND_SPEC,
             Self::AssetHubPaseo => paseo::ASSET_HUB_PASEO_SPEC,
+        }
+    }
+
+    pub fn chain_state_root_hash(&self) -> H256 {
+        match &self {
+            Self::PeoplePolkadot => get_state_root_hash(polkadot::PEOPLE_POLKADOT_SPEC),
+            Self::PeopleKusama => get_state_root_hash(kusama::PEOPLE_KUSAMA_SPEC),
+            Self::PeopleWestend => get_state_root_hash(westend::PEOPLE_WESTEND_SPEC),
+            Self::PeoplePaseo => get_state_root_hash(paseo::PEOPLE_PASEO_SPEC),
+            Self::AssetHubPolkadot => {
+                get_state_root_hash(polkadot::ASSET_HUB_POLKADOT_SPEC)
+            }
+            Self::AssetHubKusama => get_state_root_hash(kusama::ASSET_HUB_KUSAMA_SPEC),
+            Self::AssetHubWestend => get_state_root_hash(westend::ASSET_HUB_WESTEND_SPEC),
+            Self::AssetHubPaseo => get_state_root_hash(paseo::ASSET_HUB_PASEO_SPEC),
         }
     }
 }
@@ -192,5 +226,18 @@ impl std::fmt::Display for SupportedParasRuntime {
             Self::AssetHubWestend => write!(f, "Asset Hub Westend"),
             Self::AssetHubPaseo => write!(f, "Asset Hub Paseo"),
         }
+    }
+}
+
+fn get_state_root_hash(chain_specs: &str) -> H256 {
+    let spec: Result<Value> = serde_json::from_str(chain_specs);
+    match spec {
+        Ok(json) => {
+            let state_root = json["genesis"]["stateRootHash"]
+                .as_str()
+                .expect("chain spec does not contain state root hash");
+            return H256::from_str(state_root).expect("invalid state root hash");
+        }
+        Err(err) => panic!("Failed to parse JSON: {}", err),
     }
 }

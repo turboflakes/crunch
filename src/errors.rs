@@ -21,15 +21,9 @@
 
 use codec;
 use reqwest;
-use std::{
-    str::Utf8Error,
-    string::String,
-};
+use std::{str::Utf8Error, string::String};
 use subxt::{
-    error::{
-        DispatchError,
-        MetadataError,
-    },
+    error::{DispatchError, MetadataError},
     lightclient::LightClientError,
 };
 
@@ -68,6 +62,8 @@ pub enum CrunchError {
     SecretError(#[from] subxt_signer::SecretUriError),
     #[error("IOError error: {0}")]
     IOError(#[from] std::io::Error),
+    #[error("Genesis mismatch: {0}")]
+    GenesisError(String),
     #[error("Other error: {0}")]
     Other(String),
 }

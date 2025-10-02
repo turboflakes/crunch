@@ -148,26 +148,12 @@ pub async fn create_light_client_from_asset_hub_chain_specs(
 
 pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
     let config = CONFIG.clone();
-    let runtime = SupportedRuntime::from(config.chain_name.clone());
 
     if config.light_client_enabled {
-        if runtime.is_staking_on_asset_hub() {
-            let rpc = create_light_client_from_asset_hub_chain_specs(
-                &config.chain_name.clone(),
-            )
-            .await?;
-            return Ok(rpc.into());
-        }
         let (_, rpc) =
             create_light_client_from_relay_chain_specs(&config.chain_name).await?;
         return Ok(rpc.into());
     } else {
-        if runtime.is_staking_on_asset_hub() {
-            let rpc =
-                create_substrate_rpc_client_from_url(&config.substrate_asset_hub_ws_url)
-                    .await?;
-            return Ok(rpc.into());
-        };
         let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
         return Ok(rpc.into());
     }
@@ -256,9 +242,64 @@ pub async fn create_people_rpc_client_from_config() -> Result<RpcClient, CrunchE
     }
 }
 
+pub async fn create_asset_hub_rpc_client_from_config() -> Result<RpcClient, CrunchError> {
+    let config = CONFIG.clone();
+
+    if config.light_client_enabled {
+        let runtime = SupportedRuntime::from(config.chain_name.clone());
+        if runtime.asset_hub_runtime().is_none() {
+            return Err(CrunchError::Other(format!(
+                "Asset Hub chain not supported for the relay {}",
+                runtime.to_string()
+            )));
+        }
+        let rpc =
+            create_light_client_from_asset_hub_chain_specs(&config.chain_name).await?;
+        return Ok(rpc.into());
+    } else {
+        let rpc =
+            create_substrate_rpc_client_from_url(&config.substrate_asset_hub_ws_url)
+                .await?;
+        return Ok(rpc.into());
+    }
+}
+
 pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
     loop {
         match create_people_rpc_client_from_config().await {
+            Ok(rpc_client) => {
+                let legacy_rpc =
+                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+                let chain = legacy_rpc.system_chain().await.unwrap_or_default();
+                let name = legacy_rpc.system_name().await.unwrap_or_default();
+                let version = legacy_rpc.system_version().await.unwrap_or_default();
+
+                info!(
+                    "Connected to {} network * Substrate node {} v{}",
+                    chain, name, version
+                );
+
+                match create_substrate_client_from_rpc_client(rpc_client.clone()).await {
+                    Ok(client) => {
+                        break client;
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                        thread::sleep(time::Duration::from_secs(6));
+                    }
+                }
+            }
+            Err(e) => {
+                error!("{}", e);
+                thread::sleep(time::Duration::from_secs(6));
+            }
+        }
+    }
+}
+
+pub async fn create_or_await_asset_hub_client() -> OnlineClient<SubstrateConfig> {
+    loop {
+        match create_asset_hub_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
                     LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
@@ -316,10 +357,14 @@ pub fn get_keypair_from_seed_file() -> Result<Keypair, CrunchError> {
 
 pub struct Crunch {
     runtime: SupportedRuntime,
+    // Note: Consider setting RC client API to become optional in chains where staking is already LIVE on Asset Hub;
+    // Example, if substrate_ws_url is not provided then the Active/Inactive status for each stash is not displayed;
     client: OnlineClient<SubstrateConfig>,
     rpc: LegacyRpcMethods<SubstrateConfig>,
-    // Note: Use people client as optional only until we get people chain available
-    // on Polkadot, as soon as it is available it can go away
+    // Note: AssetHub client API could stop being optional after all staking operations are mgrated to AH on all supported crunch chains.
+    asset_hub_client_option: Option<OnlineClient<SubstrateConfig>>,
+    // Note: People client API is optional, if substrate_people_ws_url is not defined
+    // identities are just not displayed and the full stash is displayed instead.
     people_client_option: Option<OnlineClient<SubstrateConfig>>,
     matrix: Matrix,
 }
@@ -328,16 +373,15 @@ impl Crunch {
     async fn new() -> Crunch {
         let config = CONFIG.clone();
 
-        // NOTE: initialize relay or asset hub client depending if staking is enabled on asset hub.
         let (client, rpc, runtime) = create_or_await_substrate_node_client().await;
 
-        // Initialize people node client if supported by relay chain and people url is defined by user if RPC selected
+        // Initialize people node client if supported and people url is defined
         let people_client_option = if let Some(people_runtime) = runtime.people_runtime()
         {
             if config.light_client_enabled {
                 let people_client = create_or_await_people_client().await;
                 Some(people_client)
-            } else if !people_runtime.default_rpc_url().is_empty() {
+            } else if !people_runtime.rpc_url().is_empty() {
                 let people_client = create_or_await_people_client().await;
                 Some(people_client)
             } else {
@@ -346,6 +390,22 @@ impl Crunch {
         } else {
             None
         };
+
+        // Initialize AH node client if supported and AH url is defined
+        let asset_hub_client_option =
+            if let Some(ah_runtime) = runtime.asset_hub_runtime() {
+                if config.light_client_enabled {
+                    let ah_client = create_or_await_asset_hub_client().await;
+                    Some(ah_client)
+                } else if !ah_runtime.rpc_url().is_empty() {
+                    let ah_client = create_or_await_asset_hub_client().await;
+                    Some(ah_client)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
 
         // Initialize matrix client
         let mut matrix: Matrix = Matrix::new();
@@ -358,6 +418,7 @@ impl Crunch {
             runtime,
             client,
             rpc,
+            asset_hub_client_option,
             people_client_option,
             matrix,
         }
@@ -365,6 +426,10 @@ impl Crunch {
 
     pub fn client(&self) -> &OnlineClient<SubstrateConfig> {
         &self.client
+    }
+
+    pub fn asset_hub_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
+        &self.asset_hub_client_option
     }
 
     pub fn people_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
@@ -415,7 +480,113 @@ impl Crunch {
         spawn_crunch_once();
     }
 
+    async fn validate_relay_genesis(&self) -> Result<(), CrunchError> {
+        let api = self.client();
+        let state_root = self.runtime.chain_state_root_hash();
+
+        if let Some(header) = self
+            .rpc()
+            .chain_get_header(Some(api.genesis_hash()))
+            .await?
+        {
+            if header.state_root != state_root {
+                let config = CONFIG.clone();
+                return Err(CrunchError::GenesisError(format!(
+                    "verify {} endpoint {} as state root {}",
+                    self.runtime, config.substrate_ws_url, header.state_root
+                )));
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn validate_asset_hub_genesis(&self) -> Result<(), CrunchError> {
+        let config = CONFIG.clone();
+
+        if config.light_client_enabled {
+            return Ok(());
+        }
+
+        if let Some(asset_hub_runtime) = self.runtime.asset_hub_runtime() {
+            let state_root = asset_hub_runtime.chain_state_root_hash();
+
+            let rpc_client =
+                if let Err(_) = validate_url_is_secure(&asset_hub_runtime.rpc_url()) {
+                    RpcClient::from_insecure_url(&asset_hub_runtime.rpc_url()).await?
+                } else {
+                    RpcClient::from_url(&asset_hub_runtime.rpc_url()).await?
+                };
+
+            let api = self
+                .asset_hub_client()
+                .as_ref()
+                .expect("AH API to be available");
+
+            let rpc = LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+            if let Some(header) = rpc.chain_get_header(Some(api.genesis_hash())).await? {
+                if header.state_root != state_root {
+                    return Err(CrunchError::GenesisError(format!(
+                        "verify {} endpoint {} as state root {}",
+                        asset_hub_runtime.to_string(),
+                        asset_hub_runtime.rpc_url(),
+                        header.state_root
+                    )));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn validate_people_genesis(&self) -> Result<(), CrunchError> {
+        let config = CONFIG.clone();
+
+        if config.light_client_enabled {
+            return Ok(());
+        }
+
+        if let Some(people_runtime) = self.runtime.people_runtime() {
+            let state_root = people_runtime.chain_state_root_hash();
+
+            let rpc_client =
+                if let Err(_) = validate_url_is_secure(&people_runtime.rpc_url()) {
+                    RpcClient::from_insecure_url(&people_runtime.rpc_url()).await?
+                } else {
+                    RpcClient::from_url(&people_runtime.rpc_url()).await?
+                };
+
+            let api = self
+                .people_client()
+                .as_ref()
+                .expect("People API to be available");
+
+            let rpc = LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+            if let Some(header) = rpc.chain_get_header(Some(api.genesis_hash())).await? {
+                if header.state_root != state_root {
+                    return Err(CrunchError::GenesisError(format!(
+                        "verify {} endpoint {} as state root {}",
+                        people_runtime.to_string(),
+                        people_runtime.rpc_url(),
+                        header.state_root
+                    )));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn validate_genesis(&self) -> Result<(), CrunchError> {
+        self.validate_relay_genesis().await?;
+        self.validate_asset_hub_genesis().await?;
+        self.validate_people_genesis().await?;
+
+        Ok(())
+    }
+
     async fn inspect(&self) -> Result<(), CrunchError> {
+        self.validate_genesis().await?;
         match self.runtime {
             SupportedRuntime::Polkadot => polkadot::inspect(self).await,
             SupportedRuntime::Kusama => kusama::inspect(self).await,
@@ -425,15 +596,18 @@ impl Crunch {
     }
 
     async fn try_run_batch(&self) -> Result<(), CrunchError> {
+        self.validate_genesis().await?;
         match self.runtime {
             SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
             SupportedRuntime::Kusama => kusama::try_crunch(self).await,
             SupportedRuntime::Paseo => paseo::try_crunch(self).await,
             SupportedRuntime::Westend => westend::try_crunch(self).await,
+            // _ => panic!("Unsupported runtime"),
         }
     }
 
     async fn run_and_subscribe_era_paid_events(&self) -> Result<(), CrunchError> {
+        self.validate_genesis().await?;
         match self.runtime {
             SupportedRuntime::Polkadot => {
                 polkadot::run_and_subscribe_era_paid_events(self).await
@@ -446,7 +620,7 @@ impl Crunch {
             }
             SupportedRuntime::Westend => {
                 westend::run_and_subscribe_era_paid_events(self).await
-            }
+            } // _ => panic!("Unsupported runtime"),
         }
     }
 }
