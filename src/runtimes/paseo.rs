@@ -50,6 +50,7 @@ use subxt::{
     ext::codec::{Decode, Encode},
     tx::TxStatus,
     utils::{AccountId32, MultiAddress},
+    OnlineClient, SubstrateConfig,
 };
 use subxt_signer::sr25519::Keypair;
 
@@ -63,6 +64,8 @@ pub const ASSET_HUB_PASEO_SPEC: &str =
     derive_for_all_types = "Clone, PartialEq"
 )]
 mod rc_metadata {}
+
+use rc_metadata::runtime_types::pallet_rc_migrator::MigrationStage;
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/asset_hub_paseo_metadata_small.scale",
@@ -106,10 +109,8 @@ pub async fn run_and_subscribe_era_paid_events(
     try_crunch(&crunch).await?;
     let mut latest_block_number_processed: Option<u32> = Some(0);
     info!("Subscribe 'EraPaid' on-chain finalized event");
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
+    let api = get_staking_api(&crunch).await?;
+
     let mut block_sub = api.blocks().subscribe_finalized().await?;
     while let Some(block) = block_sub.next().await {
         // let block = block?;
@@ -174,10 +175,8 @@ pub async fn run_and_subscribe_era_paid_events(
 
 pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
+
+    let api = get_staking_api(&crunch).await?;
 
     let signer_keypair: Keypair = get_keypair_from_seed_file()?;
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
@@ -364,10 +363,8 @@ pub async fn try_run_batch_pool_members(
     signer: &Keypair,
 ) -> Result<NominationPoolsSummary, CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
+
+    let api = get_staking_api(&crunch).await?;
 
     let mut calls_for_batch: Vec<Call> = vec![];
     let mut summary: NominationPoolsSummary = Default::default();
@@ -587,10 +584,8 @@ pub async fn try_run_batch_payouts(
     validators: &mut Validators,
 ) -> Result<PayoutSummary, CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
+
+    let api = get_staking_api(&crunch).await?;
 
     // Add unclaimed eras into payout staker calls
     let mut calls_for_batch: Vec<Call> = vec![];
@@ -1298,10 +1293,7 @@ fn str(bytes: Vec<u8>) -> String {
 }
 
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
+    let api = get_staking_api(&crunch).await?;
 
     let stashes = get_stashes(&crunch).await?;
     info!("Inspect {} stashes -> {}", stashes.len(), stashes.join(","));
@@ -1679,4 +1671,48 @@ pub async fn try_fetch_stashes_from_pool_ids(
     );
 
     Ok(Some(active))
+}
+
+// NOTE: get_staking_api is a temporary sanity check related to Asset Hub Migration
+#[async_recursion]
+pub async fn get_staking_api(
+    crunch: &Crunch,
+) -> Result<OnlineClient<SubstrateConfig>, CrunchError> {
+    let config = CONFIG.clone();
+    let api = crunch.client().clone();
+
+    let migration_stage_addr = rc_metadata::storage().rc_migrator().rc_migration_stage();
+    let migration_stage = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&migration_stage_addr)
+        .await?;
+
+    if let Some(stage) = migration_stage {
+        match stage {
+            MigrationStage::Pending | MigrationStage::Scheduled { .. } => {
+                // All staking is available at RC at this stage
+                return Ok(crunch.client().clone());
+            }
+            MigrationStage::MigrationDone => {
+                // All staking is available at AH at this stage
+                return Ok(crunch
+                    .asset_hub_client()
+                    .as_ref()
+                    .expect("AH API to be available")
+                    .clone());
+            }
+            _ => {
+                warn!(
+                    "Can't perform operation while AHM is ongoing. AHM stage: {:?}",
+                    stage
+                );
+                thread::sleep(time::Duration::from_secs(config.sanity_sleep_interval));
+                return get_staking_api(&crunch).await;
+            }
+        }
+    } else {
+        return Ok(crunch.client().clone());
+    }
 }

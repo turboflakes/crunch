@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix issue on querying the validator active status introduced in previous released.
+- Fix breaking change introduced in previous release where the `chain` required to be present in the CLI. The `chain` is only mandatory when in combination with `--enable-light-client` feature.
+- Add validity check on all genesis state roots hashes for all chains
+- Add env `CRUNCH_MAXIMUM_ERROR_INTERVAL` allows crunch to restart operations in case of RPC connection errors every 24 hours as default.
+
+NOTE: To prevent unnecessary operations during asset hub migration a sanity check will be introduced on crunch supported chains KUSAMA and POLKADOT in future releases.
+Currently available on PASEO ONLY: Add env `CRUNCH_SANITY_SLEEP_INTERVAL` which allows crunch to check asset hub migration stage. The logic is as follows: If AHM is in progress just hold operations and try again later after sleep interval. If AHM is scheduled or pending, continue operations on RC. If AHM is completed, continue operations on AH. This is valid for all crunch execution modes: `era, daily, turbo, once`;
+
+
 ## [0.24.1] - 2025-09-23
 
 ## Changed

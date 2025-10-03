@@ -43,13 +43,27 @@ lazy_static! {
 }
 
 /// provides default value for interval if CRUNCH_INTERVAL env var is not set
+/// Unit is seconds
 fn default_interval() -> u64 {
     21600
 }
 
 /// provides default value for error interval if CRUNCH_ERROR_INTERVAL env var is not set
+/// Unit is minutes
 fn default_error_interval() -> u32 {
     2
+}
+
+/// provides default value for maximum error interval if CRUNCH_MAXIMUM_ERROR_INTERVAL env var is not set
+/// Unit is minutes, default is 24 hours
+fn default_maximum_error_interval() -> u32 {
+    60 * 24
+}
+
+/// provides default value for AHM sanity check sleep interval if CRUNCH_SANITY_SLEEP_INTERVAL env var is not set
+/// Unit is seconds, default is 10 minutes
+fn default_sanity_sleep_interval() -> u64 {
+    60 * 10
 }
 
 /// provides default value for seed_path if CRUNCH_SEED_PATH env var is not set
@@ -120,6 +134,10 @@ pub struct Config {
     pub interval: u64,
     #[serde(default = "default_error_interval")]
     pub error_interval: u32,
+    #[serde(default = "default_maximum_error_interval")]
+    pub maximum_error_interval: u32,
+    #[serde(default = "default_sanity_sleep_interval")]
+    pub sanity_sleep_interval: u64,
     #[serde(default)]
     pub substrate_ws_url: String,
     #[serde(default)]

@@ -57,8 +57,7 @@ use subxt_signer::sr25519::Keypair;
 
 pub const KUSAMA_SPEC: &str = include_str!("../../chain_specs/kusama.json");
 pub const PEOPLE_KUSAMA_SPEC: &str = include_str!("../../chain_specs/people-kusama.json");
-pub const ASSET_HUB_KUSAMA_SPEC: &str =
-    include_str!("../../chain_specs/asset-hub-kusama.json");
+// pub const ASSET_HUB_KUSAMA_SPEC: &str = include_str!("../../chain_specs/asset-hub-kusama.json");
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/kusama_metadata_small.scale",

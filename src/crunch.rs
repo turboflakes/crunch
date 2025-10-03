@@ -592,6 +592,7 @@ impl Crunch {
             SupportedRuntime::Kusama => kusama::inspect(self).await,
             SupportedRuntime::Paseo => paseo::inspect(self).await,
             SupportedRuntime::Westend => westend::inspect(self).await,
+            // _ => panic!("Unsupported runtime"),
         }
     }
 
@@ -637,7 +638,10 @@ fn spawn_and_restart_subscription_on_error() {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
                     _ => {
                         error!("{}", e);
-                        let sleep_min = u32::pow(config.error_interval, n);
+                        let mut sleep_min = u32::pow(config.error_interval, n);
+                        if sleep_min > config.maximum_error_interval {
+                            sleep_min = config.maximum_error_interval;
+                        }
                         let message = format!("On hold for {} min!", sleep_min);
                         let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", sleep_min);
                         c.send_message(&message, &formatted_message).await.unwrap();
