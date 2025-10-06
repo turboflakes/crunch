@@ -19,6 +19,7 @@ subxt metadata --url wss://paseo.rpc.turboflakes.io:443 --pallets System,Session
 # AssetHub Chains
 subxt metadata --url wss://asset-hub-westend.rpc.turboflakes.io:443 --pallets System,Session,Balances,Staking,Utility,NominationPools,Identity -f bytes > metadata/asset_hub_westend_metadata_small.scale
 subxt metadata --url wss://asset-hub-paseo.rpc.turboflakes.io:443 --pallets System,Session,Balances,Staking,Utility,NominationPools,Identity -f bytes > metadata/asset_hub_paseo_metadata_small.scale
+subxt metadata --url wss://asset-hub-kusama.rpc.turboflakes.io:443 --pallets System,Session,Balances,Staking,Utility,NominationPools,Identity -f bytes > metadata/asset_hub_kusama_metadata_small.scale
 
 # People Chains
 subxt metadata --url wss://people-westend.rpc.turboflakes.io:443 --pallets Identity -f bytes > metadata/people_westend_metadata_small.scale
