@@ -297,7 +297,10 @@ pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
     }
 }
 
-pub async fn create_or_await_asset_hub_client() -> OnlineClient<SubstrateConfig> {
+pub async fn create_or_await_asset_hub_client() -> (
+    OnlineClient<SubstrateConfig>,
+    LegacyRpcMethods<SubstrateConfig>,
+) {
     loop {
         match create_asset_hub_rpc_client_from_config().await {
             Ok(rpc_client) => {
@@ -314,7 +317,7 @@ pub async fn create_or_await_asset_hub_client() -> OnlineClient<SubstrateConfig>
 
                 match create_substrate_client_from_rpc_client(rpc_client.clone()).await {
                     Ok(client) => {
-                        break client;
+                        break (client, legacy_rpc);
                     }
                     Err(e) => {
                         error!("{}", e);
@@ -363,6 +366,7 @@ pub struct Crunch {
     rpc: LegacyRpcMethods<SubstrateConfig>,
     // Note: AssetHub client API could stop being optional after all staking operations are mgrated to AH on all supported crunch chains.
     asset_hub_client_option: Option<OnlineClient<SubstrateConfig>>,
+    asset_hub_rpc_option: Option<LegacyRpcMethods<SubstrateConfig>>,
     // Note: People client API is optional, if substrate_people_ws_url is not defined
     // identities are just not displayed and the full stash is displayed instead.
     people_client_option: Option<OnlineClient<SubstrateConfig>>,
@@ -392,20 +396,21 @@ impl Crunch {
         };
 
         // Initialize AH node client if supported and AH url is defined
-        let asset_hub_client_option =
-            if let Some(ah_runtime) = runtime.asset_hub_runtime() {
-                if config.light_client_enabled {
-                    let ah_client = create_or_await_asset_hub_client().await;
-                    Some(ah_client)
-                } else if !ah_runtime.rpc_url().is_empty() {
-                    let ah_client = create_or_await_asset_hub_client().await;
-                    Some(ah_client)
-                } else {
-                    None
-                }
+        let (asset_hub_client_option, asset_hub_rpc_option) = if let Some(ah_runtime) =
+            runtime.asset_hub_runtime()
+        {
+            if config.light_client_enabled {
+                let (ah_client, ah_rpc_client) = create_or_await_asset_hub_client().await;
+                (Some(ah_client), Some(ah_rpc_client))
+            } else if !ah_runtime.rpc_url().is_empty() {
+                let (ah_client, ah_rpc_client) = create_or_await_asset_hub_client().await;
+                (Some(ah_client), Some(ah_rpc_client))
             } else {
-                None
-            };
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
 
         // Initialize matrix client
         let mut matrix: Matrix = Matrix::new();
@@ -419,6 +424,7 @@ impl Crunch {
             client,
             rpc,
             asset_hub_client_option,
+            asset_hub_rpc_option,
             people_client_option,
             matrix,
         }
@@ -430,6 +436,10 @@ impl Crunch {
 
     pub fn asset_hub_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
         &self.asset_hub_client_option
+    }
+
+    pub fn asset_hub_rpc(&self) -> &Option<LegacyRpcMethods<SubstrateConfig>> {
+        &self.asset_hub_rpc_option
     }
 
     pub fn people_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
@@ -445,8 +455,8 @@ impl Crunch {
         &self.matrix
     }
 
-    pub fn subdomain(&self) -> String {
-        self.runtime.subdomain()
+    pub fn subdomain(&self, is_staking_on_asset_hub: bool) -> String {
+        self.runtime.subdomain(is_staking_on_asset_hub)
     }
 
     pub async fn send_message(
