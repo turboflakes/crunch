@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2025-10-06
+
+- Support AHM on Kusama
+- Update subxt to `v0.44.0`
+- Update metadata polkadot/1006002
+- Update metadata people-polkadot/1006001
+- Update metadata kusama/1009001
+- Update metadata asset-hub-kusama/1009001
+- Update metadata people-kusama/1009001
+- Update metadata paseo/1006002
+- Update metadata asset-hub-paseo/1006002
+- Update metadata people-paseo/1007001
+- Update metadata westend/1020001
+- Update metadata asset-hub-westend/1020001
+- Update metadata people-westend/1020001
 
 ## [0.24.2] - 2025-10-03
 
