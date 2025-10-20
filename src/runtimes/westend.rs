@@ -1690,18 +1690,17 @@ pub async fn try_fetch_pool_operators_for_compound(
                 ]
                 .contains(&permissions)
                 {
-                    // fetch pending rewards
-                    let call_name = format!("NominationPoolsApi_pending_rewards");
-                    let bytes = crunch
-                        .rpc()
-                        .state_call(
-                            &call_name,
-                            Some(&pool.roles.depositor.clone().encode()),
-                            None,
-                        )
-                        .await?;
+                    // fetch pool owner pending rewards
+                    let runtime_api_call = ah_metadata::apis()
+                        .nomination_pools_api()
+                        .pending_rewards(pool.roles.depositor.clone());
 
-                    let claimable: u128 = Decode::decode(&mut &*bytes)?;
+                    let claimable = api
+                        .runtime_api()
+                        .at_latest()
+                        .await?
+                        .call(runtime_api_call)
+                        .await?;
 
                     if claimable > config.pool_compound_threshold as u128 {
                         members.push(pool.roles.depositor.clone());
@@ -1769,14 +1768,17 @@ pub async fn try_fetch_pool_members_for_compound(
                 .await?
             {
                 if config.pool_ids.contains(&pool_member.pool_id) {
-                    // fetch pending rewards
-                    let call_name = format!("NominationPoolsApi_pending_rewards");
-                    let bytes = crunch
-                        .rpc()
-                        .state_call(&call_name, Some(&member.encode()), None)
-                        .await?;
+                    // fetch pool member pending rewards
+                    let runtime_api_call = ah_metadata::apis()
+                        .nomination_pools_api()
+                        .pending_rewards(member.clone());
 
-                    let claimable: u128 = Decode::decode(&mut &*bytes)?;
+                    let claimable = api
+                        .runtime_api()
+                        .at_latest()
+                        .await?
+                        .call(runtime_api_call)
+                        .await?;
 
                     if claimable > config.pool_compound_threshold as u128 {
                         members.push(member);
