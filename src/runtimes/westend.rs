@@ -67,24 +67,30 @@ mod rc_metadata {}
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/asset_hub_westend_metadata_small.scale",
-    derive_for_all_types = "Clone, PartialEq"
+    derive_for_all_types = "PartialEq, Clone"
 )]
 mod ah_metadata {}
 
 use ah_metadata::{
     nomination_pools::events::PoolCommissionClaimed,
     runtime_types::{
+        asset_hub_westend_runtime::OriginCaller,
         bounded_collections::{
             bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec,
             weak_bounded_vec::WeakBoundedVec,
         },
+        frame_support::dispatch::RawOrigin,
         pallet_nomination_pools::{BondExtra, ClaimPermission},
+        xcm_runtime_apis::dry_run::CallDryRunEffects,
     },
     staking::events::{EraPaid, PayoutStarted, Rewarded},
     system::events::ExtrinsicFailed,
-    utility::events::{
-        BatchCompleted, BatchCompletedWithErrors, BatchInterrupted, ItemCompleted,
-        ItemFailed,
+    utility::{
+        calls::types::with_weight::Weight,
+        events::{
+            BatchCompleted, BatchCompletedWithErrors, BatchInterrupted, ItemCompleted,
+            ItemFailed,
+        },
     },
 };
 
@@ -587,16 +593,310 @@ pub async fn try_run_batch_payouts(
     signer: &Keypair,
     validators: &mut Validators,
 ) -> Result<PayoutSummary, CrunchError> {
-    let config = CONFIG.clone();
-    let api = crunch
+    let ah_api = crunch
         .asset_hub_client()
         .as_ref()
         .expect("AH API to be available");
 
-    // Add unclaimed eras into payout staker calls
-    let mut calls_for_batch: Vec<Call> = vec![];
+    // Get block weights
+    let block_weights_addr = ah_metadata::constants().system().block_weights();
+    let block_weights = ah_api.constants().at(&block_weights_addr)?;
+
+    let max_extrinsic_weight = block_weights
+        .per_class
+        .normal
+        .max_extrinsic
+        .expect("Max extrinsic weights not found.");
+
+    debug!("Max extrinsic weight: {:?}", max_extrinsic_weight);
+
+    // Get Existential Deposit
+    let ed_addr = ah_metadata::constants().balances().existential_deposit();
+    let existencial_deposit = ah_api.constants().at(&ed_addr)?;
+
     // let mut validators = collect_validators_data(&crunch, active_era_index).await?;
     let mut summary: PayoutSummary = Default::default();
+
+    // Add unclaimed eras into payout staker calls
+    let mut calls_for_batch: Vec<Call> = build_calls_for_batch(validators, &mut summary)?;
+
+    let mut iteration = Some(1);
+    while let Some(x) = iteration {
+        debug!("try_run_batch_payouts: {} {}", x, calls_for_batch.len());
+
+        // Fetch signer free balance
+        let signer_addr = ah_metadata::storage()
+            .system()
+            .account(signer.public_key().into());
+        let available_balance = if let Some(signer_info) = ah_api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&signer_addr)
+            .await?
+        {
+            signer_info.data.free
+        } else {
+            0
+        };
+
+        //
+        // validate_calls_for_batch
+        //
+        let (valid_calls, pending_calls) = validate_calls_for_batch(
+            crunch,
+            signer,
+            calls_for_batch.clone(),
+            available_balance,
+            existencial_deposit,
+            max_extrinsic_weight.clone(),
+            None,
+        )
+        .await?;
+
+        //
+        // sign_and_submit_maximum_calls
+        //
+        if valid_calls.len() > 0 {
+            sign_and_submit_maximum_calls(
+                crunch,
+                signer,
+                valid_calls,
+                validators,
+                &mut summary,
+            )
+            .await?;
+        }
+
+        if let Some(next_calls) = pending_calls {
+            calls_for_batch = next_calls;
+            iteration = Some(x + 1);
+        } else {
+            iteration = None;
+        }
+    }
+
+    debug!("validators {:?}", validators);
+
+    // Prepare summary report
+    summary.total_validators = validators.len() as u32;
+
+    Ok(summary)
+}
+
+pub async fn sign_and_submit_maximum_calls(
+    crunch: &Crunch,
+    signer: &Keypair,
+    calls: Vec<Call>,
+    validators: &mut Validators,
+    summary: &mut PayoutSummary,
+) -> Result<(), CrunchError> {
+    let config = CONFIG.clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    let ah_rpc = crunch
+        .asset_hub_rpc()
+        .as_ref()
+        .expect("AH Legacy API to be available");
+
+    // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
+    let tx: subxt::tx::DefaultPayload<ah_metadata::utility::calls::types::ForceBatch> =
+        ah_metadata::tx()
+            .utility()
+            .force_batch(calls.clone())
+            .unvalidated();
+
+    // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
+    let tx_params = if config.tx_mortal_period > 0 {
+        TxParams::new()
+            .tip(config.tx_tip.into())
+            .mortal(config.tx_mortal_period)
+            .build()
+    } else {
+        TxParams::new().tip(config.tx_tip.into()).build()
+    };
+
+    // Log call data in debug mode
+    if config.is_debug {
+        let call_data = ah_api.tx().call_data(&tx)?;
+        let hex_call_data = to_hex(&call_data);
+        debug!("call_data: {hex_call_data}");
+    }
+
+    let mut tx_progress = ah_api
+        .tx()
+        .sign_and_submit_then_watch(&tx, signer, tx_params)
+        .await?;
+
+    let mut validator_index: ValidatorIndex = None;
+    let mut era_index: EraIndex = 0;
+    let mut validator_amount_value: ValidatorAmount = 0;
+    let mut nominators_amount_value: NominatorsAmount = 0;
+    let mut nominators_quantity = 0;
+
+    while let Some(status) = tx_progress.next().await {
+        match status? {
+            TxStatus::InFinalizedBlock(in_block) => {
+                // Get block number
+                let block_number = if let Some(header) =
+                    ah_rpc.chain_get_header(Some(in_block.block_hash())).await?
+                {
+                    header.number
+                } else {
+                    0
+                };
+
+                // Fetch events from block
+                let tx_events = in_block.fetch_events().await?;
+
+                // Iterate over events to calculate respective reward amounts
+                for event in tx_events.iter() {
+                    let event = event?;
+                    if let Some(_ev) = event.as_event::<ExtrinsicFailed>()? {
+                        let dispatch_error = DispatchError::decode_from(
+                            event.field_bytes(),
+                            ah_api.metadata(),
+                        )?;
+                        return Err(dispatch_error.into());
+                    } else if let Some(ev) = event.as_event::<PayoutStarted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#payoutstartedu32-accountid32
+                        // PayoutStarted(u32, AccountId32)
+                        // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
+                        //
+                        debug!("{:?}", ev);
+                        let validator_index_ref = validators
+                            .iter()
+                            .position(|v| v.stash == ev.validator_stash);
+                        era_index = ev.era_index;
+                        validator_index = validator_index_ref;
+                        validator_amount_value = 0;
+                        nominators_amount_value = 0;
+                        nominators_quantity = 0;
+                    } else if let Some(ev) = event.as_event::<Rewarded>()? {
+                        // https://polkadot.js.org/docs/substrate/events#rewardedaccountid32-u128
+                        // Rewarded(AccountId32, u128)
+                        // summary: An account has been rewarded for their signed submission being finalized
+                        //
+                        debug!("{:?}", ev);
+                        if let Some(i) = validator_index {
+                            let validator = &mut validators[i];
+                            if ev.stash == validator.stash {
+                                validator_amount_value = ev.amount;
+                            } else {
+                                nominators_amount_value += ev.amount;
+                                nominators_quantity += 1;
+                            }
+                        }
+                    } else if let Some(_ev) = event.as_event::<ItemCompleted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#itemcompleted
+                        // summary: A single item within a Batch of dispatches has completed with no error.
+                        //
+                        if let Some(i) = validator_index {
+                            let validator = &mut validators[i];
+
+                            // NOTE: Currently we do not track which page is being payout here.
+                            // It should be changed when payout_stakers_by_page is in place
+                            validator.claimed.push((era_index, 0));
+                            // Fetch stash points
+                            let points = get_validator_points_info(
+                                &crunch,
+                                era_index,
+                                &validator.stash,
+                            )
+                            .await?;
+
+                            let p = Payout {
+                                block_number,
+                                extrinsic: tx_events.extrinsic_hash(),
+                                era_index,
+                                validator_amount_value,
+                                nominators_amount_value,
+                                nominators_quantity,
+                                points,
+                            };
+                            validator.payouts.push(p);
+                            summary.calls_succeeded += 1;
+                        }
+                    } else if let Some(_ev) = event.as_event::<ItemFailed>()? {
+                        // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
+                        // summary: A single item within a Batch of dispatches has completed with error.
+                        //
+                        summary.calls_failed += 1;
+                    } else if let Some(_ev) = event.as_event::<BatchCompleted>()? {
+                        // https://polkadot.js.org/docs/substrate/events#batchcompleted
+                        // summary: Batch of dispatches completed fully with no error.
+                        info!("Batch Completed ({} calls)", calls.len());
+                    } else if let Some(_ev) =
+                        event.as_event::<BatchCompletedWithErrors>()?
+                    {
+                        // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
+                        // summary: Batch of dispatches completed but has errors.
+                        info!("Batch Completed with errors ({} calls)", calls.len());
+                    } else if let Some(ev) = event.as_event::<BatchInterrupted>()? {
+                        // NOTE: Deprecate with force_batch
+                        //
+                        // https://polkadot.js.org/docs/substrate/events#batchinterruptedu32-spruntimedispatcherror
+                        // summary: Batch of dispatches did not complete fully. Index of first failing dispatch given, as well as the error.
+                        //
+                        // Fix: https://github.com/turboflakes/crunch/issues/4
+                        // Most likely the batch was interrupted because of an AlreadyClaimed era
+                        // BatchInterrupted { index: 0, error: Module { index: 6, error: 14 } }
+                        warn!("{:?}", ev);
+                        if let Call::Staking(call) =
+                            &calls[usize::try_from(ev.index).unwrap()]
+                        {
+                            match &call {
+                                StakingCall::payout_stakers {
+                                    validator_stash, ..
+                                } => {
+                                    warn!(
+                                        "Batch interrupted at stash: {:?}",
+                                        validator_stash
+                                    );
+                                    let validator_index = &mut validators
+                                        .iter()
+                                        .position(|v| v.stash == *validator_stash);
+
+                                    if let Some(i) = *validator_index {
+                                        let validator = &mut validators[i];
+                                        // TODO: decode DispatchError to a readable format
+                                        validator
+                                            .warnings
+                                            .push("⚡ Batch interrupted ⚡".to_string());
+                                    }
+                                }
+                                _ => unreachable!(),
+                            };
+                        }
+                    }
+                }
+            }
+            TxStatus::Error { message } => {
+                warn!("TxStatus: {message:?}");
+            }
+            TxStatus::Invalid { message } => {
+                warn!("TxStatus: {message:?}");
+            }
+            TxStatus::Dropped { message } => {
+                warn!("TxStatus: {message:?}");
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+fn build_calls_for_batch(
+    validators: &mut Validators,
+    summary: &mut PayoutSummary,
+) -> Result<Vec<Call>, CrunchError> {
+    let config = CONFIG.clone();
+    // Add unclaimed eras into payout staker calls
+    let mut calls_for_batch: Vec<Call> = vec![];
 
     for v in validators.into_iter() {
         //
@@ -630,261 +930,178 @@ pub async fn try_run_batch_payouts(
             summary.next_minimum_expected += 1;
         }
     }
+    Ok(calls_for_batch)
+}
 
-    if calls_for_batch.len() > 0 {
-        // TODO check batch call weight or maximum_calls [default: 4]
-        //
-        // Calculate the number of extrinsics (iteractions) based on the maximum number of calls per batch
-        // and the number of calls to be sent
-        //
-        let maximum_batch_calls =
-            (calls_for_batch.len() as f32 / config.maximum_calls as f32).ceil() as u32;
-        let mut iteration = Some(0);
-        while let Some(x) = iteration {
-            if x == maximum_batch_calls {
-                iteration = None;
-            } else {
-                let mut validator_index: ValidatorIndex = None;
-                let mut era_index: EraIndex = 0;
-                let mut validator_amount_value: ValidatorAmount = 0;
-                let mut nominators_amount_value: NominatorsAmount = 0;
-                let mut nominators_quantity = 0;
+#[async_recursion]
+pub async fn validate_calls_for_batch(
+    crunch: &Crunch,
+    signer: &Keypair,
+    calls: Vec<Call>,
+    available_balance: u128,
+    existencial_deposit: u128,
+    max_weight: Weight,
+    pending_calls: Option<Vec<Call>>,
+) -> Result<(Vec<Call>, Option<Vec<Call>>), CrunchError> {
+    type UtilityCall = ah_metadata::runtime_types::pallet_utility::pallet::Call;
+    let batch_call = Call::Utility(UtilityCall::force_batch {
+        calls: calls.clone(),
+    });
 
-                let call_start_index: usize =
-                    (x * config.maximum_calls).try_into().unwrap();
-                let call_end_index: usize = if config.maximum_calls
-                    > calls_for_batch[call_start_index..].len() as u32
-                {
-                    ((x * config.maximum_calls)
-                        + calls_for_batch[call_start_index..].len() as u32)
-                        .try_into()
-                        .unwrap()
-                } else {
-                    ((x * config.maximum_calls) + config.maximum_calls)
-                        .try_into()
-                        .unwrap()
-                };
+    debug!("validate number of calls: {:?}", calls.len());
 
-                debug!(
-                    "batch call indexes [{:?} : {:?}]",
-                    call_start_index, call_end_index
+    match validate_call_via_tx_payment(
+        &crunch,
+        batch_call.clone(),
+        available_balance,
+        existencial_deposit,
+        max_weight.clone(),
+    )
+    .await
+    {
+        Ok(_) => {
+            if let Some(ref pending) = pending_calls {
+                info!(
+                    "Batch call validated successfully, pending calls: {:?}",
+                    pending.len()
                 );
+            } else {
+                info!("Batch call validated: {:?}", batch_call);
+            }
 
-                let calls_for_batch_clipped =
-                    calls_for_batch[call_start_index..call_end_index].to_vec();
+            return Ok((calls.clone(), pending_calls));
+        }
+        Err(err) => match err {
+            CrunchError::MaxWeightExceeded(e) => {
+                warn!("Max weight exceeded: {}", e);
+                if calls.len() > 1 {
+                    let new_calls = calls[..calls.len() - 1].to_vec();
+                    let last_call = calls[calls.len() - 1..].to_vec();
+                    let pending_calls = if let Some(mut pending) = pending_calls {
+                        pending.extend(last_call);
+                        Some(pending)
+                    } else {
+                        Some(last_call)
+                    };
 
-                // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
-                let tx: subxt::tx::DefaultPayload<
-                    ah_metadata::utility::calls::types::ForceBatch,
-                > = ah_metadata::tx()
-                    .utility()
-                    .force_batch(calls_for_batch_clipped.clone())
-                    .unvalidated();
-
-                // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
-                let tx_params = if config.tx_mortal_period > 0 {
-                    TxParams::new()
-                        .tip(config.tx_tip.into())
-                        .mortal(config.tx_mortal_period)
-                        .build()
-                } else {
-                    TxParams::new().tip(config.tx_tip.into()).build()
-                };
-
-                // Log call data in debug mode
-                if config.is_debug {
-                    let call_data = api.tx().call_data(&tx)?;
-                    let hex_call_data = to_hex(&call_data);
-                    debug!("call_data: {hex_call_data}");
+                    return validate_calls_for_batch(
+                        crunch,
+                        signer,
+                        new_calls,
+                        available_balance,
+                        existencial_deposit,
+                        max_weight.clone(),
+                        pending_calls,
+                    )
+                    .await;
                 }
+                // NOTE: If there's only one call left, we can't split it further.
+                // This should never happen, as a single payout should always be able to fit with the extrinsic weight limit.
+                return Err(CrunchError::MaxWeightExceededForOneExtrinsic);
+            }
+            _ => {
+                return Err(CrunchError::DryRunError(format!("{:?}", err)));
+            }
+        },
+    }
+}
 
-                let mut tx_progress = api
-                    .tx()
-                    .sign_and_submit_then_watch(&tx, signer, tx_params)
-                    .await?;
+async fn validate_call_via_tx_payment(
+    crunch: &Crunch,
+    call: Call,
+    available_balance: u128,
+    existencial_deposit: u128,
+    max_weight: Weight,
+) -> Result<(), CrunchError> {
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
-                while let Some(status) = tx_progress.next().await {
-                    match status? {
-                        TxStatus::InFinalizedBlock(in_block) => {
-                            // Get block number
-                            let block_number = if let Some(header) = crunch
-                                .rpc()
-                                .chain_get_header(Some(in_block.block_hash()))
-                                .await?
-                            {
-                                header.number
-                            } else {
-                                0
-                            };
+    let runtime_api_call = ah_metadata::apis()
+        .transaction_payment_call_api()
+        .query_call_info(call, 0);
 
-                            // Fetch events from block
-                            let tx_events = in_block.fetch_events().await?;
+    let result = api
+        .runtime_api()
+        .at_latest()
+        .await?
+        .call(runtime_api_call)
+        .await?;
 
-                            // Iterate over events to calculate respective reward amounts
-                            for event in tx_events.iter() {
-                                let event = event?;
-                                if let Some(_ev) = event.as_event::<ExtrinsicFailed>()? {
-                                    let dispatch_error = DispatchError::decode_from(
-                                        event.field_bytes(),
-                                        api.metadata(),
-                                    )?;
-                                    return Err(dispatch_error.into());
-                                } else if let Some(ev) =
-                                    event.as_event::<PayoutStarted>()?
-                                {
-                                    // https://polkadot.js.org/docs/substrate/events#payoutstartedu32-accountid32
-                                    // PayoutStarted(u32, AccountId32)
-                                    // summary: The stakers' rewards are getting paid. [era_index, validator_stash]
-                                    //
-                                    debug!("{:?}", ev);
-                                    let validator_index_ref = validators
-                                        .iter()
-                                        .position(|v| v.stash == ev.validator_stash);
-                                    era_index = ev.era_index;
-                                    validator_index = validator_index_ref;
-                                    validator_amount_value = 0;
-                                    nominators_amount_value = 0;
-                                    nominators_quantity = 0;
-                                } else if let Some(ev) = event.as_event::<Rewarded>()? {
-                                    // https://polkadot.js.org/docs/substrate/events#rewardedaccountid32-u128
-                                    // Rewarded(AccountId32, u128)
-                                    // summary: An account has been rewarded for their signed submission being finalized
-                                    //
-                                    debug!("{:?}", ev);
-                                    if let Some(i) = validator_index {
-                                        let validator = &mut validators[i];
-                                        if ev.stash == validator.stash {
-                                            validator_amount_value = ev.amount;
-                                        } else {
-                                            nominators_amount_value += ev.amount;
-                                            nominators_quantity += 1;
-                                        }
-                                    }
-                                } else if let Some(_ev) =
-                                    event.as_event::<ItemCompleted>()?
-                                {
-                                    // https://polkadot.js.org/docs/substrate/events#itemcompleted
-                                    // summary: A single item within a Batch of dispatches has completed with no error.
-                                    //
-                                    if let Some(i) = validator_index {
-                                        let validator = &mut validators[i];
+    debug!("tx payment info: {:?}", result);
 
-                                        // NOTE: Currently we do not track which page is being payout here.
-                                        // It should be changed when payout_stakers_by_page is in place
-                                        validator.claimed.push((era_index, 0));
-                                        // Fetch stash points
-                                        let points = get_validator_points_info(
-                                            &crunch,
-                                            era_index,
-                                            &validator.stash,
-                                        )
-                                        .await?;
+    if result.weight.ref_time > max_weight.ref_time
+        || result.weight.proof_size > max_weight.proof_size
+    {
+        return Err(CrunchError::MaxWeightExceeded(format!(
+            "Actual weight ({:?}) exceeds maximum weight ({:?})",
+            result.weight, max_weight
+        )));
+    }
 
-                                        let p = Payout {
-                                            block_number,
-                                            extrinsic: tx_events.extrinsic_hash(),
-                                            era_index,
-                                            validator_amount_value,
-                                            nominators_amount_value,
-                                            nominators_quantity,
-                                            points,
-                                        };
-                                        validator.payouts.push(p);
-                                        summary.calls_succeeded += 1;
-                                    }
-                                } else if let Some(_ev) =
-                                    event.as_event::<ItemFailed>()?
-                                {
-                                    // https://polkadot.js.org/docs/substrate/events/#itemfailedspruntimedispatcherror
-                                    // summary: A single item within a Batch of dispatches has completed with error.
-                                    //
-                                    summary.calls_failed += 1;
-                                } else if let Some(_ev) =
-                                    event.as_event::<BatchCompleted>()?
-                                {
-                                    // https://polkadot.js.org/docs/substrate/events#batchcompleted
-                                    // summary: Batch of dispatches completed fully with no error.
-                                    info!(
-                                        "Batch Completed ({} calls)",
-                                        calls_for_batch_clipped.len()
-                                    );
-                                } else if let Some(_ev) =
-                                    event.as_event::<BatchCompletedWithErrors>()?
-                                {
-                                    // https://polkadot.js.org/docs/substrate/events/#batchcompletedwitherrors
-                                    // summary: Batch of dispatches completed but has errors.
-                                    info!(
-                                        "Batch Completed with errors ({} calls)",
-                                        calls_for_batch_clipped.len()
-                                    );
-                                } else if let Some(ev) =
-                                    event.as_event::<BatchInterrupted>()?
-                                {
-                                    // NOTE: Deprecate with force_batch
-                                    //
-                                    // https://polkadot.js.org/docs/substrate/events#batchinterruptedu32-spruntimedispatcherror
-                                    // summary: Batch of dispatches did not complete fully. Index of first failing dispatch given, as well as the error.
-                                    //
-                                    // Fix: https://github.com/turboflakes/crunch/issues/4
-                                    // Most likely the batch was interrupted because of an AlreadyClaimed era
-                                    // BatchInterrupted { index: 0, error: Module { index: 6, error: 14 } }
-                                    warn!("{:?}", ev);
-                                    if let Call::Staking(call) = &calls_for_batch_clipped
-                                        [usize::try_from(ev.index).unwrap()]
-                                    {
-                                        match &call {
-                                            StakingCall::payout_stakers {
-                                                validator_stash,
-                                                ..
-                                            } => {
-                                                warn!(
-                                                    "Batch interrupted at stash: {:?}",
-                                                    validator_stash
-                                                );
-                                                let validator_index =
-                                                    &mut validators.iter().position(
-                                                        |v| v.stash == *validator_stash,
-                                                    );
+    if available_balance < result.partial_fee + existencial_deposit {
+        return Err(CrunchError::InsufficientBalance(format!(
+            "Available balance ({}) is less than fees ({}) + existential deposit ({})",
+            available_balance, result.partial_fee, existencial_deposit
+        )));
+    }
 
-                                                if let Some(i) = *validator_index {
-                                                    let validator = &mut validators[i];
-                                                    // TODO: decode DispatchError to a readable format
-                                                    validator.warnings.push(
-                                                        "⚡ Batch interrupted ⚡"
-                                                            .to_string(),
-                                                    );
-                                                }
-                                            }
-                                            _ => unreachable!(),
-                                        };
-                                    }
-                                }
-                            }
-                        }
-                        TxStatus::Error { message } => {
-                            warn!("TxStatus: {message:?}");
-                        }
-                        TxStatus::Invalid { message } => {
-                            warn!("TxStatus: {message:?}");
-                        }
-                        TxStatus::Dropped { message } => {
-                            warn!("TxStatus: {message:?}");
-                        }
-                        _ => {}
+    Ok(())
+}
+
+async fn validate_call_via_dry_run(
+    crunch: &Crunch,
+    signer: &Keypair,
+    call: Call,
+    max_weight: Weight,
+) -> Result<(), CrunchError> {
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    let origin: OriginCaller =
+        OriginCaller::system(RawOrigin::Signed(signer.public_key().into()));
+
+    let runtime_api_call = ah_metadata::apis()
+        .dry_run_api()
+        .dry_run_call(origin, call, 0);
+
+    let result = api
+        .runtime_api()
+        .at_latest()
+        .await?
+        .call(runtime_api_call)
+        .await?;
+
+    match result {
+        Ok(CallDryRunEffects {
+            execution_result, ..
+        }) => match execution_result {
+            Ok(post_dispatch_info) => {
+                debug!("Post dispatch info: {:?}", post_dispatch_info);
+                if let Some(actual_weight) = post_dispatch_info.actual_weight {
+                    if actual_weight.ref_time > max_weight.ref_time
+                        || actual_weight.proof_size > max_weight.proof_size
+                    {
+                        return Err(CrunchError::MaxWeightExceeded(format!(
+                            "Actual weight ({:?}) exceeds maximum weight ({:?})",
+                            actual_weight, max_weight
+                        )));
                     }
                 }
-
-                iteration = Some(x + 1);
             }
+            Err(err) => {
+                return Err(CrunchError::DryRunError(format!("{:?}", err.error)));
+            }
+        },
+        Err(err) => {
+            return Err(CrunchError::DryRunError(format!("{:?}", err)));
         }
     }
 
-    debug!("validators {:?}", validators);
-
-    // Prepare summary report
-    summary.total_validators = validators.len() as u32;
-
-    Ok(summary)
+    Ok(())
 }
 
 async fn collect_validators_data(

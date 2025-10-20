@@ -21,7 +21,12 @@
 
 use crate::{
     config::CONFIG,
-    runtimes::{kusama, paseo, polkadot, westend},
+    runtimes::{
+        // kusama,
+        // paseo,
+        // polkadot,
+        westend,
+    },
 };
 use serde_json::{Result, Value};
 use std::str::FromStr;
@@ -58,21 +63,21 @@ impl SupportedRuntime {
 
     pub fn chain_specs(&self) -> &str {
         match &self {
-            Self::Polkadot => polkadot::POLKADOT_SPEC,
-            Self::Kusama => kusama::KUSAMA_SPEC,
+            // Self::Polkadot => polkadot::POLKADOT_SPEC,
+            // Self::Kusama => kusama::KUSAMA_SPEC,
             Self::Westend => westend::WESTEND_SPEC,
-            Self::Paseo => paseo::PASEO_SPEC,
-            // _ => panic!("Unsupported chain"),
+            // Self::Paseo => paseo::PASEO_SPEC,
+            _ => panic!("Unsupported chain"),
         }
     }
 
     pub fn chain_state_root_hash(&self) -> H256 {
         match &self {
-            Self::Polkadot => get_state_root_hash(polkadot::POLKADOT_SPEC),
-            Self::Kusama => get_state_root_hash(kusama::KUSAMA_SPEC),
+            // Self::Polkadot => get_state_root_hash(polkadot::POLKADOT_SPEC),
+            // Self::Kusama => get_state_root_hash(kusama::KUSAMA_SPEC),
             Self::Westend => get_state_root_hash(westend::WESTEND_SPEC),
-            Self::Paseo => get_state_root_hash(paseo::PASEO_SPEC),
-            // _ => panic!("Unsupported chain"),
+            // Self::Paseo => get_state_root_hash(paseo::PASEO_SPEC),
+            _ => panic!("Unsupported chain"),
         }
     }
 
@@ -189,31 +194,31 @@ impl SupportedParasRuntime {
 
     pub fn chain_specs(&self) -> &str {
         match &self {
-            Self::PeoplePolkadot => polkadot::PEOPLE_POLKADOT_SPEC,
-            Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
+            // Self::PeoplePolkadot => polkadot::PEOPLE_POLKADOT_SPEC,
+            // Self::PeopleKusama => kusama::PEOPLE_KUSAMA_SPEC,
             Self::PeopleWestend => westend::PEOPLE_WESTEND_SPEC,
-            Self::PeoplePaseo => paseo::PEOPLE_PASEO_SPEC,
+            // Self::PeoplePaseo => paseo::PEOPLE_PASEO_SPEC,
             // Self::AssetHubPolkadot => polkadot::ASSET_HUB_POLKADOT_SPEC,
-            Self::AssetHubKusama => kusama::ASSET_HUB_KUSAMA_SPEC,
+            // Self::AssetHubKusama => kusama::ASSET_HUB_KUSAMA_SPEC,
             Self::AssetHubWestend => westend::ASSET_HUB_WESTEND_SPEC,
-            Self::AssetHubPaseo => paseo::ASSET_HUB_PASEO_SPEC,
-            // _ => panic!("Unsupported chain"),
+            // Self::AssetHubPaseo => paseo::ASSET_HUB_PASEO_SPEC,
+            _ => panic!("Unsupported chain"),
         }
     }
 
     pub fn chain_state_root_hash(&self) -> H256 {
         match &self {
-            Self::PeoplePolkadot => get_state_root_hash(polkadot::PEOPLE_POLKADOT_SPEC),
-            Self::PeopleKusama => get_state_root_hash(kusama::PEOPLE_KUSAMA_SPEC),
+            // Self::PeoplePolkadot => get_state_root_hash(polkadot::PEOPLE_POLKADOT_SPEC),
+            // Self::PeopleKusama => get_state_root_hash(kusama::PEOPLE_KUSAMA_SPEC),
             Self::PeopleWestend => get_state_root_hash(westend::PEOPLE_WESTEND_SPEC),
-            Self::PeoplePaseo => get_state_root_hash(paseo::PEOPLE_PASEO_SPEC),
+            // Self::PeoplePaseo => get_state_root_hash(paseo::PEOPLE_PASEO_SPEC),
             // Self::AssetHubPolkadot => {
             //     get_state_root_hash(polkadot::ASSET_HUB_POLKADOT_SPEC)
             // }
-            Self::AssetHubKusama => get_state_root_hash(kusama::ASSET_HUB_KUSAMA_SPEC),
+            // Self::AssetHubKusama => get_state_root_hash(kusama::ASSET_HUB_KUSAMA_SPEC),
             Self::AssetHubWestend => get_state_root_hash(westend::ASSET_HUB_WESTEND_SPEC),
-            Self::AssetHubPaseo => get_state_root_hash(paseo::ASSET_HUB_PASEO_SPEC),
-            // _ => panic!("Unsupported chain"),
+            // Self::AssetHubPaseo => get_state_root_hash(paseo::ASSET_HUB_PASEO_SPEC),
+            _ => panic!("Unsupported chain"),
         }
     }
 }

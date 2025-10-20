@@ -64,6 +64,14 @@ pub enum CrunchError {
     IOError(#[from] std::io::Error),
     #[error("Genesis mismatch: {0}")]
     GenesisError(String),
+    #[error("Weight exceeded: {0}")]
+    MaxWeightExceeded(String),
+    #[error("Weight exceeded for one extrinsic")]
+    MaxWeightExceededForOneExtrinsic,
+    #[error("DryRunError: {0}")]
+    DryRunError(String),
+    #[error("Insufficient balance: {0}")]
+    InsufficientBalance(String),
     #[error("Other error: {0}")]
     Other(String),
 }
