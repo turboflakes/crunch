@@ -47,7 +47,6 @@ use std::{
 use subxt::{
     config::polkadot::PolkadotExtrinsicParamsBuilder as TxParams,
     error::DispatchError,
-    ext::codec::{Decode, Encode},
     tx::TxStatus,
     utils::{AccountId32, MultiAddress},
 };
@@ -1050,7 +1049,7 @@ async fn validate_call_via_tx_payment(
     Ok(())
 }
 
-async fn validate_call_via_dry_run(
+async fn _validate_call_via_dry_run(
     crunch: &Crunch,
     signer: &Keypair,
     call: Call,
