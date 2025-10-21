@@ -13,6 +13,7 @@ crunch-config = { path = "../config" }
 crunch-error = { path = "../error" }
 crunch-matrix = { path = "../matrix" }
 crunch-support = { path = "../support" }
+crunch-kusama = { path = "../chains/kusama" }
 crunch-paseo = { path = "../chains/paseo" }
 crunch-westend = { path = "../chains/westend" }
 

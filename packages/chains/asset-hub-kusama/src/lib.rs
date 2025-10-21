@@ -27,9 +27,9 @@ use crunch_core::{
     ValidatorAmount, ValidatorIndex,
 };
 use crunch_error::CrunchError;
-use crunch_people_westend::get_display_name;
+use crunch_people_kusama::get_display_name;
 use crunch_pools::{nomination_pool_account, AccountType};
-use crunch_relay_chain_westend::rc_metadata;
+use crunch_relay_chain_kusama::rc_metadata;
 use crunch_report::{
     replace_emoji_lowercase, Batch, EraIndex, Network, NominationPoolCommission,
     NominationPoolsSummary, Payout, PayoutSummary, Points, RawData, Report,
@@ -52,7 +52,7 @@ use subxt::{
 use subxt_signer::sr25519::Keypair;
 
 #[subxt::subxt(
-    runtime_metadata_path = "metadata/asset_hub_westend_metadata_small.scale",
+    runtime_metadata_path = "metadata/asset_hub_kusama_metadata_small.scale",
     derive_for_all_types = "PartialEq, Clone"
 )]
 mod ah_metadata {}
@@ -60,7 +60,7 @@ mod ah_metadata {}
 use ah_metadata::{
     nomination_pools::events::PoolCommissionClaimed,
     runtime_types::{
-        asset_hub_westend_runtime::OriginCaller,
+        asset_hub_kusama_runtime::OriginCaller,
         bounded_collections::{
             bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec,
             weak_bounded_vec::WeakBoundedVec,
@@ -80,7 +80,7 @@ use ah_metadata::{
     },
 };
 
-type Call = ah_metadata::runtime_types::asset_hub_westend_runtime::RuntimeCall;
+type Call = ah_metadata::runtime_types::asset_hub_kusama_runtime::RuntimeCall;
 type StakingCall = ah_metadata::runtime_types::pallet_staking_async::pallet::pallet::Call;
 type NominationPoolsCall =
     ah_metadata::runtime_types::pallet_nomination_pools::pallet::Call;

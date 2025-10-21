@@ -13,14 +13,14 @@ subxt metadata --url wss://westend.rpc.turboflakes.io:443 --pallets Session -f b
 subxt metadata --url wss://paseo.rpc.turboflakes.io:443 --pallets Session -f bytes > packages/chains/relay-chain-paseo/metadata/paseo_metadata_small.scale
 
 # subxt metadata --url wss://kusama.rpc.turboflakes.io:443 -f bytes > packages/chains/relay-chain-kusama/metadata/kusama_metadata.scale
-subxt metadata --url wss://kusama.rpc.turboflakes.io:443 --pallets System,Session,Balances,Staking,StakingAhClient,Utility,NominationPools,RcMigrator -f bytes > packages/chains/relay-chain-kusama/metadata/kusama_metadata_small.scale
+subxt metadata --url wss://kusama.rpc.turboflakes.io:443 --pallets Session -f bytes > packages/chains/relay-chain-kusama/metadata/kusama_metadata_small.scale
 #subxt metadata --url wss://polkadot.rpc.turboflakes.io:443 -f bytes > packages/chains/relay-chain-polkadot/metadata/polkadot_metadata.scale
 subxt metadata --url wss://polkadot.rpc.turboflakes.io:443 --pallets System,Session,Balances,Staking,Utility,NominationPools,RcMigrator -f bytes > packages/chains/relay-chain-polkadot/metadata/polkadot_metadata_small.scale
 
 # AssetHub Chains
 subxt metadata --url wss://asset-hub-westend.rpc.turboflakes.io:443 --pallets System,Balances,Staking,Utility,NominationPools -f bytes > packages/chains/asset-hub-westend/metadata/asset_hub_westend_metadata_small.scale
 subxt metadata --url wss://asset-hub-paseo.rpc.turboflakes.io:443 --pallets System,Balances,Staking,Utility,NominationPools -f bytes > packages/chains/asset-hub-paseo/metadata/asset_hub_paseo_metadata_small.scale
-subxt metadata --url wss://asset-hub-kusama.rpc.turboflakes.io:443 --pallets System,Session,Balances,Staking,Utility,NominationPools -f bytes > packages/chains/asset-hub-kusama/metadata/asset_hub_kusama_metadata_small.scale
+subxt metadata --url wss://asset-hub-kusama.rpc.turboflakes.io:443 --pallets System,Balances,Staking,Utility,NominationPools -f bytes > packages/chains/asset-hub-kusama/metadata/asset_hub_kusama_metadata_small.scale
 
 # People Chains
 subxt metadata --url wss://people-westend.rpc.turboflakes.io:443 --pallets Identity -f bytes > packages/chains/people-westend/metadata/people_westend_metadata_small.scale

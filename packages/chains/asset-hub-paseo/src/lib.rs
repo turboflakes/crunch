@@ -1022,7 +1022,7 @@ async fn validate_call_via_tx_payment(
 
     if available_balance < result.partial_fee + existencial_deposit {
         return Err(CrunchError::InsufficientBalance(format!(
-            "Available balance ({}) is less than fees ({}) + existential deposit ({})",
+            "Available balance ({}) is less than fees ({} plancks) + existential deposit ({} plancks)",
             available_balance, result.partial_fee, existencial_deposit
         )));
     }
