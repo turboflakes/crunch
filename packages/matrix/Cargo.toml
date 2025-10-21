@@ -20,3 +20,6 @@ serde_json = { workspace = true }
 subxt = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
+
+[target.x86_64-unknown-linux-musl.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }

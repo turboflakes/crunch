@@ -13,6 +13,7 @@ crunch-config = { path = "../config" }
 crunch-error = { path = "../error" }
 crunch-matrix = { path = "../matrix" }
 crunch-support = { path = "../support" }
+crunch-paseo = { path = "../chains/paseo" }
 crunch-westend = { path = "../chains/westend" }
 
 async-std = { workspace = true }
@@ -27,3 +28,6 @@ subxt-signer = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
+
+[target.x86_64-unknown-linux-musl.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }

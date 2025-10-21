@@ -1,5 +1,5 @@
 [package]
-name = "crunch-asset-hub-westend"
+name = "crunch-paseo"
 version.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -11,11 +11,11 @@ edition.workspace = true
 crunch-core = { path = "../../core" }
 crunch-config = { path = "../../config" }
 crunch-error = { path = "../../error" }
-crunch-pools = { path = "../../pools" }
 crunch-report = { path = "../../report" }
 crunch-stats = { path = "../../stats" }
-crunch-people-westend = { path = "../people-westend" }
-crunch-relay-chain-westend = { path = "../relay-chain-westend" }
+crunch-asset-hub-paseo = { path = "../asset-hub-paseo" }
+crunch-people-paseo = { path = "../people-paseo" }
+crunch-relay-chain-paseo = { path = "../relay-chain-paseo" }
 
 async-recursion = { workspace = true }
 log = { workspace = true }

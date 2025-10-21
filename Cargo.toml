@@ -1,5 +1,9 @@
 [workspace]
 members = [
+    "packages/chains/asset-hub-paseo",
+    "packages/chains/people-paseo",
+    "packages/chains/relay-chain-paseo",
+    "packages/chains/paseo",
     "packages/chains/asset-hub-westend",
     "packages/chains/people-westend",
     "packages/chains/relay-chain-westend",
@@ -18,7 +22,6 @@ members = [
 resolver = "2"
 
 [workspace.package]
-name = "crunch"
 version = "0.25.0"
 license = "Apache-2.0"
 repository = "https://github.com/turboflakes/crunch"
@@ -63,6 +66,3 @@ subxt = { version = "0.44.0", features = [
 subxt-signer = { version = "0.44.0", features = ["subxt"] }
 # substrate dependencies
 sp-core = "35.0.0"
-
-[workspace.target.x86_64-unknown-linux-musl.dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
