@@ -84,6 +84,15 @@ fn spawn_and_restart_crunch_flakes_on_error() {
                 let sleep_min = u32::pow(config.error_interval, n);
                 match e {
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
+                    CrunchError::DryRunError(err) => {
+                        let sleep_min = u32::pow(config.error_interval, n);
+                        warn!(
+                            "DryRunError: {}, on hold for {} secs",
+                            err,
+                            60 * sleep_min
+                        );
+                        thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
+                    }
                     _ => {
                         error!("{}", e);
                         let message = format!("On hold for {} min!", sleep_min);
@@ -114,6 +123,15 @@ fn spawn_and_restart_subscription_on_error() {
                 match e {
                     CrunchError::SubscriptionFinished => warn!("{}", e),
                     CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
+                    CrunchError::DryRunError(err) => {
+                        let sleep_min = u32::pow(config.error_interval, n);
+                        warn!(
+                            "DryRunError: {}, on hold for {} secs",
+                            err,
+                            60 * sleep_min
+                        );
+                        thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
+                    }
                     _ => {
                         error!("{}", e);
                         let mut sleep_min = u32::pow(config.error_interval, n);
@@ -142,7 +160,7 @@ async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     crunch.validate_genesis().await?;
     match crunch.runtime() {
         // SupportedRuntime::Polkadot => polkadot::inspect(self).await,
-        // SupportedRuntime::Kusama => kusama::inspect(self).await,
+        SupportedRuntime::Kusama => crunch_kusama::inspect(crunch).await,
         SupportedRuntime::Paseo => crunch_paseo::inspect(crunch).await,
         SupportedRuntime::Westend => crunch_westend::inspect(crunch).await,
         _ => panic!("Unsupported runtime"),
@@ -153,7 +171,7 @@ async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
     crunch.validate_genesis().await?;
     match crunch.runtime() {
         // SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
-        // SupportedRuntime::Kusama => kusama::try_crunch(self).await,
+        SupportedRuntime::Kusama => crunch_kusama::try_crunch(crunch).await,
         SupportedRuntime::Paseo => crunch_paseo::try_crunch(crunch).await,
         SupportedRuntime::Westend => crunch_westend::try_crunch(crunch).await,
         _ => panic!("Unsupported runtime"),
@@ -166,9 +184,9 @@ async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), Crunch
         // SupportedRuntime::Polkadot => {
         //     polkadot::run_and_subscribe_era_paid_events(self).await
         // }
-        // SupportedRuntime::Kusama => {
-        //     kusama::run_and_subscribe_era_paid_events(self).await
-        // }
+        SupportedRuntime::Kusama => {
+            crunch_kusama::run_and_subscribe_era_paid_events(crunch).await
+        }
         SupportedRuntime::Paseo => {
             crunch_paseo::run_and_subscribe_era_paid_events(crunch).await
         }
