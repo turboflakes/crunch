@@ -70,9 +70,14 @@ mod rc_metadata {}
 )]
 mod ah_metadata {}
 
-use ah_metadata::runtime_types::bounded_collections::{
-    bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec,
-    weak_bounded_vec::WeakBoundedVec,
+use ah_metadata::runtime_types::{
+    asset_hub_paseo_runtime::OriginCaller,
+    bounded_collections::{
+        bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec,
+        weak_bounded_vec::WeakBoundedVec,
+    },
+    frame_support::dispatch::RawOrigin,
+    xcm_runtime_apis::dry_run::CallDryRunEffects,
 };
 
 #[subxt::subxt(
@@ -620,13 +625,6 @@ pub async fn try_run_batch_payouts(
                     maximum_payouts = None;
                 } else {
                     if let Some((claim_era, _page_index)) = v.unclaimed.pop() {
-                        // TODO: After deprecated storage items going away we could consider
-                        // using payout_stakers_by_page with the respective page_index.
-                        // Until than lets just call payout_stakers x times based on
-                        // the unclaimed pages previously checked.
-                        //
-                        // PR: https://github.com/paritytech/polkadot-sdk/pull/1189
-                        //
                         let call = Call::Staking(StakingCall::payout_stakers {
                             validator_stash: v.stash.clone(),
                             era: claim_era,
@@ -687,10 +685,10 @@ pub async fn try_run_batch_payouts(
 
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
                 let tx: subxt::tx::DefaultPayload<
-                    ah_metadata::utility::calls::types::ForceBatch,
+                    ah_metadata::utility::calls::types::Batch,
                 > = ah_metadata::tx()
                     .utility()
-                    .force_batch(calls_for_batch_clipped.clone())
+                    .batch(calls_for_batch_clipped.clone())
                     .unvalidated();
 
                 // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
@@ -700,7 +698,8 @@ pub async fn try_run_batch_payouts(
                         .mortal(config.tx_mortal_period)
                         .build()
                 } else {
-                    TxParams::new().tip(config.tx_tip.into()).build()
+                    // TxParams::new().tip(config.tx_tip.into()).build()
+                    TxParams::new().build()
                 };
 
                 // Log call data in debug mode
@@ -708,6 +707,54 @@ pub async fn try_run_batch_payouts(
                     let call_data = ah_api.tx().call_data(&tx)?;
                     let hex_call_data = to_hex(&call_data);
                     debug!("call_data: {hex_call_data}");
+
+                    let origin: OriginCaller = OriginCaller::system(RawOrigin::Signed(
+                        signer.public_key().into(),
+                    ));
+
+                    type UtilityCall =
+                        ah_metadata::runtime_types::pallet_utility::pallet::Call;
+                    let batch_call = Call::Utility(UtilityCall::batch {
+                        calls: calls_for_batch_clipped.clone(),
+                    });
+
+                    let runtime_api_call = ah_metadata::apis()
+                        .dry_run_api()
+                        .dry_run_call(origin, batch_call, 0);
+
+                    let result = ah_api
+                        .runtime_api()
+                        .at_latest()
+                        .await?
+                        .call(runtime_api_call)
+                        .await?;
+
+                    match result {
+                        Ok(CallDryRunEffects {
+                            execution_result,
+                            emitted_events,
+                            ..
+                        }) => {
+                            match execution_result {
+                                Ok(post_dispatch_info) => {
+                                    debug!(
+                                        "Post dispatch info: {:?}",
+                                        post_dispatch_info
+                                    );
+                                }
+                                Err(err) => {
+                                    debug!("DispatchError: {:?}", err.error);
+                                }
+                            }
+                            // Process events
+                            // for event in emitted_events {
+                            //     debug!("Event: {:?}", event);
+                            // }
+                        }
+                        Err(err) => {
+                            debug!("Dry run error: {:?}", err);
+                        }
+                    }
                 }
 
                 let mut tx_progress = ah_api

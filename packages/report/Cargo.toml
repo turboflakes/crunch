@@ -1,0 +1,18 @@
+[package]
+name = "crunch-report"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+crunch-core = { path = "../core" }
+crunch-config = { path = "../config" }
+crunch-stats = { path = "../stats" }
+
+log = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+subxt = { workspace = true }

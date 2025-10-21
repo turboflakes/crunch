@@ -1,0 +1,13 @@
+[package]
+name = "crunch-pools"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+hex = { workspace = true }
+subxt = { workspace = true }
+sp-core = { workspace = true }

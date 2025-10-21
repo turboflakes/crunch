@@ -30,6 +30,7 @@ Generate runtime API client code from metadata.
 ```bash
 subxt codegen --url wss://rpc.turboflakes.io:443/westend | rustfmt --edition=2018 --emit=stdout > westend_metadata.rs
 subxt codegen --url wss://rpc.turboflakes.io:443/kusama | rustfmt --edition=2018 --emit=stdout > kusama_runtime.rs
+subxt codegen --url wss://asset-hub-paseo.rpc.amforc.com:443 | rustfmt --edition=2018 --emit=stdout > asset_hub_paseo_runtime.rs
 subxt codegen --url wss://paseo.rpc.amforc.com:443 | rustfmt --edition=2018 --emit=stdout > paseo_runtime.rs
 subxt codegen --url wss://polkadot.rpc.amforc.com:443 | rustfmt --edition=2018 --emit=stdout > polkadot_runtime.rs
 subxt codegen --url wss://sys.turboflakes.io:443/people-kusama | rustfmt --edition=2018 --emit=stdout > people_kusama_runtime.rs

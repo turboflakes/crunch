@@ -1,0 +1,8 @@
+[package]
+name = "crunch-stats"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true

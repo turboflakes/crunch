@@ -1,13 +1,34 @@
-[package]
+[workspace]
+members = [
+    "packages/chains/asset-hub-westend",
+    "packages/chains/people-westend",
+    "packages/chains/relay-chain-westend",
+    "packages/chains/westend",
+    "packages/config",
+    "packages/core",
+    "packages/crunch",
+    "packages/error",
+    "packages/matrix",
+    "packages/pools",
+    "packages/report",
+    "packages/stats",
+    "packages/support",
+]
+
+resolver = "2"
+
+[workspace.package]
 name = "crunch"
 version = "0.25.0"
+license = "Apache-2.0"
+repository = "https://github.com/turboflakes/crunch"
 authors = ["Paulo <paulo@turboflakes.io>"]
 description = "Crunch is a command-line interface (CLI) to claim staking rewards (flakes) every X hours for Substrate-based chains"
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
+[workspace.dependencies]
 # crunch dependencies
 async-std = { version = "1.13.0", features = ["attributes", "tokio1"] }
 codec = { package = "parity-scale-codec", version = "3.7.4", default-features = false, features = [
@@ -24,7 +45,7 @@ log = "0.4"
 clap = "2.33"
 lazy_static = "1.5"
 async-recursion = "1.1.1"
-serde = "1.0.218"
+serde = { version = "1.0.132", features = ["derive"] }
 serde_json = "1.0.68"
 thiserror = "2.0.11"
 chrono = "0.4.40"
@@ -43,5 +64,5 @@ subxt-signer = { version = "0.44.0", features = ["subxt"] }
 # substrate dependencies
 sp-core = "35.0.0"
 
-[target.x86_64-unknown-linux-musl.dependencies]
+[workspace.target.x86_64-unknown-linux-musl.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
