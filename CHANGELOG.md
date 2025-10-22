@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.1] - 2025-10-23
+
 ## New
-- The value of CRUNCH_MAXIMUM_CALLS is DEPRECATED in favour of optimizing the number of calls that fit in a single batch call on the fly. Crunch recursively validates the weight of the maximum number of pending payouts as defined in CRUNCH_MAXIMUM_PAYOUTS.
+- The value of CRUNCH_MAXIMUM_CALLS is DEPRECATED in favour of optimizing the number of calls that fit in a single batch call. Crunch recursively validates the weight of the maximum number of pending payouts and caps the number of calls as defined in CRUNCH_MAXIMUM_PAYOUTS.
 
 ## Changed
 - Fix issue #65 & #66 where CRUNCH_SUBSTRATE_PEOPLE_WS_URL is always optional and do not need to be set
 - Fix issue #46 project structure has been split into several packages to optimize compilation times
 - Fix nomination pools API for Kusama, Paseo and Westend
+- Fix gracefully handle runtime upgrades
 
 - Update metadata polkadot/1007001
 - Update metadata people-polkadot/1007001
