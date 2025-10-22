@@ -46,11 +46,26 @@ pub async fn run_and_subscribe_era_paid_events(
     let mut latest_block_number_processed: Option<u32> = Some(0);
     info!("Subscribe 'EraPaid' on-chain finalized event");
     let api = crunch.client().clone();
+
+    // Keep track of the last known runtime version
+    let last_spec_version = api.runtime_version().spec_version;
+
     let mut block_sub = api.blocks().subscribe_finalized().await?;
     while let Some(block) = block_sub.next().await {
-        // let block = block?;
+        // Fetch current runtime version before trying to decode anything
+        let current_spec_version = api.runtime_version().spec_version;
 
-        // Silently handle RPC disconnection and wait for the next block as soon as reconnection is available
+        // If a runtime upgrade occurred, raise known error so all clients could be
+        // gracefully recreated
+        if current_spec_version != last_spec_version {
+            return Err(CrunchError::RuntimeUpgradeDetected(
+                last_spec_version,
+                current_spec_version,
+            ));
+        }
+
+        // Silently handle RPC disconnection and wait for the next block as soon as
+        // reconnection is available
         let block = match block {
             Ok(b) => b,
             Err(e) => {

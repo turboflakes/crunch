@@ -121,16 +121,17 @@ fn spawn_and_restart_subscription_on_error() {
             let crunch: Crunch = Crunch::new().await;
             if let Err(e) = run_and_subscribe_era_paid_events(&crunch).await {
                 match e {
-                    CrunchError::SubscriptionFinished => warn!("{}", e),
-                    CrunchError::MatrixError(_) => warn!("Matrix message skipped!"),
-                    CrunchError::DryRunError(err) => {
+                    CrunchError::SubscriptionFinished | CrunchError::MatrixError(_) => {
+                        warn!("{}", e)
+                    }
+                    CrunchError::DryRunError(_) => {
                         let sleep_min = u32::pow(config.error_interval, n);
-                        warn!(
-                            "DryRunError: {}, on hold for {} secs",
-                            err,
-                            60 * sleep_min
-                        );
+                        warn!("{} On hold for {} secs!", e, 60 * sleep_min);
                         thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
+                    }
+                    CrunchError::RuntimeUpgradeDetected(_, _) => {
+                        warn!("{} On hold for 30 secs!", e);
+                        thread::sleep(time::Duration::from_secs(30));
                     }
                     _ => {
                         error!("{}", e);

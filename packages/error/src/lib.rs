@@ -72,6 +72,8 @@ pub enum CrunchError {
     DryRunError(String),
     #[error("Insufficient balance: {0}")]
     InsufficientBalance(String),
+    #[error("RuntimeUpgradeDetected: {0} -> {1}")]
+    RuntimeUpgradeDetected(u32, u32),
     #[error("Other error: {0}")]
     Other(String),
 }
