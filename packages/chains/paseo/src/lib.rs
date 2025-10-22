@@ -132,7 +132,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         name: signer_name,
         warnings: Vec::new(),
     };
-    info!("signer_details {:?}", signer_details);
+    debug!("signer_details {:?}", signer_details);
 
     // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
     let ed_addr = ah_metadata::constants().balances().existential_deposit();
@@ -155,9 +155,21 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
             signer_details.warnings.push(warning.to_string());
             warn!("{warning}");
         }
+        info!(
+            "Signer {} has {:?} free plancks",
+            seed_account_id.to_string(),
+            seed_account_info.data.free
+        );
     } else {
-        let chain_name = crunch.rpc().system_chain().await?;
-        warn!("Signer account {seed_account_id} not found on the {chain_name} network!");
+        let ah_rpc = crunch
+            .asset_hub_rpc()
+            .as_ref()
+            .expect("AH RPC to be available");
+        let chain_name = ah_rpc.system_chain().await?;
+        warn!(
+            "Signer {} not found on the {chain_name} network!",
+            seed_account_id.to_string(),
+        );
     }
 
     // Get Network name
