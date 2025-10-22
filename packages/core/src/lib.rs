@@ -149,6 +149,11 @@ pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, Crun
             create_light_client_from_relay_chain_specs(&config.chain_name).await?;
         return Ok(rpc.into());
     } else {
+        if config.substrate_ws_url.is_empty() {
+            return Err(CrunchError::Other(
+                "Relay Chain RPC needs to be set at --substrate_ws_url=<url> or CRUNCH_SUBSTRATE_WS_URL=<url>".to_string(),
+            ));
+        }
         let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
         return Ok(rpc.into());
     }
@@ -231,6 +236,11 @@ pub async fn create_people_rpc_client_from_config() -> Result<RpcClient, CrunchE
         let rpc = create_light_client_from_people_chain_specs(&config.chain_name).await?;
         return Ok(rpc.into());
     } else {
+        if config.substrate_people_ws_url.is_empty() {
+            return Err(CrunchError::Other(
+                "People RPC needs to be set at --substrate_people_ws_url=<url> or CRUNCH_SUBSTRATE_PEOPLE_WS_URL=<url>".to_string(),
+            ));
+        }
         let rpc =
             create_substrate_rpc_client_from_url(&config.substrate_people_ws_url).await?;
         return Ok(rpc.into());
@@ -252,6 +262,11 @@ pub async fn create_asset_hub_rpc_client_from_config() -> Result<RpcClient, Crun
             create_light_client_from_asset_hub_chain_specs(&config.chain_name).await?;
         return Ok(rpc.into());
     } else {
+        if config.substrate_asset_hub_ws_url.is_empty() {
+            return Err(CrunchError::Other(
+                "Asset Hub RPC needs to be set at --substrate_asset_hub_ws_url=<url> or CRUNCH_SUBSTRATE_ASSET_HUB_WS_URL=<url>".to_string(),
+            ));
+        }
         let rpc =
             create_substrate_rpc_client_from_url(&config.substrate_asset_hub_ws_url)
                 .await?;
@@ -497,6 +512,11 @@ impl Crunch {
             return Ok(());
         }
 
+        // Skip validation if light client is enabled or asset hub client option is not set
+        if config.light_client_enabled || self.asset_hub_client_option.is_none() {
+            return Ok(());
+        }
+
         if let Some(asset_hub_runtime) = self.runtime.asset_hub_runtime() {
             let state_root = asset_hub_runtime.chain_state_root_hash();
 
@@ -531,7 +551,8 @@ impl Crunch {
     async fn validate_people_genesis(&self) -> Result<(), CrunchError> {
         let config = CONFIG.clone();
 
-        if config.light_client_enabled {
+        // Skip validation if light client is enabled or people client option is not set
+        if config.light_client_enabled || self.people_client_option.is_none() {
             return Ok(());
         }
 
