@@ -73,7 +73,7 @@ fn default_seed_path() -> String {
 
 /// provides default value for maximum_payouts if CRUNCH_MAXIMUM_PAYOUTS env var is not set
 fn default_maximum_payouts() -> u32 {
-    4
+    16
 }
 
 /// provides default value for maximum_history_eras if CRUNCH_MAXIMUM_HISTORY_ERAS env var is not set
@@ -81,6 +81,7 @@ fn default_maximum_history_eras() -> u32 {
     4
 }
 
+/// DEPRECATED: default_maximum_calls
 /// provides default value for maximum_calls if CRUNCH_MAXIMUM_CALLS env var is not set
 fn default_maximum_calls() -> u32 {
     2
