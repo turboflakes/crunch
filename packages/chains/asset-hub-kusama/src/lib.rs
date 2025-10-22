@@ -663,8 +663,8 @@ pub async fn validate_calls_for_batch(
         }
         Err(err) => match err {
             CrunchError::MaxWeightExceeded(e) => {
-                warn!(
-                    "Batch with {} calls got weight exceeded: {}. Trying with one less call.",
+                debug!(
+                    "Batch with {} calls got weight exceeded: {}",
                     calls.len(),
                     e
                 );
