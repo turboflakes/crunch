@@ -1,0 +1,23 @@
+[package]
+name = "crunch-paseo"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+crunch-core = { path = "../../core" }
+crunch-config = { path = "../../config" }
+crunch-error = { path = "../../error" }
+crunch-report = { path = "../../report" }
+crunch-stats = { path = "../../stats" }
+crunch-asset-hub-paseo = { path = "../asset-hub-paseo" }
+crunch-people-paseo = { path = "../people-paseo" }
+crunch-relay-chain-paseo = { path = "../relay-chain-paseo" }
+
+async-recursion = { workspace = true }
+log = { workspace = true }
+subxt = { workspace = true }
+subxt-signer = { workspace = true }

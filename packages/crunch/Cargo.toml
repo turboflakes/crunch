@@ -1,0 +1,35 @@
+[package]
+name = "crunch"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+crunch-core = { path = "../core" }
+crunch-config = { path = "../config" }
+crunch-error = { path = "../error" }
+crunch-matrix = { path = "../matrix" }
+crunch-support = { path = "../support" }
+crunch-kusama = { path = "../chains/kusama" }
+crunch-paseo = { path = "../chains/paseo" }
+crunch-polkadot = { path = "../chains/polkadot" }
+crunch-westend = { path = "../chains/westend" }
+
+async-std = { workspace = true }
+env_logger = { workspace = true }
+hex = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sp-core = { workspace = true }
+subxt = { workspace = true }
+subxt-signer = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+
+[target.x86_64-unknown-linux-musl.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }

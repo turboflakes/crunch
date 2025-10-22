@@ -1,0 +1,17 @@
+[package]
+name = "crunch-people-paseo"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+crunch-core = { path = "../../core" }
+crunch-error = { path = "../../error" }
+crunch-report = { path = "../../report" }
+
+async-recursion = { workspace = true }
+log = { workspace = true }
+subxt = { workspace = true }

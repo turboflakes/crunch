@@ -1,0 +1,16 @@
+[package]
+name = "crunch-config"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { workspace = true }
+dotenv = { workspace = true }
+envy = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }

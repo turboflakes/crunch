@@ -1,0 +1,23 @@
+[package]
+name = "crunch-error"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+crunch-matrix = { path = "../matrix" }
+
+codec = { workspace = true }
+url = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+subxt = { workspace = true }
+subxt-signer = { workspace = true }
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+
+[target.x86_64-unknown-linux-musl.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
