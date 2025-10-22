@@ -76,7 +76,7 @@ impl Room {
     fn new_private(chain: SupportedRuntime) -> Room {
         let config = CONFIG.clone();
         let room_alias_name = define_private_room_alias_name(
-            env!("CARGO_PKG_NAME"),
+            "crunch",
             &chain.to_string(),
             &config.matrix_user,
             &config.matrix_bot_user,
