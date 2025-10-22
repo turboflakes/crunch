@@ -44,7 +44,7 @@ fn main() {
     );
 
     if config.only_view {
-        spawn_crunch_view();
+        return spawn_crunch_view();
     }
 
     match config.run_mode {
@@ -159,31 +159,31 @@ fn spawn_and_restart_subscription_on_error() {
 async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     crunch.validate_genesis().await?;
     match crunch.runtime() {
-        // SupportedRuntime::Polkadot => polkadot::inspect(self).await,
+        SupportedRuntime::Polkadot => crunch_polkadot::inspect(crunch).await,
         SupportedRuntime::Kusama => crunch_kusama::inspect(crunch).await,
         SupportedRuntime::Paseo => crunch_paseo::inspect(crunch).await,
         SupportedRuntime::Westend => crunch_westend::inspect(crunch).await,
-        _ => panic!("Unsupported runtime"),
+        // _ => panic!("Unsupported runtime"),
     }
 }
 
 async fn try_run_batch(crunch: &Crunch) -> Result<(), CrunchError> {
     crunch.validate_genesis().await?;
     match crunch.runtime() {
-        // SupportedRuntime::Polkadot => polkadot::try_crunch(self).await,
+        SupportedRuntime::Polkadot => crunch_polkadot::try_crunch(crunch).await,
         SupportedRuntime::Kusama => crunch_kusama::try_crunch(crunch).await,
         SupportedRuntime::Paseo => crunch_paseo::try_crunch(crunch).await,
         SupportedRuntime::Westend => crunch_westend::try_crunch(crunch).await,
-        _ => panic!("Unsupported runtime"),
+        // _ => panic!("Unsupported runtime"),
     }
 }
 
 async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), CrunchError> {
     crunch.validate_genesis().await?;
     match crunch.runtime() {
-        // SupportedRuntime::Polkadot => {
-        //     polkadot::run_and_subscribe_era_paid_events(self).await
-        // }
+        SupportedRuntime::Polkadot => {
+            crunch_polkadot::run_and_subscribe_era_paid_events(crunch).await
+        }
         SupportedRuntime::Kusama => {
             crunch_kusama::run_and_subscribe_era_paid_events(crunch).await
         }
@@ -192,7 +192,6 @@ async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), Crunch
         }
         SupportedRuntime::Westend => {
             crunch_westend::run_and_subscribe_era_paid_events(crunch).await
-        }
-        _ => panic!("Unsupported runtime"),
+        } // _ => panic!("Unsupported runtime"),
     }
 }

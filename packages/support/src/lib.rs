@@ -26,6 +26,10 @@ use subxt::utils::H256;
 pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
+pub const POLKADOT_SPEC: &str = include_str!("../chain-specs/polkadot.json");
+pub const PEOPLE_POLKADOT_SPEC: &str =
+    include_str!("../chain-specs/people-polkadot.json");
+
 pub const KUSAMA_SPEC: &str = include_str!("../chain-specs/kusama.json");
 pub const ASSET_HUB_KUSAMA_SPEC: &str =
     include_str!("../chain-specs/asset-hub-kusama.json");
@@ -70,21 +74,21 @@ impl SupportedRuntime {
 
     pub fn chain_specs(&self) -> &str {
         match &self {
-            // Self::Polkadot => polkadot::POLKADOT_SPEC,
-            // Self::Kusama => kusama::KUSAMA_SPEC,
+            Self::Polkadot => POLKADOT_SPEC,
+            Self::Kusama => KUSAMA_SPEC,
             Self::Westend => WESTEND_SPEC,
             Self::Paseo => PASEO_SPEC,
-            _ => panic!("Unsupported chain"),
+            // _ => panic!("Unsupported chain"),
         }
     }
 
     pub fn chain_state_root_hash(&self) -> H256 {
         match &self {
-            // Self::Polkadot => get_state_root_hash(polkadot::POLKADOT_SPEC),
+            Self::Polkadot => get_state_root_hash(POLKADOT_SPEC),
             Self::Kusama => get_state_root_hash(KUSAMA_SPEC),
             Self::Westend => get_state_root_hash(WESTEND_SPEC),
             Self::Paseo => get_state_root_hash(PASEO_SPEC),
-            _ => panic!("Unsupported chain"),
+            // _ => panic!("Unsupported chain"),
         }
     }
 
@@ -201,7 +205,7 @@ impl SupportedParasRuntime {
 
     pub fn chain_specs(&self) -> &str {
         match &self {
-            // Self::PeoplePolkadot => polkadot::PEOPLE_POLKADOT_SPEC,
+            Self::PeoplePolkadot => PEOPLE_POLKADOT_SPEC,
             Self::PeopleKusama => PEOPLE_KUSAMA_SPEC,
             Self::PeopleWestend => PEOPLE_WESTEND_SPEC,
             Self::PeoplePaseo => PEOPLE_PASEO_SPEC,
@@ -209,13 +213,13 @@ impl SupportedParasRuntime {
             Self::AssetHubKusama => ASSET_HUB_KUSAMA_SPEC,
             Self::AssetHubWestend => ASSET_HUB_WESTEND_SPEC,
             Self::AssetHubPaseo => ASSET_HUB_PASEO_SPEC,
-            _ => panic!("Unsupported chain"),
+            // _ => panic!("Unsupported chain"),
         }
     }
 
     pub fn chain_state_root_hash(&self) -> H256 {
         match &self {
-            // Self::PeoplePolkadot => get_state_root_hash(polkadot::PEOPLE_POLKADOT_SPEC),
+            Self::PeoplePolkadot => get_state_root_hash(PEOPLE_POLKADOT_SPEC),
             Self::PeopleKusama => get_state_root_hash(PEOPLE_KUSAMA_SPEC),
             Self::PeopleWestend => get_state_root_hash(PEOPLE_WESTEND_SPEC),
             Self::PeoplePaseo => get_state_root_hash(PEOPLE_PASEO_SPEC),
@@ -225,7 +229,7 @@ impl SupportedParasRuntime {
             Self::AssetHubKusama => get_state_root_hash(ASSET_HUB_KUSAMA_SPEC),
             Self::AssetHubWestend => get_state_root_hash(ASSET_HUB_WESTEND_SPEC),
             Self::AssetHubPaseo => get_state_root_hash(ASSET_HUB_PASEO_SPEC),
-            _ => panic!("Unsupported chain"),
+            // _ => panic!("Unsupported chain"),
         }
     }
 }

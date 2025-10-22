@@ -1,5 +1,8 @@
 [workspace]
 members = [
+    "packages/chains/people-polkadot",
+    "packages/chains/relay-chain-polkadot",
+    "packages/chains/polkadot",
     "packages/chains/asset-hub-kusama",
     "packages/chains/people-kusama",
     "packages/chains/relay-chain-kusama",
