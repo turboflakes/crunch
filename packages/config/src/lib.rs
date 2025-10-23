@@ -238,7 +238,7 @@ pub enum RunMode {
 /// Inject dotenv and env vars into the Config struct
 fn get_config() -> Config {
     // Define CLI flags with clap
-    let matches = App::new(env!("CARGO_PKG_NAME"))
+    let matches = App::new("crunch")
     .version(env!("CARGO_PKG_VERSION"))
     .author(env!("CARGO_PKG_AUTHORS"))
     .about(env!("CARGO_PKG_DESCRIPTION"))
