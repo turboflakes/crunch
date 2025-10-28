@@ -87,10 +87,15 @@ pub async fn try_run_batch_pool_members(
     signer: &Keypair,
 ) -> Result<NominationPoolsSummary, CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch
+    let ah_api = crunch
         .asset_hub_client()
         .as_ref()
         .expect("AH API to be available");
+
+    let ah_rpc = crunch
+        .asset_hub_rpc()
+        .as_ref()
+        .expect("AH Legacy API to be available");
 
     let mut calls_for_batch: Vec<Call> = vec![];
     let mut summary: NominationPoolsSummary = Default::default();
@@ -176,12 +181,12 @@ pub async fn try_run_batch_pool_members(
 
                 // Log call data in debug mode
                 if config.is_debug {
-                    let call_data = api.tx().call_data(&tx)?;
+                    let call_data = ah_api.tx().call_data(&tx)?;
                     let hex_call_data = to_hex(&call_data);
                     debug!("call_data: {hex_call_data}");
                 }
 
-                let mut tx_progress = api
+                let mut tx_progress = ah_api
                     .tx()
                     .sign_and_submit_then_watch(&tx, signer, tx_params)
                     .await?;
@@ -190,8 +195,7 @@ pub async fn try_run_batch_pool_members(
                     match status? {
                         TxStatus::InFinalizedBlock(in_block) => {
                             // Get block number
-                            let block_number = if let Some(header) = crunch
-                                .rpc()
+                            let block_number = if let Some(header) = ah_rpc
                                 .chain_get_header(Some(in_block.block_hash()))
                                 .await?
                             {
