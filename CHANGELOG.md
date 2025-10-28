@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Changed
+- Fix fetch block number where the nomination pool batch took place.
+
 ## [0.26.1] - 2025-10-23
 
 ## New
