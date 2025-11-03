@@ -15,7 +15,6 @@ crunch-pools = { path = "../../pools" }
 crunch-report = { path = "../../report" }
 crunch-stats = { path = "../../stats" }
 crunch-people-kusama = { path = "../people-kusama" }
-crunch-relay-chain-kusama = { path = "../relay-chain-kusama" }
 
 async-recursion = { workspace = true }
 log = { workspace = true }

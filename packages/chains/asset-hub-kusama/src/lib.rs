@@ -28,10 +28,9 @@ use crunch_core::{
 use crunch_error::CrunchError;
 use crunch_people_kusama::get_display_name;
 use crunch_pools::{nomination_pool_account, AccountType};
-use crunch_relay_chain_kusama::rc_metadata;
 use crunch_report::{
-    replace_emoji_lowercase, Batch, EraIndex, NominationPoolCommission,
-    NominationPoolsSummary, Payout, PayoutSummary, Points, Validator, Validators,
+    Batch, EraIndex, NominationPoolCommission, NominationPoolsSummary, PageIndex, Payout,
+    PayoutSummary, Points, SignerDetails, Validator, Validators,
 };
 use log::{debug, info, warn};
 use std::{
@@ -802,172 +801,7 @@ async fn _validate_call_via_dry_run(
     Ok(())
 }
 
-pub async fn collect_validators_data(
-    crunch: &Crunch,
-    era_index: EraIndex,
-) -> Result<Validators, CrunchError> {
-    let rc_api = crunch.client().clone();
-    let ah_api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
-
-    // Get unclaimed eras for the stash addresses
-    let active_validators_addr = rc_metadata::storage().session().validators();
-    let active_validators = rc_api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&active_validators_addr)
-        .await?;
-    debug!("active_validators {:?}", active_validators);
-    let mut validators: Validators = Vec::new();
-
-    let stashes = get_stashes(&crunch).await?;
-
-    for (_i, stash_str) in stashes.iter().enumerate() {
-        let stash = AccountId32::from_str(stash_str).map_err(|e| {
-            CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
-        })?;
-
-        // Check if stash has bonded controller
-        let controller_addr = ah_metadata::storage().staking().bonded(stash.clone());
-        let controller = match ah_api
-            .storage()
-            .at_latest()
-            .await?
-            .fetch(&controller_addr)
-            .await?
-        {
-            Some(controller) => controller,
-            None => {
-                let mut v = Validator::new(stash.clone());
-                (v.name, v.parent_identity, v.has_identity) =
-                    get_display_name(&crunch, &stash, None).await?;
-                v.warnings = vec![format!("No controller bonded!")];
-                validators.push(v);
-                continue;
-            }
-        };
-
-        // Instantiates a new validator struct
-        let mut v = Validator::new(stash.clone());
-
-        // Set controller
-        v.controller = Some(controller.clone());
-
-        // Get validator name
-        (v.name, v.parent_identity, v.has_identity) =
-            get_display_name(&crunch, &stash, None).await?;
-
-        // Check if validator is in active set
-        v.is_active = if let Some(ref av) = active_validators {
-            av.contains(&stash)
-        } else {
-            false
-        };
-
-        // Look for unclaimed eras, starting on current_era - maximum_eras
-        let start_index = get_era_index_start(&crunch, era_index).await?;
-
-        // Find unclaimed eras in previous 84 eras (reverse order)
-        for era in (start_index..era_index).rev() {
-            // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
-            let claimed_rewards_addr = ah_metadata::storage()
-                .staking()
-                .claimed_rewards(era, stash.clone());
-            if let Some(WeakBoundedVec(claimed_rewards)) = ah_api
-                .storage()
-                .at_latest()
-                .await?
-                .fetch(&claimed_rewards_addr)
-                .await?
-            {
-                // Verify if there are more pages to claim than the ones already claimed
-                let eras_stakers_overview_addr = ah_metadata::storage()
-                    .staking()
-                    .eras_stakers_overview(era, stash.clone());
-                if let Some(exposure) = ah_api
-                    .storage()
-                    .at_latest()
-                    .await?
-                    .fetch(&eras_stakers_overview_addr)
-                    .await?
-                {
-                    // Check if all pages are claimed or not
-                    for page_index in 0..exposure.page_count {
-                        if claimed_rewards.contains(&page_index) {
-                            v.claimed.push((era, page_index));
-                        } else {
-                            v.unclaimed.push((era, page_index));
-                        }
-                    }
-                } else {
-                    // If eras_stakers_overview is not available set all pages claimed
-                    for page_index in claimed_rewards {
-                        v.claimed.push((era, page_index));
-                    }
-                }
-            } else {
-                // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
-                let eras_stakers_paged_addr = ah_metadata::storage()
-                    .staking()
-                    .eras_stakers_paged_iter2(era, stash.clone());
-                let mut iter = ah_api
-                    .storage()
-                    .at_latest()
-                    .await?
-                    .iter(eras_stakers_paged_addr)
-                    .await?;
-
-                let mut page_index = 0;
-                while let Some(Ok(_)) = iter.next().await {
-                    v.unclaimed.push((era, page_index));
-                    page_index += 1;
-                }
-            }
-        }
-        validators.push(v);
-    }
-
-    // Sort validators by identity, than by non-identity and push the stashes
-    // with warnings to bottom
-    let mut validators_with_warnings = validators
-        .clone()
-        .into_iter()
-        .filter(|v| v.warnings.len() > 0)
-        .collect::<Vec<Validator>>();
-
-    validators_with_warnings.sort_by(|a, b| {
-        replace_emoji_lowercase(&a.name)
-            .partial_cmp(&replace_emoji_lowercase(&b.name))
-            .unwrap()
-    });
-
-    let validators_with_no_identity = validators
-        .clone()
-        .into_iter()
-        .filter(|v| v.warnings.len() == 0 && !v.has_identity)
-        .collect::<Vec<Validator>>();
-
-    let mut validators = validators
-        .into_iter()
-        .filter(|v| v.warnings.len() == 0 && v.has_identity)
-        .collect::<Vec<Validator>>();
-
-    validators.sort_by(|a, b| {
-        replace_emoji_lowercase(&a.name)
-            .partial_cmp(&replace_emoji_lowercase(&b.name))
-            .unwrap()
-    });
-    validators.extend(validators_with_no_identity);
-    validators.extend(validators_with_warnings);
-
-    debug!("validators {:?}", validators);
-    Ok(validators)
-}
-
-async fn get_era_index_start(
+pub async fn get_era_index_start(
     crunch: &Crunch,
     era_index: EraIndex,
 ) -> Result<EraIndex, CrunchError> {
@@ -991,6 +825,103 @@ async fn get_era_index_start(
     // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
     // since we still want to show information about inclusion and eras crunched for all history_depth
     Ok(era_index - history_depth)
+}
+
+pub async fn fetch_controller(
+    crunch: &Crunch,
+    stash: &AccountId32,
+    validators: &mut Validators,
+) -> Result<Option<AccountId32>, CrunchError> {
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+    // Check if stash has bonded controller
+    let controller_addr = ah_metadata::storage().staking().bonded(stash.clone());
+    match ah_api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&controller_addr)
+        .await?
+    {
+        Some(ctrl) => Ok(Some(ctrl)),
+        None => {
+            let mut v = Validator::new(stash.clone());
+            (v.name, v.parent_identity, v.has_identity) =
+                get_display_name(&crunch, &stash, None).await?;
+            v.warnings = vec![format!("No controller bonded!")];
+            validators.push(v);
+            Ok(None)
+        }
+    }
+}
+
+pub async fn fetch_claimed_or_unclaimed_pages_per_era(
+    crunch: &Crunch,
+    stash: &AccountId32,
+    era: EraIndex,
+    validator: &mut Validator,
+) -> Result<(), CrunchError> {
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+    // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
+    let claimed_rewards_addr = ah_metadata::storage()
+        .staking()
+        .claimed_rewards(era, stash.clone());
+    if let Some(WeakBoundedVec(claimed_rewards)) = ah_api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&claimed_rewards_addr)
+        .await?
+    {
+        // Verify if there are more pages to claim than the ones already claimed
+        let eras_stakers_overview_addr = ah_metadata::storage()
+            .staking()
+            .eras_stakers_overview(era, stash.clone());
+        if let Some(exposure) = ah_api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&eras_stakers_overview_addr)
+            .await?
+        {
+            // Check if all pages are claimed or not
+            for page_index in 0..exposure.page_count {
+                if claimed_rewards.contains(&page_index) {
+                    validator.claimed.push((era, page_index));
+                } else {
+                    validator.unclaimed.push((era, page_index));
+                }
+            }
+        } else {
+            // If eras_stakers_overview is not available set all pages claimed
+            for page_index in claimed_rewards {
+                validator.claimed.push((era, page_index));
+            }
+        }
+    } else {
+        // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
+        let eras_stakers_paged_addr = ah_metadata::storage()
+            .staking()
+            .eras_stakers_paged_iter2(era, stash.clone());
+        let mut iter = ah_api
+            .storage()
+            .at_latest()
+            .await?
+            .iter(eras_stakers_paged_addr)
+            .await?;
+
+        let mut page_index = 0;
+        while let Some(Ok(_)) = iter.next().await {
+            validator.unclaimed.push((era, page_index));
+            page_index += 1;
+        }
+    }
+    Ok(())
 }
 
 async fn get_validator_points_info(
@@ -1316,4 +1247,169 @@ pub async fn try_fetch_stashes_from_pool_ids(
     );
 
     Ok(Some(active))
+}
+
+pub async fn get_signer_details(
+    crunch: &Crunch,
+    seed_account_id: &AccountId32,
+) -> Result<SignerDetails, CrunchError> {
+    let config = CONFIG.clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    // Get signer account identity
+    let (signer_name, _, _) = get_display_name(&crunch, &seed_account_id, None).await?;
+    let mut signer_details = SignerDetails {
+        account: seed_account_id.clone(),
+        name: signer_name,
+        warnings: Vec::new(),
+    };
+    debug!("signer_details {:?}", signer_details);
+
+    // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
+    let ed_addr = ah_metadata::constants().balances().existential_deposit();
+    let ed = api.constants().at(&ed_addr)?;
+
+    let seed_account_info_addr = ah_metadata::storage()
+        .system()
+        .account(seed_account_id.clone());
+    if let Some(seed_account_info) = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&seed_account_info_addr)
+        .await?
+    {
+        if seed_account_info.data.free
+            <= (config.existential_deposit_factor_warning as u128 * ed)
+        {
+            let warning = "⚡ Signer account is running low on funds ⚡";
+            signer_details.warnings.push(warning.to_string());
+            warn!("{warning}");
+        }
+        info!(
+            "Signer {} has {:?} free plancks",
+            seed_account_id.to_string(),
+            seed_account_info.data.free
+        );
+    } else {
+        let rpc = crunch.rpc().clone();
+        let chain_name = rpc.system_chain().await?;
+        warn!(
+            "Signer {} not found on the {chain_name} network!",
+            seed_account_id.to_string(),
+        );
+    }
+
+    Ok(signer_details)
+}
+
+pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    let stashes = get_stashes(&crunch).await?;
+    info!("Inspect {} stashes -> {}", stashes.len(), stashes.join(","));
+
+    let history_depth_addr = ah_metadata::constants().staking().history_depth();
+    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
+
+    let active_era_addr = ah_metadata::storage().staking().active_era();
+    let active_era_index = match api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
+        Some(info) => info.index,
+        None => return Err(CrunchError::Other("Active era not available".into())),
+    };
+
+    for stash_str in stashes.iter() {
+        let stash = AccountId32::from_str(stash_str).map_err(|e| {
+            CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
+        })?;
+        info!("{} * Stash account", stash.clone());
+
+        let start_index = active_era_index - history_depth;
+        let mut unclaimed: Vec<(EraIndex, PageIndex)> = Vec::new();
+        let mut claimed: Vec<(EraIndex, PageIndex)> = Vec::new();
+
+        // Find unclaimed eras in previous 84 eras
+        for era_index in start_index..active_era_index {
+            // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
+            let claimed_rewards_addr = ah_metadata::storage()
+                .staking()
+                .claimed_rewards(era_index, stash.clone());
+            if let Some(WeakBoundedVec(claimed_rewards)) = api
+                .storage()
+                .at_latest()
+                .await?
+                .fetch(&claimed_rewards_addr)
+                .await?
+            {
+                // Verify if there are more pages to claim than the ones already claimed
+                let eras_stakers_overview_addr = ah_metadata::storage()
+                    .staking()
+                    .eras_stakers_overview(era_index, stash.clone());
+                if let Some(exposure) = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .fetch(&eras_stakers_overview_addr)
+                    .await?
+                {
+                    // Check if all pages are claimed or not
+                    for page_index in 0..exposure.page_count {
+                        if claimed_rewards.contains(&page_index) {
+                            claimed.push((era_index, page_index));
+                        } else {
+                            unclaimed.push((era_index, page_index));
+                        }
+                    }
+                } else {
+                    // If eras_stakers_overview is not available set all pages claimed
+                    for page_index in claimed_rewards {
+                        claimed.push((era_index, page_index));
+                    }
+                }
+            } else {
+                // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
+                let eras_stakers_paged_addr = ah_metadata::storage()
+                    .staking()
+                    .eras_stakers_paged_iter2(era_index, stash.clone());
+                let mut iter = api
+                    .storage()
+                    .at_latest()
+                    .await?
+                    .iter(eras_stakers_paged_addr)
+                    .await?;
+
+                let mut page_index = 0;
+                while let Some(Ok(_)) = iter.next().await {
+                    unclaimed.push((era_index, page_index));
+                    page_index += 1;
+                }
+            }
+        }
+        info!(
+            "{} claimed pages in the last {} eras -> {:?}",
+            claimed.len(),
+            history_depth,
+            claimed
+        );
+        info!(
+            "{} unclaimed pages in the last {} eras -> {:?}",
+            unclaimed.len(),
+            history_depth,
+            unclaimed
+        );
+    }
+    info!("Job done!");
+    Ok(())
 }

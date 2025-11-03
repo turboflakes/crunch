@@ -8,4 +8,7 @@ description.workspace = true
 edition.workspace = true
 
 [dependencies]
+crunch-core = { path = "../../core" }
+crunch-error = { path = "../../error" }
+
 subxt = { workspace = true }

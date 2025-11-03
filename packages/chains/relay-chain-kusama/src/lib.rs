@@ -19,10 +19,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use subxt;
+use crunch_core::Crunch;
+use crunch_error::CrunchError;
+use std::result::Result;
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/kusama_metadata_small.scale",
     derive_for_all_types = "Clone, PartialEq"
 )]
 mod rc_metadata {}
+
+use rc_metadata::session::storage::types::validators::Validators;
+
+/// Fetch the set of authorities (validators) at the latest block hash
+pub async fn fetch_authorities(crunch: &Crunch) -> Result<Validators, CrunchError> {
+    let api = crunch.client().clone();
+    let addr = rc_metadata::storage().session().validators();
+
+    api.storage()
+        .at_latest()
+        .await?
+        .fetch(&addr)
+        .await?
+        .ok_or_else(|| {
+            CrunchError::from(format!(
+                "Current validators not defined at latest block hash"
+            ))
+        })
+}
