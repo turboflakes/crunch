@@ -77,6 +77,9 @@ jobs:
         with:
           command: test
 
+      - name: Clean cargo target
+        run: cargo clean || true
+
       - name: Prepare larger tmp directory
         run: mkdir -p /home/runner/work/tmp
 
