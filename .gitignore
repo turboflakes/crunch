@@ -1,6 +1,5 @@
 /target
 /.vscode
-Cargo.lock
 .env
 .private.seed
 bump-version.sh
