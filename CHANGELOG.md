@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2025-11-03
+
 ## Changed
+- Support AHM on Polkadot
 - Fix fetch block number where the nomination pool batch took place.
+
+- Update metadata polkadot/2000000
+- Update metadata asset-hub-polkadot/2000000
+- Update metadata people-polkadot/1007001
+- Update metadata kusama/1009002
+- Update metadata asset-hub-kusama/1009003
+- Update metadata people-kusama/1009001
+- Update metadata paseo/1009003
+- Update metadata asset-hub-paseo/1009003
+- Update metadata people-paseo/1009003
+- Update metadata westend/1020001
+- Update metadata asset-hub-westend/1020004
+- Update metadata people-westend/1020001
 
 ## [0.26.1] - 2025-10-23
 
