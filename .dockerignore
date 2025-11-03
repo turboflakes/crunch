@@ -1,0 +1,31 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# IDE directories
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Docker files (don't need to copy these into the context)
+Dockerfile
+Dockerfile.alpine
+docker-compose.yaml
+.dockerignore
+
+# Documentation and scripts (not needed for building)
+README.md
+CHANGELOG.md
+bump-version.sh
+crunch-update.sh
+update-metadata.sh
+
+# Deprecated directories
+DEPRECATED_*
+
+# GitHub
+.github/
