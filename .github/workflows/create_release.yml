@@ -28,9 +28,13 @@ jobs:
         with:
           command: test
 
+      - name: Prepare larger tmp directory
+        run: mkdir -p /home/runner/work/tmp
+
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         env:
+          TMPDIR: /home/runner/work/tmp
           CRUNCH_CONFIG_FILENAME: .env.example
         with:
           command: build
@@ -73,9 +77,13 @@ jobs:
         with:
           command: test
 
+      - name: Prepare larger tmp directory
+        run: mkdir -p /home/runner/work/tmp
+
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         env:
+          TMPDIR: /home/runner/work/tmp
           CRUNCH_CONFIG_FILENAME: .env.example
         with:
           command: build
@@ -128,9 +136,13 @@ jobs:
           rustup target add x86_64-unknown-linux-musl
           sudo apt install musl-tools
 
+      - name: Prepare larger tmp directory
+        run: mkdir -p /home/runner/work/tmp
+
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         env:
+          TMPDIR: /home/runner/work/tmp
           CRUNCH_CONFIG_FILENAME: .env.example
           CC: musl-gcc
           RUSTFLAGS: "-C target-feature=+crt-static"
