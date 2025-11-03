@@ -27,6 +27,8 @@ pub type ChainPrefix = u16;
 pub type ChainTokenSymbol = String;
 
 pub const POLKADOT_SPEC: &str = include_str!("../chain-specs/polkadot.json");
+pub const ASSET_HUB_POLKADOT_SPEC: &str =
+    include_str!("../chain-specs/asset-hub-polkadot.json");
 pub const PEOPLE_POLKADOT_SPEC: &str =
     include_str!("../chain-specs/people-polkadot.json");
 
@@ -56,7 +58,7 @@ pub enum SupportedRuntime {
 impl SupportedRuntime {
     pub fn asset_hub_runtime(&self) -> Option<SupportedParasRuntime> {
         match &self {
-            Self::Polkadot => None,
+            Self::Polkadot => Some(SupportedParasRuntime::AssetHubPolkadot),
             Self::Kusama => Some(SupportedParasRuntime::AssetHubKusama),
             Self::Westend => Some(SupportedParasRuntime::AssetHubWestend),
             Self::Paseo => Some(SupportedParasRuntime::AssetHubPaseo),
@@ -182,7 +184,7 @@ pub enum SupportedParasRuntime {
     PeopleKusama,
     PeopleWestend,
     PeoplePaseo,
-    // AssetHubPolkadot,
+    AssetHubPolkadot,
     AssetHubKusama,
     AssetHubPaseo,
     AssetHubWestend,
@@ -196,10 +198,10 @@ impl SupportedParasRuntime {
             | Self::PeopleKusama
             | Self::PeopleWestend
             | Self::PeoplePaseo => config.substrate_people_ws_url,
-            // Self::AssetHubPolkadot
-            Self::AssetHubKusama | Self::AssetHubWestend | Self::AssetHubPaseo => {
-                config.substrate_asset_hub_ws_url
-            }
+            Self::AssetHubPolkadot
+            | Self::AssetHubKusama
+            | Self::AssetHubWestend
+            | Self::AssetHubPaseo => config.substrate_asset_hub_ws_url,
         }
     }
 
@@ -209,7 +211,7 @@ impl SupportedParasRuntime {
             Self::PeopleKusama => PEOPLE_KUSAMA_SPEC,
             Self::PeopleWestend => PEOPLE_WESTEND_SPEC,
             Self::PeoplePaseo => PEOPLE_PASEO_SPEC,
-            // Self::AssetHubPolkadot => polkadot::ASSET_HUB_POLKADOT_SPEC,
+            Self::AssetHubPolkadot => ASSET_HUB_POLKADOT_SPEC,
             Self::AssetHubKusama => ASSET_HUB_KUSAMA_SPEC,
             Self::AssetHubWestend => ASSET_HUB_WESTEND_SPEC,
             Self::AssetHubPaseo => ASSET_HUB_PASEO_SPEC,
@@ -223,9 +225,7 @@ impl SupportedParasRuntime {
             Self::PeopleKusama => get_state_root_hash(PEOPLE_KUSAMA_SPEC),
             Self::PeopleWestend => get_state_root_hash(PEOPLE_WESTEND_SPEC),
             Self::PeoplePaseo => get_state_root_hash(PEOPLE_PASEO_SPEC),
-            // Self::AssetHubPolkadot => {
-            //     get_state_root_hash(polkadot::ASSET_HUB_POLKADOT_SPEC)
-            // }
+            Self::AssetHubPolkadot => get_state_root_hash(ASSET_HUB_POLKADOT_SPEC),
             Self::AssetHubKusama => get_state_root_hash(ASSET_HUB_KUSAMA_SPEC),
             Self::AssetHubWestend => get_state_root_hash(ASSET_HUB_WESTEND_SPEC),
             Self::AssetHubPaseo => get_state_root_hash(ASSET_HUB_PASEO_SPEC),
@@ -241,7 +241,7 @@ impl std::fmt::Display for SupportedParasRuntime {
             Self::PeopleKusama => write!(f, "People Kusama"),
             Self::PeopleWestend => write!(f, "People Westend"),
             Self::PeoplePaseo => write!(f, "People Paseo"),
-            // Self::AssetHubPolkadot => write!(f, "Asset Hub Polkadot"),
+            Self::AssetHubPolkadot => write!(f, "Asset Hub Polkadot"),
             Self::AssetHubKusama => write!(f, "Asset Hub Kusama"),
             Self::AssetHubWestend => write!(f, "Asset Hub Westend"),
             Self::AssetHubPaseo => write!(f, "Asset Hub Paseo"),

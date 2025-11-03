@@ -84,3 +84,10 @@ impl From<&str> for CrunchError {
         CrunchError::Other(error.into())
     }
 }
+
+/// Convert String to CrunchError
+impl From<String> for CrunchError {
+    fn from(error: String) -> Self {
+        CrunchError::Other(error)
+    }
+}

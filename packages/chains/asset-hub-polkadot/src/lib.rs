@@ -32,8 +32,14 @@ use crunch_report::{
     Batch, EraIndex, NominationPoolCommission, NominationPoolsSummary, PageIndex, Payout,
     PayoutSummary, Points, SignerDetails, Validator, Validators,
 };
+
 use log::{debug, info, warn};
-use std::{cmp, convert::TryInto, result::Result, str::FromStr, thread, time};
+use std::{
+    cmp,
+    convert::{TryFrom, TryInto},
+    result::Result,
+    str::FromStr,
+};
 use subxt::{
     config::polkadot::PolkadotExtrinsicParamsBuilder as TxParams,
     error::DispatchError,
@@ -43,23 +49,23 @@ use subxt::{
 use subxt_signer::sr25519::Keypair;
 
 #[subxt::subxt(
-    runtime_metadata_path = "metadata/polkadot_metadata_small.scale",
-    derive_for_all_types = "Clone, PartialEq"
+    runtime_metadata_path = "metadata/asset_hub_polkadot_metadata_small.scale",
+    derive_for_all_types = "PartialEq, Clone"
 )]
-mod rc_metadata {}
+mod ah_metadata {}
 
-use rc_metadata::{
+use ah_metadata::{
     nomination_pools::events::PoolCommissionClaimed,
     runtime_types::{
-        bounded_collections::bounded_vec::BoundedVec,
+        asset_hub_polkadot_runtime::OriginCaller,
+        bounded_collections::{
+            bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec,
+            weak_bounded_vec::WeakBoundedVec,
+        },
         frame_support::dispatch::RawOrigin,
         pallet_nomination_pools::{BondExtra, ClaimPermission},
-        pallet_rc_migrator::MigrationStage,
-        pallet_staking_async_ah_client::OperatingMode,
-        polkadot_runtime::OriginCaller,
         xcm_runtime_apis::dry_run::CallDryRunEffects,
     },
-    session::storage::types::validators::Validators as ValidatorSet,
     staking::events::{PayoutStarted, Rewarded},
     system::events::ExtrinsicFailed,
     utility::{
@@ -71,17 +77,25 @@ use rc_metadata::{
     },
 };
 
-type Call = rc_metadata::runtime_types::polkadot_runtime::RuntimeCall;
-type StakingCall = rc_metadata::runtime_types::pallet_staking::pallet::pallet::Call;
+type Call = ah_metadata::runtime_types::asset_hub_polkadot_runtime::RuntimeCall;
+type StakingCall = ah_metadata::runtime_types::pallet_staking_async::pallet::pallet::Call;
 type NominationPoolsCall =
-    rc_metadata::runtime_types::pallet_nomination_pools::pallet::Call;
+    ah_metadata::runtime_types::pallet_nomination_pools::pallet::Call;
 
 pub async fn try_run_batch_pool_members(
     crunch: &Crunch,
     signer: &Keypair,
 ) -> Result<NominationPoolsSummary, CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch.client().clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    let ah_rpc = crunch
+        .asset_hub_rpc()
+        .as_ref()
+        .expect("AH Legacy API to be available");
 
     let mut calls_for_batch: Vec<Call> = vec![];
     let mut summary: NominationPoolsSummary = Default::default();
@@ -150,7 +164,7 @@ pub async fn try_run_batch_pool_members(
                     calls_for_batch[call_start_index..call_end_index].to_vec();
 
                 // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
-                let tx = rc_metadata::tx()
+                let tx = ah_metadata::tx()
                     .utility()
                     .force_batch(calls_for_batch_clipped.clone())
                     .unvalidated();
@@ -167,12 +181,12 @@ pub async fn try_run_batch_pool_members(
 
                 // Log call data in debug mode
                 if config.is_debug {
-                    let call_data = api.tx().call_data(&tx)?;
+                    let call_data = ah_api.tx().call_data(&tx)?;
                     let hex_call_data = to_hex(&call_data);
                     debug!("call_data: {hex_call_data}");
                 }
 
-                let mut tx_progress = api
+                let mut tx_progress = ah_api
                     .tx()
                     .sign_and_submit_then_watch(&tx, signer, tx_params)
                     .await?;
@@ -181,8 +195,7 @@ pub async fn try_run_batch_pool_members(
                     match status? {
                         TxStatus::InFinalizedBlock(in_block) => {
                             // Get block number
-                            let block_number = if let Some(header) = crunch
-                                .rpc()
+                            let block_number = if let Some(header) = ah_rpc
                                 .chain_get_header(Some(in_block.block_hash()))
                                 .await?
                             {
@@ -273,11 +286,14 @@ pub async fn try_run_batch_payouts(
     signer: &Keypair,
     validators: &mut Validators,
 ) -> Result<PayoutSummary, CrunchError> {
-    let api = crunch.client().clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     // Get block weights
-    let block_weights_addr = rc_metadata::constants().system().block_weights();
-    let block_weights = api.constants().at(&block_weights_addr)?;
+    let block_weights_addr = ah_metadata::constants().system().block_weights();
+    let block_weights = ah_api.constants().at(&block_weights_addr)?;
 
     let max_extrinsic_weight = block_weights
         .per_class
@@ -288,8 +304,8 @@ pub async fn try_run_batch_payouts(
     debug!("Max extrinsic weight: {:?}", max_extrinsic_weight);
 
     // Get Existential Deposit
-    let ed_addr = rc_metadata::constants().balances().existential_deposit();
-    let existencial_deposit = api.constants().at(&ed_addr)?;
+    let ed_addr = ah_metadata::constants().balances().existential_deposit();
+    let existencial_deposit = ah_api.constants().at(&ed_addr)?;
 
     // let mut validators = collect_validators_data(&crunch, active_era_index).await?;
     let mut summary: PayoutSummary = Default::default();
@@ -302,11 +318,15 @@ pub async fn try_run_batch_payouts(
         debug!("try_run_batch_payouts: {} {}", x, calls_for_batch.len());
 
         // Fetch signer free balance
-        let signer_addr = rc_metadata::storage()
+        let signer_addr = ah_metadata::storage()
             .system()
             .account(signer.public_key().into());
-        let available_balance = if let Some(signer_info) =
-            api.storage().at_latest().await?.fetch(&signer_addr).await?
+        let available_balance = if let Some(signer_info) = ah_api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&signer_addr)
+            .await?
         {
             signer_info.data.free
         } else {
@@ -365,13 +385,19 @@ pub async fn sign_and_submit_maximum_calls(
     summary: &mut PayoutSummary,
 ) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch.client().clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
-    let rpc = crunch.rpc().clone();
+    let ah_rpc = crunch
+        .asset_hub_rpc()
+        .as_ref()
+        .expect("AH Legacy API to be available");
 
     // Note: Unvalidated extrinsic. If it fails a static metadata file will need to be updated!
-    let tx: subxt::tx::DefaultPayload<rc_metadata::utility::calls::types::ForceBatch> =
-        rc_metadata::tx()
+    let tx: subxt::tx::DefaultPayload<ah_metadata::utility::calls::types::ForceBatch> =
+        ah_metadata::tx()
             .utility()
             .force_batch(calls.clone())
             .unvalidated();
@@ -388,12 +414,12 @@ pub async fn sign_and_submit_maximum_calls(
 
     // Log call data in debug mode
     if config.is_debug {
-        let call_data = api.tx().call_data(&tx)?;
+        let call_data = ah_api.tx().call_data(&tx)?;
         let hex_call_data = to_hex(&call_data);
         debug!("call_data: {hex_call_data}");
     }
 
-    let mut tx_progress = api
+    let mut tx_progress = ah_api
         .tx()
         .sign_and_submit_then_watch(&tx, signer, tx_params)
         .await?;
@@ -409,7 +435,7 @@ pub async fn sign_and_submit_maximum_calls(
             TxStatus::InFinalizedBlock(in_block) => {
                 // Get block number
                 let block_number = if let Some(header) =
-                    rpc.chain_get_header(Some(in_block.block_hash())).await?
+                    ah_rpc.chain_get_header(Some(in_block.block_hash())).await?
                 {
                     header.number
                 } else {
@@ -425,7 +451,7 @@ pub async fn sign_and_submit_maximum_calls(
                     if let Some(_ev) = event.as_event::<ExtrinsicFailed>()? {
                         let dispatch_error = DispatchError::decode_from(
                             event.field_bytes(),
-                            api.metadata(),
+                            ah_api.metadata(),
                         )?;
                         return Err(dispatch_error.into());
                     } else if let Some(ev) = event.as_event::<PayoutStarted>()? {
@@ -610,7 +636,7 @@ pub async fn validate_calls_for_batch(
     max_weight: Weight,
     pending_calls: Option<Vec<Call>>,
 ) -> Result<(Vec<Call>, Option<Vec<Call>>), CrunchError> {
-    type UtilityCall = rc_metadata::runtime_types::pallet_utility::pallet::Call;
+    type UtilityCall = ah_metadata::runtime_types::pallet_utility::pallet::Call;
     let batch_call = Call::Utility(UtilityCall::force_batch {
         calls: calls.clone(),
     });
@@ -685,13 +711,16 @@ async fn validate_call_via_tx_payment(
     existencial_deposit: u128,
     max_weight: Weight,
 ) -> Result<(), CrunchError> {
-    let api = crunch.client().clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
-    let runtime_api_call = rc_metadata::apis()
+    let runtime_api_call = ah_metadata::apis()
         .transaction_payment_call_api()
         .query_call_info(call, 0);
 
-    let result = api
+    let result = ah_api
         .runtime_api()
         .at_latest()
         .await?
@@ -725,12 +754,15 @@ async fn _validate_call_via_dry_run(
     call: Call,
     max_weight: Weight,
 ) -> Result<(), CrunchError> {
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let origin: OriginCaller =
         OriginCaller::system(RawOrigin::Signed(signer.public_key().into()));
 
-    let runtime_api_call = rc_metadata::apis()
+    let runtime_api_call = ah_metadata::apis()
         .dry_run_api()
         .dry_run_call(origin, call, 0);
 
@@ -770,47 +802,18 @@ async fn _validate_call_via_dry_run(
     Ok(())
 }
 
-/// Fetch the set of authorities (validators) at the latest block hash
-pub async fn fetch_authorities(crunch: &Crunch) -> Result<ValidatorSet, CrunchError> {
-    let api = crunch.client().clone();
-    let addr = rc_metadata::storage().session().validators();
-
-    api.storage()
-        .at_latest()
-        .await?
-        .fetch(&addr)
-        .await?
-        .ok_or_else(|| {
-            CrunchError::from(format!(
-                "Current validators not defined at latest block hash"
-            ))
-        })
-}
-
-pub async fn fetch_active_era_index(crunch: &Crunch) -> Result<u32, CrunchError> {
-    let api = crunch.client().clone();
-    let active_era_addr = rc_metadata::storage().staking().active_era();
-    match api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&active_era_addr)
-        .await?
-    {
-        Some(info) => Ok(info.index),
-        None => return Err(CrunchError::Other("Active era not available".into())),
-    }
-}
-
 pub async fn fetch_controller(
     crunch: &Crunch,
     stash: &AccountId32,
     validators: &mut Validators,
 ) -> Result<Option<AccountId32>, CrunchError> {
-    let api = crunch.client().clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
     // Check if stash has bonded controller
-    let controller_addr = rc_metadata::storage().staking().bonded(stash.clone());
-    match api
+    let controller_addr = ah_metadata::storage().staking().bonded(stash.clone());
+    match ah_api
         .storage()
         .at_latest()
         .await?
@@ -829,18 +832,47 @@ pub async fn fetch_controller(
     }
 }
 
+pub async fn get_era_index_start(
+    crunch: &Crunch,
+    era_index: EraIndex,
+) -> Result<EraIndex, CrunchError> {
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+    let config = CONFIG.clone();
+
+    let history_depth_addr = ah_metadata::constants().staking().history_depth();
+    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
+
+    if era_index < cmp::min(config.maximum_history_eras, history_depth) {
+        return Ok(0);
+    }
+
+    if config.is_short || config.is_medium {
+        return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
+    }
+
+    // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
+    // since we still want to show information about inclusion and eras crunched for all history_depth
+    Ok(era_index - history_depth)
+}
+
 pub async fn fetch_claimed_or_unclaimed_pages_per_era(
     crunch: &Crunch,
     stash: &AccountId32,
     era: EraIndex,
     validator: &mut Validator,
 ) -> Result<(), CrunchError> {
-    let api = crunch.client().clone();
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
     // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
-    let claimed_rewards_addr = rc_metadata::storage()
+    let claimed_rewards_addr = ah_metadata::storage()
         .staking()
         .claimed_rewards(era, stash.clone());
-    if let Some(claimed_rewards) = api
+    if let Some(WeakBoundedVec(claimed_rewards)) = ah_api
         .storage()
         .at_latest()
         .await?
@@ -848,10 +880,10 @@ pub async fn fetch_claimed_or_unclaimed_pages_per_era(
         .await?
     {
         // Verify if there are more pages to claim than the ones already claimed
-        let eras_stakers_overview_addr = rc_metadata::storage()
+        let eras_stakers_overview_addr = ah_metadata::storage()
             .staking()
             .eras_stakers_overview(era, stash.clone());
-        if let Some(exposure) = api
+        if let Some(exposure) = ah_api
             .storage()
             .at_latest()
             .await?
@@ -874,10 +906,10 @@ pub async fn fetch_claimed_or_unclaimed_pages_per_era(
         }
     } else {
         // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
-        let eras_stakers_paged_addr = rc_metadata::storage()
+        let eras_stakers_paged_addr = ah_metadata::storage()
             .staking()
             .eras_stakers_paged_iter2(era, stash.clone());
-        let mut iter = api
+        let mut iter = ah_api
             .storage()
             .at_latest()
             .await?
@@ -893,27 +925,22 @@ pub async fn fetch_claimed_or_unclaimed_pages_per_era(
     Ok(())
 }
 
-pub async fn get_era_index_start(
-    crunch: &Crunch,
-    era_index: EraIndex,
-) -> Result<EraIndex, CrunchError> {
-    let api = crunch.client().clone();
-    let config = CONFIG.clone();
-
-    let history_depth_addr = rc_metadata::constants().staking().history_depth();
-    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
-
-    if era_index < cmp::min(config.maximum_history_eras, history_depth) {
-        return Ok(0);
+pub async fn fetch_active_era_index(crunch: &Crunch) -> Result<u32, CrunchError> {
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+    let active_era_addr = ah_metadata::storage().staking().active_era();
+    match ah_api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
+        Some(info) => Ok(info.index),
+        None => return Err(CrunchError::Other("Active era not available".into())),
     }
-
-    if config.is_short || config.is_medium {
-        return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
-    }
-
-    // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
-    // since we still want to show information about inclusion and eras crunched for all history_depth
-    Ok(era_index - history_depth)
 }
 
 async fn get_validator_points_info(
@@ -921,9 +948,12 @@ async fn get_validator_points_info(
     era_index: EraIndex,
     stash: &AccountId32,
 ) -> Result<Points, CrunchError> {
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
     // Get era reward points
-    let era_reward_points_addr = rc_metadata::storage()
+    let era_reward_points_addr = ah_metadata::storage()
         .staking()
         .eras_reward_points(era_index);
 
@@ -934,21 +964,16 @@ async fn get_validator_points_info(
         .fetch(&era_reward_points_addr)
         .await?
     {
-        let stash_points = match era_reward_points
-            .individual
-            .iter()
-            .find(|(s, _)| *s == *stash)
-        {
+        let BoundedBTreeMap(individual) = era_reward_points.individual;
+
+        let stash_points = match individual.iter().find(|(s, _)| *s == *stash) {
             Some((_, p)) => *p,
             None => 0,
         };
 
         // Calculate average points
-        let mut points: Vec<u32> = era_reward_points
-            .individual
-            .into_iter()
-            .map(|(_, points)| points)
-            .collect();
+        let mut points: Vec<u32> =
+            individual.into_iter().map(|(_, points)| points).collect();
 
         let points_f64: Vec<f64> = points.iter().map(|points| *points as f64).collect();
 
@@ -993,7 +1018,10 @@ pub async fn get_signer_details(
     seed_account_id: &AccountId32,
 ) -> Result<SignerDetails, CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     // Get signer account identity
     let (signer_name, _, _) = get_display_name(&crunch, &seed_account_id, None).await?;
@@ -1005,10 +1033,10 @@ pub async fn get_signer_details(
     debug!("signer_details {:?}", signer_details);
 
     // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
-    let ed_addr = rc_metadata::constants().balances().existential_deposit();
+    let ed_addr = ah_metadata::constants().balances().existential_deposit();
     let ed = api.constants().at(&ed_addr)?;
 
-    let seed_account_info_addr = rc_metadata::storage()
+    let seed_account_info_addr = ah_metadata::storage()
         .system()
         .account(seed_account_id.clone());
     if let Some(seed_account_info) = api
@@ -1051,12 +1079,15 @@ pub async fn try_fetch_pool_operators_for_compound(
         return Ok(None);
     }
 
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let mut members: Vec<AccountId32> = Vec::new();
 
     for pool_id in &config.pool_ids {
-        let bonded_pool_addr = rc_metadata::storage()
+        let bonded_pool_addr = ah_metadata::storage()
             .nomination_pools()
             .bonded_pools(*pool_id);
         if let Some(pool) = api
@@ -1066,7 +1097,7 @@ pub async fn try_fetch_pool_operators_for_compound(
             .fetch(&bonded_pool_addr)
             .await?
         {
-            let permissions_addr = rc_metadata::storage()
+            let permissions_addr = ah_metadata::storage()
                 .nomination_pools()
                 .claim_permissions(pool.roles.depositor.clone());
 
@@ -1084,7 +1115,7 @@ pub async fn try_fetch_pool_operators_for_compound(
                 .contains(&permissions)
                 {
                     // fetch pool owner pending rewards
-                    let runtime_api_call = rc_metadata::apis()
+                    let runtime_api_call = ah_metadata::apis()
                         .nomination_pools_api()
                         .pending_rewards(pool.roles.depositor.clone());
 
@@ -1120,12 +1151,15 @@ pub async fn try_fetch_pool_members_for_compound(
         return try_fetch_pool_operators_for_compound(&crunch).await;
     }
 
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let mut members: Vec<AccountId32> = Vec::new();
 
     // 1. get all members with permissions set as [PermissionlessCompound, PermissionlessAll]
-    let permissions_addr = rc_metadata::storage()
+    let permissions_addr = ah_metadata::storage()
         .nomination_pools()
         .claim_permissions_iter();
 
@@ -1147,7 +1181,7 @@ pub async fn try_fetch_pool_members_for_compound(
             // debug!("member: {}", member);
 
             // 2 .Verify if member belongs to the pools configured
-            let pool_member_addr = rc_metadata::storage()
+            let pool_member_addr = ah_metadata::storage()
                 .nomination_pools()
                 .pool_members(member.clone());
             if let Some(pool_member) = api
@@ -1159,7 +1193,7 @@ pub async fn try_fetch_pool_members_for_compound(
             {
                 if config.pool_ids.contains(&pool_member.pool_id) {
                     // fetch pool member pending rewards
-                    let runtime_api_call = rc_metadata::apis()
+                    let runtime_api_call = ah_metadata::apis()
                         .nomination_pools_api()
                         .pending_rewards(member.clone());
 
@@ -1184,7 +1218,6 @@ pub async fn try_fetch_pool_members_for_compound(
 pub async fn try_fetch_stashes_from_pool_ids(
     crunch: &Crunch,
 ) -> Result<Option<Vec<String>>, CrunchError> {
-    let api = crunch.client().clone();
     let config = CONFIG.clone();
     if config.pool_ids.len() == 0
         || (!config.pool_active_nominees_payout_enabled
@@ -1193,7 +1226,12 @@ pub async fn try_fetch_stashes_from_pool_ids(
         return Ok(None);
     }
 
-    let active_era_addr = rc_metadata::storage().staking().active_era();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    let active_era_addr = ah_metadata::storage().staking().active_era();
     let era_index = match api
         .storage()
         .at_latest()
@@ -1210,7 +1248,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
 
     for pool_id in config.pool_ids.iter() {
         let pool_stash_account = nomination_pool_account(AccountType::Bonded, *pool_id);
-        let nominators_addr = rc_metadata::storage()
+        let nominators_addr = ah_metadata::storage()
             .staking()
             .nominators(pool_stash_account.clone());
         if let Some(nominations) = api
@@ -1234,16 +1272,18 @@ pub async fn try_fetch_stashes_from_pool_ids(
             // NOTE_2: Ideally nominees shouldn't have any pending payouts, but is in the best interest of the pool members
             // that pool operators trigger payouts as a backup at least for the active nominees.
             for stash in targets {
-                let eras_stakers_addr = rc_metadata::storage()
+                let eras_stakers_paged_addr = ah_metadata::storage()
                     .staking()
-                    .eras_stakers(era_index - 1, stash.clone());
-                if let Some(exposure) = api
+                    .eras_stakers_paged_iter2(era_index - 1, stash.clone());
+                let mut iter = api
                     .storage()
                     .at_latest()
                     .await?
-                    .fetch(&eras_stakers_addr)
-                    .await?
-                {
+                    .iter(eras_stakers_paged_addr)
+                    .await?;
+
+                while let Some(Ok(data)) = iter.next().await {
+                    let exposure = data.value.0;
                     if exposure.others.iter().any(|x| x.who == pool_stash_account) {
                         active.push(stash.to_string());
                     }
@@ -1286,15 +1326,18 @@ pub async fn try_fetch_stashes_from_pool_ids(
 }
 
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
-    let api = crunch.client().clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
 
     let stashes = get_stashes(&crunch).await?;
     info!("Inspect {} stashes -> {}", stashes.len(), stashes.join(","));
 
-    let history_depth_addr = rc_metadata::constants().staking().history_depth();
+    let history_depth_addr = ah_metadata::constants().staking().history_depth();
     let history_depth: u32 = api.constants().at(&history_depth_addr)?;
 
-    let active_era_addr = rc_metadata::storage().staking().active_era();
+    let active_era_addr = ah_metadata::storage().staking().active_era();
     let active_era_index = match api
         .storage()
         .at_latest()
@@ -1319,10 +1362,10 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         // Find unclaimed eras in previous 84 eras
         for era_index in start_index..active_era_index {
             // Verify if stash has claimed/unclaimed pages per era by cross checking eras_stakers_overview with claimed_rewards
-            let claimed_rewards_addr = rc_metadata::storage()
+            let claimed_rewards_addr = ah_metadata::storage()
                 .staking()
                 .claimed_rewards(era_index, stash.clone());
-            if let Some(claimed_rewards) = api
+            if let Some(WeakBoundedVec(claimed_rewards)) = api
                 .storage()
                 .at_latest()
                 .await?
@@ -1330,7 +1373,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 .await?
             {
                 // Verify if there are more pages to claim than the ones already claimed
-                let eras_stakers_overview_addr = rc_metadata::storage()
+                let eras_stakers_overview_addr = ah_metadata::storage()
                     .staking()
                     .eras_stakers_overview(era_index, stash.clone());
                 if let Some(exposure) = api
@@ -1356,7 +1399,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                 }
             } else {
                 // Set all pages unclaimed in case there are no claimed rewards for the era and stash specified
-                let eras_stakers_paged_addr = rc_metadata::storage()
+                let eras_stakers_paged_addr = ah_metadata::storage()
                     .staking()
                     .eras_stakers_paged_iter2(era_index, stash.clone());
                 let mut iter = api
@@ -1388,70 +1431,4 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     }
     info!("Job done!");
     Ok(())
-}
-
-// NOTE: is_staking_live_on_ah is a temporary sanity check related to
-// Asset Hub Migration and Staking operations
-#[async_recursion]
-pub async fn is_staking_on_ah_live(crunch: &Crunch) -> Result<bool, CrunchError> {
-    let config = CONFIG.clone();
-    let api = crunch.client().clone();
-
-    let migration_stage_addr = rc_metadata::storage().rc_migrator().rc_migration_stage();
-    let migration_stage = api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&migration_stage_addr)
-        .await?;
-
-    if let Some(stage) = migration_stage {
-        match stage {
-            MigrationStage::Pending | MigrationStage::Scheduled { .. } => {
-                return Ok(false);
-            }
-            MigrationStage::MigrationDone => {
-                // All staking is available at AH at this stage check if operating mode is active
-                let staking_operating_mode_addr =
-                    rc_metadata::storage().staking_ah_client().mode();
-                let staking_operating_mode = api
-                    .storage()
-                    .at_latest()
-                    .await?
-                    .fetch(&staking_operating_mode_addr)
-                    .await?;
-
-                if let Some(mode) = staking_operating_mode {
-                    match mode {
-                        OperatingMode::Active => {
-                            return Ok(true);
-                        }
-                        _ => {
-                            warn!(
-                                "Can't perform operation while Staking Operation is not Active. Mode: {:?}. Sleeping for {} seconds",
-                                mode,
-                                config.sanity_sleep_interval
-                            );
-                            thread::sleep(time::Duration::from_secs(
-                                config.sanity_sleep_interval,
-                            ));
-                            return is_staking_on_ah_live(&crunch).await;
-                        }
-                    }
-                }
-            }
-            _ => {
-                // Any other migration stage just log and try again later
-                let config = CONFIG.clone();
-                warn!(
-                    "Can't perform operation while AHM is ongoing. AHM stage: {:?}. Sleeping for {} seconds",
-                    stage,
-                    config.sanity_sleep_interval
-                );
-                thread::sleep(time::Duration::from_secs(config.sanity_sleep_interval));
-                return is_staking_on_ah_live(&crunch).await;
-            }
-        }
-    }
-    return Ok(false);
 }

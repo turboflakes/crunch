@@ -1,5 +1,5 @@
 [package]
-name = "crunch-polkadot"
+name = "crunch-asset-hub-polkadot"
 version.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -11,11 +11,10 @@ edition.workspace = true
 crunch-core = { path = "../../core" }
 crunch-config = { path = "../../config" }
 crunch-error = { path = "../../error" }
+crunch-pools = { path = "../../pools" }
 crunch-report = { path = "../../report" }
 crunch-stats = { path = "../../stats" }
-crunch-asset-hub-polkadot = { path = "../asset-hub-polkadot" }
 crunch-people-polkadot = { path = "../people-polkadot" }
-crunch-relay-chain-polkadot = { path = "../relay-chain-polkadot" }
 
 async-recursion = { workspace = true }
 log = { workspace = true }
