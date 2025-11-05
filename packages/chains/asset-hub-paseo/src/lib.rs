@@ -801,32 +801,6 @@ async fn _validate_call_via_dry_run(
     Ok(())
 }
 
-pub async fn get_era_index_start(
-    crunch: &Crunch,
-    era_index: EraIndex,
-) -> Result<EraIndex, CrunchError> {
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
-    let config = CONFIG.clone();
-
-    let history_depth_addr = ah_metadata::constants().staking().history_depth();
-    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
-
-    if era_index < cmp::min(config.maximum_history_eras, history_depth) {
-        return Ok(0);
-    }
-
-    if config.is_short || config.is_medium {
-        return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
-    }
-
-    // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
-    // since we still want to show information about inclusion and eras crunched for all history_depth
-    Ok(era_index - history_depth)
-}
-
 pub async fn fetch_controller(
     crunch: &Crunch,
     stash: &AccountId32,
@@ -855,6 +829,32 @@ pub async fn fetch_controller(
             Ok(None)
         }
     }
+}
+
+pub async fn get_era_index_start(
+    crunch: &Crunch,
+    era_index: EraIndex,
+) -> Result<EraIndex, CrunchError> {
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+    let config = CONFIG.clone();
+
+    let history_depth_addr = ah_metadata::constants().staking().history_depth();
+    let history_depth: u32 = api.constants().at(&history_depth_addr)?;
+
+    if era_index < cmp::min(config.maximum_history_eras, history_depth) {
+        return Ok(0);
+    }
+
+    if config.is_short || config.is_medium {
+        return Ok(era_index - cmp::min(config.maximum_history_eras, history_depth));
+    }
+
+    // Note: If crunch is running in verbose mode, ignore MAXIMUM_ERAS
+    // since we still want to show information about inclusion and eras crunched for all history_depth
+    Ok(era_index - history_depth)
 }
 
 pub async fn fetch_claimed_or_unclaimed_pages_per_era(
@@ -922,6 +922,24 @@ pub async fn fetch_claimed_or_unclaimed_pages_per_era(
         }
     }
     Ok(())
+}
+
+pub async fn fetch_active_era_index(crunch: &Crunch) -> Result<u32, CrunchError> {
+    let ah_api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+    let active_era_addr = ah_metadata::storage().staking().active_era();
+    match ah_api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&active_era_addr)
+        .await?
+    {
+        Some(info) => Ok(info.index),
+        None => return Err(CrunchError::Other("Active era not available".into())),
+    }
 }
 
 async fn get_validator_points_info(
@@ -992,6 +1010,63 @@ pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
     }
 
     Ok(stashes)
+}
+
+pub async fn get_signer_details(
+    crunch: &Crunch,
+    seed_account_id: &AccountId32,
+) -> Result<SignerDetails, CrunchError> {
+    let config = CONFIG.clone();
+    let api = crunch
+        .asset_hub_client()
+        .as_ref()
+        .expect("AH API to be available");
+
+    // Get signer account identity
+    let (signer_name, _, _) = get_display_name(&crunch, &seed_account_id, None).await?;
+    let mut signer_details = SignerDetails {
+        account: seed_account_id.clone(),
+        name: signer_name,
+        warnings: Vec::new(),
+    };
+    debug!("signer_details {:?}", signer_details);
+
+    // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
+    let ed_addr = ah_metadata::constants().balances().existential_deposit();
+    let ed = api.constants().at(&ed_addr)?;
+
+    let seed_account_info_addr = ah_metadata::storage()
+        .system()
+        .account(seed_account_id.clone());
+    if let Some(seed_account_info) = api
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&seed_account_info_addr)
+        .await?
+    {
+        if seed_account_info.data.free
+            <= (config.existential_deposit_factor_warning as u128 * ed)
+        {
+            let warning = "⚡ Signer account is running low on funds ⚡";
+            signer_details.warnings.push(warning.to_string());
+            warn!("{warning}");
+        }
+        info!(
+            "Signer {} has {:?} free plancks",
+            seed_account_id.to_string(),
+            seed_account_info.data.free
+        );
+    } else {
+        let rpc = crunch.rpc().clone();
+        let chain_name = rpc.system_chain().await?;
+        warn!(
+            "Signer {} not found on the {chain_name} network!",
+            seed_account_id.to_string(),
+        );
+    }
+
+    Ok(signer_details)
 }
 
 pub async fn try_fetch_pool_operators_for_compound(
@@ -1247,63 +1322,6 @@ pub async fn try_fetch_stashes_from_pool_ids(
     );
 
     Ok(Some(active))
-}
-
-pub async fn get_signer_details(
-    crunch: &Crunch,
-    seed_account_id: &AccountId32,
-) -> Result<SignerDetails, CrunchError> {
-    let config = CONFIG.clone();
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
-
-    // Get signer account identity
-    let (signer_name, _, _) = get_display_name(&crunch, &seed_account_id, None).await?;
-    let mut signer_details = SignerDetails {
-        account: seed_account_id.clone(),
-        name: signer_name,
-        warnings: Vec::new(),
-    };
-    debug!("signer_details {:?}", signer_details);
-
-    // Warn if signer account is running low on funds (if lower than 2x Existential Deposit)
-    let ed_addr = ah_metadata::constants().balances().existential_deposit();
-    let ed = api.constants().at(&ed_addr)?;
-
-    let seed_account_info_addr = ah_metadata::storage()
-        .system()
-        .account(seed_account_id.clone());
-    if let Some(seed_account_info) = api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&seed_account_info_addr)
-        .await?
-    {
-        if seed_account_info.data.free
-            <= (config.existential_deposit_factor_warning as u128 * ed)
-        {
-            let warning = "⚡ Signer account is running low on funds ⚡";
-            signer_details.warnings.push(warning.to_string());
-            warn!("{warning}");
-        }
-        info!(
-            "Signer {} has {:?} free plancks",
-            seed_account_id.to_string(),
-            seed_account_info.data.free
-        );
-    } else {
-        let rpc = crunch.rpc().clone();
-        let chain_name = rpc.system_chain().await?;
-        warn!(
-            "Signer {} not found on the {chain_name} network!",
-            seed_account_id.to_string(),
-        );
-    }
-
-    Ok(signer_details)
 }
 
 pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {

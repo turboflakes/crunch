@@ -32,7 +32,6 @@ use crunch_report::{
     Batch, EraIndex, NominationPoolCommission, NominationPoolsSummary, PageIndex, Payout,
     PayoutSummary, Points, SignerDetails, Validator, Validators,
 };
-
 use log::{debug, info, warn};
 use std::{
     cmp,

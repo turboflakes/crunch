@@ -94,16 +94,6 @@ impl SupportedRuntime {
         }
     }
 
-    // // NOTE: Hardcoded here to support staking on asset hub after asset hub migration finished
-    // pub fn is_staking_on_asset_hub(&self) -> bool {
-    //     match &self {
-    //         Self::Polkadot => false,
-    //         Self::Kusama => true,
-    //         Self::Westend => true,
-    //         Self::Paseo => true,
-    //     }
-    // }
-
     // Useful to be used as the subdomain in Subscan hyperlinks
     pub fn subdomain(&self, is_staking_on_asset_hub: bool) -> String {
         if is_staking_on_asset_hub {

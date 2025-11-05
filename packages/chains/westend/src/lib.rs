@@ -20,7 +20,7 @@
 // SOFTWARE.
 
 use crunch_asset_hub_westend::{
-    ah_metadata, ah_metadata::staking::events::EraPaid,
+    ah_metadata::staking::events::EraPaid, fetch_active_era_index,
     fetch_claimed_or_unclaimed_pages_per_era, fetch_controller, get_era_index_start,
     get_signer_details, get_stashes, try_run_batch_payouts, try_run_batch_pool_members,
 };
@@ -213,10 +213,6 @@ async fn collect_validators_data(
 
 pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let config = CONFIG.clone();
-    let api = crunch
-        .asset_hub_client()
-        .as_ref()
-        .expect("AH API to be available");
 
     let signer_keypair: Keypair = get_keypair_from_seed_file()?;
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
@@ -227,17 +223,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let chain_name = crunch.rpc().system_chain().await?;
 
     // Get Era index
-    let active_era_addr = ah_metadata::storage().staking().active_era();
-    let active_era_index = match api
-        .storage()
-        .at_latest()
-        .await?
-        .fetch(&active_era_addr)
-        .await?
-    {
-        Some(info) => info.index,
-        None => return Err(CrunchError::Other("Active era not available".into())),
-    };
+    let active_era_index = fetch_active_era_index(&crunch).await?;
 
     let properties = crunch.rpc().system_properties().await?;
 
