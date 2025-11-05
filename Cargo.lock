@@ -1180,17 +1180,9 @@ dependencies = [
 name = "crunch-relay-chain-polkadot"
 version = "0.27.1"
 dependencies = [
- "async-recursion",
- "crunch-config",
  "crunch-core",
  "crunch-error",
- "crunch-people-polkadot",
- "crunch-pools",
- "crunch-report",
- "crunch-stats",
- "log",
  "subxt",
- "subxt-signer",
 ]
 
 [[package]]
