@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.27.2] - 2025-11-05
+## [0.27.2] - 2025-11-06
 
 ## Changed
 - Clean up AHM and uniformize the logic on all chains.
+- Fix stack overflow issue #69
+- Update metadata asset-hub-kusama/2000001
 
 ## [0.27.0] - 2025-11-03
 
