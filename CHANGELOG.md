@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.3] - 2025-11-06
+- Update metadata asset-hub-polkadot/2000001
+
 ## [0.27.2] - 2025-11-06
 
 ## Changed

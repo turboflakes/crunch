@@ -31,7 +31,7 @@ For Pool Operators to auto-compound members rewards above certain threshold.
 # create `crunch-bot` directory
 mkdir /crunch-bot
 # download `crunch` binary latest version
-wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.27.2/crunch
+wget -P /crunch-bot https://github.com/turboflakes/crunch/releases/download/v0.27.3/crunch
 # make `crunch` binary file executable
 chmod +x /crunch-bot/crunch
 ```
