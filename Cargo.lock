@@ -914,7 +914,6 @@ dependencies = [
 name = "crunch-asset-hub-kusama"
 version = "0.27.1"
 dependencies = [
- "async-recursion",
  "crunch-config",
  "crunch-core",
  "crunch-error",
@@ -931,7 +930,6 @@ dependencies = [
 name = "crunch-asset-hub-paseo"
 version = "0.27.1"
 dependencies = [
- "async-recursion",
  "crunch-config",
  "crunch-core",
  "crunch-error",
@@ -948,7 +946,6 @@ dependencies = [
 name = "crunch-asset-hub-polkadot"
 version = "0.27.1"
 dependencies = [
- "async-recursion",
  "crunch-config",
  "crunch-core",
  "crunch-error",
@@ -965,7 +962,6 @@ dependencies = [
 name = "crunch-asset-hub-westend"
 version = "0.27.1"
 dependencies = [
- "async-recursion",
  "crunch-config",
  "crunch-core",
  "crunch-error",

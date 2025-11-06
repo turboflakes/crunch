@@ -19,7 +19,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use async_recursion::async_recursion;
 use crunch_config::CONFIG;
 use crunch_core::{
     get_account_id_from_storage_key, to_hex, try_fetch_stashes_from_remote_url, Crunch,
@@ -335,25 +334,23 @@ pub async fn try_run_batch_payouts(
         //
         // validate_calls_for_batch
         //
-        let (valid_calls, pending_calls) = validate_calls_for_batch(
+        let pending_calls = validate_calls_for_batch(
             crunch,
-            signer,
-            calls_for_batch.clone(),
+            &mut calls_for_batch,
             available_balance,
             existencial_deposit,
             max_extrinsic_weight.clone(),
-            None,
         )
         .await?;
 
         //
         // sign_and_submit_maximum_calls
         //
-        if valid_calls.len() > 0 {
+        if calls_for_batch.len() > 0 {
             sign_and_submit_maximum_calls(
                 crunch,
                 signer,
-                valid_calls,
+                calls_for_batch.clone(),
                 validators,
                 &mut summary,
             )
@@ -625,81 +622,74 @@ fn build_calls_for_batch(
     Ok(calls_for_batch)
 }
 
-#[async_recursion]
 pub async fn validate_calls_for_batch(
     crunch: &Crunch,
-    signer: &Keypair,
-    calls: Vec<Call>,
+    calls: &mut Vec<Call>,
     available_balance: u128,
     existencial_deposit: u128,
     max_weight: Weight,
-    pending_calls: Option<Vec<Call>>,
-) -> Result<(Vec<Call>, Option<Vec<Call>>), CrunchError> {
+) -> Result<Option<Vec<Call>>, CrunchError> {
     type UtilityCall = ah_metadata::runtime_types::pallet_utility::pallet::Call;
-    let batch_call = Call::Utility(UtilityCall::force_batch {
-        calls: calls.clone(),
-    });
 
     debug!("validate number of calls: {:?}", calls.len());
 
-    match validate_call_via_tx_payment(
-        &crunch,
-        batch_call.clone(),
-        available_balance,
-        existencial_deposit,
-        max_weight.clone(),
-    )
-    .await
-    {
-        Ok(_) => {
-            if let Some(ref pending) = pending_calls {
-                info!(
-                    "Batch validated with {} calls successfully. Pending calls: {}",
-                    calls.len(),
-                    pending.len()
-                );
-            } else {
-                info!("Batch validated with {} calls successfully", calls.len());
-            }
+    let mut pending_calls = Vec::new();
 
-            return Ok((calls.clone(), pending_calls));
-        }
-        Err(err) => match err {
-            CrunchError::MaxWeightExceeded(e) => {
-                debug!(
-                    "Batch with {} calls got weight exceeded: {}",
-                    calls.len(),
-                    e
-                );
-                if calls.len() > 1 {
-                    let new_calls = calls[..calls.len() - 1].to_vec();
-                    let last_call = calls[calls.len() - 1..].to_vec();
-                    let pending_calls = if let Some(mut pending) = pending_calls {
-                        pending.extend(last_call);
-                        Some(pending)
-                    } else {
-                        Some(last_call)
-                    };
+    loop {
+        let batch_call = Call::Utility(UtilityCall::force_batch {
+            calls: calls.clone(),
+        });
 
-                    return validate_calls_for_batch(
-                        crunch,
-                        signer,
-                        new_calls,
-                        available_balance,
-                        existencial_deposit,
-                        max_weight.clone(),
-                        pending_calls,
-                    )
-                    .await;
+        match validate_call_via_tx_payment(
+            &crunch,
+            batch_call.clone(),
+            available_balance,
+            existencial_deposit,
+            max_weight.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                if pending_calls.is_empty() {
+                    info!("Batch validated with {} calls successfully", calls.len());
+                    return Ok(None);
+                } else {
+                    info!(
+                        "Batch validated with {} calls successfully. Pending calls: {}",
+                        calls.len(),
+                        pending_calls.len()
+                    );
+                    return Ok(Some(pending_calls));
                 }
-                // NOTE: If there's only one call left, we can't split it further.
-                // This should never happen, as a single payout should always be able to fit with the extrinsic weight limit.
-                return Err(CrunchError::MaxWeightExceededForOneExtrinsic);
             }
-            _ => {
-                return Err(CrunchError::DryRunError(format!("{:?}", err)));
-            }
-        },
+            Err(err) => match err {
+                CrunchError::MaxWeightExceeded(e) => {
+                    debug!(
+                        "Batch with {} calls got weight exceeded: {}",
+                        calls.len(),
+                        e
+                    );
+                    // NOTE: If there's only one call left, we can't split it further.
+                    // This should never happen, as a single payout should always be able to fit
+                    // within the extrinsic weight limit.
+                    if calls.len() == 1 {
+                        return Err(CrunchError::MaxWeightExceededForOneExtrinsic);
+                    }
+
+                    // Remove half of the calls to speed up the process
+                    let mut split_point = calls.len() / 2;
+                    // Ensure split_point is even and try to fit one more if it's odd
+                    if split_point % 2 != 0 {
+                        split_point = if split_point > 1 { split_point + 1 } else { 1 };
+                    }
+                    let mut removed = calls.split_off(split_point);
+                    pending_calls.append(&mut removed);
+                }
+                _ => {
+                    return Err(CrunchError::DryRunError(format!("{:?}", err)));
+                }
+            },
+        }
     }
 }
 
