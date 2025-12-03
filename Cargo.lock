@@ -884,7 +884,7 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "crunch"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-std",
  "crunch-config",
@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-asset-hub-kusama"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-config",
  "crunch-core",
@@ -928,7 +928,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-asset-hub-paseo"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-config",
  "crunch-core",
@@ -944,7 +944,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-asset-hub-polkadot"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-config",
  "crunch-core",
@@ -960,7 +960,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-asset-hub-westend"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-config",
  "crunch-core",
@@ -976,7 +976,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-config"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "clap",
  "dotenv",
@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-core"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-std",
  "crunch-config",
@@ -1011,7 +1011,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-error"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-matrix",
  "openssl",
@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-kusama"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-asset-hub-kusama",
@@ -1045,7 +1045,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-matrix"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "base64",
@@ -1063,7 +1063,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-paseo"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-asset-hub-paseo",
@@ -1081,7 +1081,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-people-kusama"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-core",
@@ -1093,7 +1093,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-people-paseo"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-core",
@@ -1105,7 +1105,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-people-polkadot"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-core",
@@ -1117,7 +1117,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-people-westend"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-core",
@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-polkadot"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-asset-hub-polkadot",
@@ -1147,7 +1147,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-pools"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "hex",
  "sp-core",
@@ -1156,7 +1156,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-relay-chain-kusama"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-core",
  "crunch-error",
@@ -1165,7 +1165,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-relay-chain-paseo"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-core",
  "crunch-error",
@@ -1174,7 +1174,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-relay-chain-polkadot"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-core",
  "crunch-error",
@@ -1183,7 +1183,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-relay-chain-westend"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-core",
  "crunch-error",
@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-report"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-config",
  "crunch-core",
@@ -1205,11 +1205,11 @@ dependencies = [
 
 [[package]]
 name = "crunch-stats"
-version = "0.27.3"
+version = "0.28.0"
 
 [[package]]
 name = "crunch-support"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "crunch-config",
  "serde_json",
@@ -1218,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "crunch-westend"
-version = "0.27.3"
+version = "0.28.0"
 dependencies = [
  "async-recursion",
  "crunch-asset-hub-westend",
