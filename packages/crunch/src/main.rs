@@ -97,10 +97,14 @@ fn spawn_and_restart_crunch_flakes_on_error() {
                         error!("{}", e);
                         let message = format!("On hold for {} min!", sleep_min);
                         let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", sleep_min);
-                        crunch
-                            .send_message(&message, &formatted_message)
-                            .await
-                            .unwrap();
+                        if let Err(matrix_err) =
+                            crunch.send_message(&message, &formatted_message).await
+                        {
+                            warn!(
+                                "Failed to send error notification message: {}",
+                                matrix_err
+                            );
+                        }
                     }
                 }
                 thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
@@ -121,16 +125,22 @@ fn spawn_and_restart_subscription_on_error() {
             let crunch: Crunch = Crunch::new().await;
             if let Err(e) = run_and_subscribe_era_paid_events(&crunch).await {
                 match e {
-                    CrunchError::SubscriptionFinished | CrunchError::MatrixError(_) => {
-                        warn!("{}", e)
+                    CrunchError::SubscriptionFinished
+                    | CrunchError::MatrixError(_)
+                    | CrunchError::RpcError(_)
+                    | CrunchError::RuntimeUpgradeDetected(_, _) => {
+                        warn!("{} - On hold for 30 secs!", e);
+                        thread::sleep(time::Duration::from_secs(30));
                     }
                     CrunchError::DryRunError(_) => {
                         let sleep_min = u32::pow(config.error_interval, n);
-                        warn!("{} On hold for {} secs!", e, 60 * sleep_min);
+                        warn!("{} - On hold for {} secs!", e, 60 * sleep_min);
                         thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
                     }
-                    CrunchError::RuntimeUpgradeDetected(_, _) => {
-                        warn!("{} On hold for 30 secs!", e);
+                    CrunchError::SubxtError(ref subxt_err)
+                        if subxt_err.to_string().contains("connection was lost") =>
+                    {
+                        warn!("{} - On hold for 30 secs!", subxt_err);
                         thread::sleep(time::Duration::from_secs(30));
                     }
                     _ => {
@@ -141,10 +151,14 @@ fn spawn_and_restart_subscription_on_error() {
                         }
                         let message = format!("On hold for {} min!", sleep_min);
                         let formatted_message = format!("<br/>🚨 An error was raised -> <code>crunch</code> on hold for {} min while rescue is on the way 🚁 🚒 🚑 🚓<br/><br/>", sleep_min);
-                        crunch
-                            .send_message(&message, &formatted_message)
-                            .await
-                            .unwrap();
+                        if let Err(matrix_err) =
+                            crunch.send_message(&message, &formatted_message).await
+                        {
+                            warn!(
+                                "Failed to send error notification message: {}",
+                                matrix_err
+                            );
+                        }
                         thread::sleep(time::Duration::from_secs((60 * sleep_min).into()));
                         n += 1;
                         continue;

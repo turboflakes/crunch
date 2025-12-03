@@ -20,9 +20,10 @@
 // SOFTWARE.
 
 use crunch_asset_hub_polkadot::{
-    ah_metadata::staking::events::EraPaid, fetch_active_era_index,
-    fetch_claimed_or_unclaimed_pages_per_era, fetch_controller, get_era_index_start,
-    get_signer_details, get_stashes, try_run_batch_payouts, try_run_batch_pool_members,
+    ah_metadata::staking::events::EraPaid, ah_metadata::system::events::CodeUpdated,
+    fetch_active_era_index, fetch_claimed_or_unclaimed_pages_per_era, fetch_controller,
+    get_era_index_start, get_signer_details, get_stashes, try_run_batch_payouts,
+    try_run_batch_pool_members,
 };
 use crunch_config::CONFIG;
 use crunch_core::{get_keypair_from_seed_file, random_wait, try_fetch_onet_data, Crunch};
@@ -50,6 +51,10 @@ pub async fn run_and_subscribe_era_paid_events(
         .asset_hub_client()
         .as_ref()
         .expect("AH API to be available");
+    let rpc = crunch
+        .asset_hub_rpc()
+        .as_ref()
+        .expect("AH Legacy API to be available");
 
     // Keep track of the last known runtime version
     let last_spec_version = api.runtime_version().spec_version;
@@ -90,10 +95,8 @@ pub async fn run_and_subscribe_era_paid_events(
 
                 // Skip current block and fetch only blocks that have not yet been processed
                 if block.number() - block_number > 0 {
-                    if let Some(block_hash) = crunch
-                        .rpc()
-                        .chain_get_block_hash(Some(block_number.into()))
-                        .await?
+                    if let Some(block_hash) =
+                        rpc.chain_get_block_hash(Some(block_number.into())).await?
                     {
                         let events = api.events().at(block_hash).await?;
 
@@ -119,6 +122,14 @@ pub async fn run_and_subscribe_era_paid_events(
             info!("Waiting {} seconds before run batch", wait);
             thread::sleep(time::Duration::from_secs(wait));
             try_crunch(&crunch).await?;
+        }
+
+        // Event --> system::CodeUpdated
+        if let Some(_event) = events.find_first::<CodeUpdated>()? {
+            return Err(CrunchError::RuntimeUpgradeDetected(
+                last_spec_version,
+                current_spec_version,
+            ));
         }
 
         latest_block_number_processed = Some(block.number());
