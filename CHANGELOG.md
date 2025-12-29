@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.1] - 2025-12-29
+- Update metadata kusama/2000004
+- Update metadata asset-hub-kusama/2000004
+- Update metadata people-kusama/2000004
+- Update metadata paseo/2000002
+- Update metadata asset-hub-paseo/2000002
+- Update metadata people-paseo/2000002
+- Update metadata westend/1021000
+- Update metadata asset-hub-westend/1021000
+- Update metadata people-westend/1021000
+
+## [0.28.0] - 2025-12-03
+ - Fix RPC reconnection; Log and warn on RPC errors;
+ - Watch, log and silent restart on `system.code_updated` event;
+ - Update latest networks metadata
+
+## [0.27.3] - 2025-11-06
+- Update metadata asset-hub-polkadot/2000001
+
 ## [0.27.3] - 2025-11-06
 - Update metadata asset-hub-polkadot/2000001
 
