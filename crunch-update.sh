@@ -1,3 +1,4 @@
+#!/bin/bash
 # The MIT License (MIT)
 # Copyright © 2021 Aukbit Ltd.
 #
@@ -19,49 +20,61 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-#!/bin/bash
-#
-# > make a file executable
-# chmod +x ./crunch-update.sh
+set -e
 
-DIRNAME="~/crunch-bot"
+DIRNAME="$HOME/crunch-bot"
 FILENAME="$DIRNAME/crunch"
+TEMPDIR=$(mktemp -d)
+
+cleanup() {
+    rm -rf "$TEMPDIR"
+}
+trap cleanup EXIT
 
 read -p "Enter the Crunch version that you would like to download (e.g.: 0.21.0): " INPUT_VERSION
-
-if [ "$INPUT_VERSION" = "" ]; then
-        INPUT_VERSION="0.21.0"
+if [ -z "$INPUT_VERSION" ]; then
+    INPUT_VERSION="0.21.0"
 fi
 
 read -p "Enter a specific Ubuntu version the release was built on, or leave empty for latest. Available options: [ubuntu-22.04, ubuntu-20.04, linux-musl]: " TARGET_VERSION
 
-if [ "$TARGET_VERSION" != "" ]; then
-        TARGET_VERSION=".${TARGET_VERSION//.}"
+DOWNLOAD_SUFFIX=""
+if [ -n "$TARGET_VERSION" ]; then
+    DOWNLOAD_SUFFIX=".${TARGET_VERSION//.}"
 fi
 
-URI="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch$TARGET_VERSION"
-URI_SHA256="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch.sha256$TARGET_VERSION"
-wget $URI && wget $URI_SHA256
+URI="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch$DOWNLOAD_SUFFIX"
+URI_SHA256="https://github.com/turboflakes/crunch/releases/download/v$INPUT_VERSION/crunch.sha256$DOWNLOAD_SUFFIX"
 
-if [ "$TARGET_VERSION" != "" ]; then
-        mv "crunch$TARGET_VERSION" crunch
-fi
+echo "Downloading crunch v$INPUT_VERSION..."
+cd "$TEMPDIR"
+wget -q --show-progress "$URI" -O crunch || { echo "Error: Failed to download crunch binary"; exit 1; }
+wget -q --show-progress "$URI_SHA256" -O crunch.sha256 || { echo "Error: Failed to download checksum file"; exit 1; }
 
-if sha256sum -c "crunch.sha256$TARGET_VERSION" 2>&1 | grep -q 'OK'
-then
-        if [ ! -d "$DIRNAME" ]
-        then
-                mkdir $DIRNAME
-        fi
-        if [[ -f "$FILENAME" ]]
-        then
-                mv "$FILENAME" "$FILENAME.backup"
-        fi
-        rm "crunch.sha256$TARGET_VERSION"
-        chmod +x crunch
-        mv crunch "$FILENAME"
-        echo "** crunch v$INPUT_VERSION successfully downloaded and verified $FILENAME **"
+# Fix checksum file to match local filename
+sed -i 's/crunch[^ ]*/crunch/' crunch.sha256
+
+if sha256sum -c crunch.sha256 2>&1 | grep -q 'OK'; then
+    echo "Checksum verified."
+    
+    # Create directory if it doesn't exist
+    mkdir -p "$DIRNAME"
+    
+    # Backup existing binary
+    if [[ -f "$FILENAME" ]]; then
+        mv "$FILENAME" "$FILENAME.backup"
+        echo "Existing binary backed up to $FILENAME.backup"
+    fi
+    
+    # Install new binary
+    chmod +x crunch
+    mv crunch "$FILENAME"
+    
+    echo ""
+    echo "** crunch v$INPUT_VERSION successfully installed at $FILENAME **"
+    echo ""
+    echo "NOTE: If running as a systemd service, restart it to apply the update."
 else
-        echo "Error: SHA256 doesn't match!"
-        rm "$FILENAME*"
+    echo "Error: SHA256 checksum verification failed!"
+    exit 1
 fi
