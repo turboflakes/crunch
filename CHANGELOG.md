@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Review `crunch-update.sh` - PR[#71]
+
 ## [0.28.1] - 2025-12-29
 - Update metadata kusama/2000004
 - Update metadata asset-hub-kusama/2000004
