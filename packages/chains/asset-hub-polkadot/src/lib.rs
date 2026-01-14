@@ -268,7 +268,21 @@ pub async fn try_run_batch_pool_members(
                         TxStatus::Dropped { message } => {
                             warn!("TxStatus: {message:?}");
                         }
-                        _ => {}
+                        TxStatus::Broadcasted => {
+                            debug!("TxStatus: Broadcasted");
+                        }
+                        TxStatus::InBestBlock(in_block) => {
+                            debug!(
+                                "TxStatus: InBestBlock hash: {:?}",
+                                in_block.block_hash()
+                            );
+                        }
+                        TxStatus::NoLongerInBestBlock => {
+                            debug!("TxStatus: NoLongerInBestBlock");
+                        }
+                        TxStatus::Validated => {
+                            debug!("TxStatus: Validated");
+                        }
                     }
                 }
                 iteration = Some(x + 1);
@@ -572,7 +586,18 @@ pub async fn sign_and_submit_maximum_calls(
             TxStatus::Dropped { message } => {
                 warn!("TxStatus: {message:?}");
             }
-            _ => {}
+            TxStatus::Broadcasted => {
+                debug!("TxStatus: Broadcasted");
+            }
+            TxStatus::InBestBlock(in_block) => {
+                debug!("TxStatus: InBestBlock hash: {:?}", in_block.block_hash());
+            }
+            TxStatus::NoLongerInBestBlock => {
+                debug!("TxStatus: NoLongerInBestBlock");
+            }
+            TxStatus::Validated => {
+                debug!("TxStatus: Validated");
+            }
         }
     }
 
