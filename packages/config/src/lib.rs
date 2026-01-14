@@ -101,7 +101,7 @@ fn default_tx_tip() -> u64 {
 
 /// provides the default number of blocks the transaction is mortal for
 fn default_tx_mortal_period() -> u64 {
-    0
+    96
 }
 
 /// provides default value for pool_compound_threshold if CRUNCH_POOL_COMPOUND_THRESHOLD env var is not set
