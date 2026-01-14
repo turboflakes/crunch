@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Review `crunch-update.sh` - PR[#71]
+- Log all transactions status in debug mode
+- Set `tx_mortal_period=96` to fix transaction expiration in AH with a 2s block time
 
 ## [0.28.1] - 2025-12-29
 - Update metadata kusama/2000004
