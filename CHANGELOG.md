@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2025-01-27
 - Review `crunch-update.sh` - PR[#71]
 - Log all transactions status in debug mode
 - Set `tx_mortal_period=96` to fix transaction expiration in AH with a 2s block time
+- Update subxt v0.44.2
+- Update metadata polkadot/2000005
+- Update metadata asset-hub-polkadot/2000005
+- Update metadata people-polkadot/2000005
+- Update metadata paseo/2000005
+- Update metadata asset-hub-paseo/2000005
+- Update metadata people-paseo/2000005
+- Update metadata westend/1021001
+- Update metadata people-westend/1021001
 
 ## [0.28.1] - 2025-12-29
 - Update metadata kusama/2000004
