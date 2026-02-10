@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.1] - 2025-02-10
+- Update metadata polkadot/2000006
+- Update metadata asset-hub-polkadot/2000006
+- Update metadata people-polkadot/2000006
+- Update metadata kusama/2000006
+- Update metadata asset-hub-kusama/2000006
+- Update metadata people-kusama/2000006
+- Update metadata asset-hub-polkadot/1021002
+- 
 ## [0.29.0] - 2025-01-27
 - Review `crunch-update.sh` - PR[#71]
 - Log all transactions status in debug mode

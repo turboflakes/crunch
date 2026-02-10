@@ -14,9 +14,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-read -p "Enter the Crunch version that you would like to download (e.g.: 0.28.1), or leave empty for latest: " INPUT_VERSION
+read -p "Enter the Crunch version that you would like to download (e.g.: 0.29.1), or leave empty for latest: " INPUT_VERSION
 if [ -z "$INPUT_VERSION" ]; then
-    INPUT_VERSION="0.28.1"
+    INPUT_VERSION="0.29.1"
 fi
 
 read -p "Enter a specific version the release was built on, or leave empty for Ubuntu latest. Available options: [ubuntu-22.04, linux-musl]: " TARGET_VERSION
