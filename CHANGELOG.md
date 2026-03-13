@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2025-03-13
+- Update metadata polkadot/2000007
+- Update metadata asset-hub-polkadot/2000007
+- Update metadata people-polkadot/2000007
+- Update metadata kusama/2001000
+- Update metadata asset-hub-kusama/2001000
+- Update metadata people-kusama/2001000
+- Update metadata westend/1022000
+- Update metadata asset-hub-westend/1022000
+- Update metadata people-kusama/1022000
+- 
 ## [0.29.1] - 2025-02-10
 - Update metadata polkadot/2000006
 - Update metadata asset-hub-polkadot/2000006
