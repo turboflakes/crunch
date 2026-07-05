@@ -43,6 +43,7 @@ pub struct Payout {
     pub extrinsic: H256,
     pub era_index: u32,
     pub validator_amount_value: u128,
+    pub validator_incentive_value: u128,
     pub nominators_amount_value: u128,
     pub nominators_quantity: u32,
     pub points: Points,
@@ -393,10 +394,28 @@ impl From<RawData> for Report {
                         ));
                     }
 
-                    report.add_text(format!(
-                        "🧑‍🚀 {} → 💸 <b>{}</b> ({:.2}%)",
-                        validator.name, stash_amount, stash_amount_percentage
-                    ));
+                    // Validator incentive amount
+                    let incentive_amount = format!(
+                        "{:.4} {}",
+                        payout.validator_incentive_value as f64
+                            / 10f64.powi(data.network.token_decimals.into()),
+                        data.network.token_symbol
+                    );
+
+                    if payout.validator_incentive_value > 0 {
+                        report.add_text(format!(
+                            "🧑‍🚀 {} → 💸 <b>{}</b> ({:.2}%) + 🍒 <b>{}</b>",
+                            validator.name,
+                            stash_amount,
+                            stash_amount_percentage,
+                            incentive_amount
+                        ));
+                    } else {
+                        report.add_text(format!(
+                            "🧑‍🚀 {} → 💸 <b>{}</b> ({:.2}%)",
+                            validator.name, stash_amount, stash_amount_percentage
+                        ));
+                    }
 
                     // Nominators reward amount
                     let nominators_amount = format!(

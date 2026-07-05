@@ -64,7 +64,7 @@ use ah_metadata::{
         pallet_nomination_pools::{BondExtra, ClaimPermission},
         xcm_runtime_apis::dry_run::CallDryRunEffects,
     },
-    staking::events::{PayoutStarted, Rewarded},
+    staking::events::{PayoutStarted, Rewarded, ValidatorIncentivePaid},
     system::events::ExtrinsicFailed,
     utility::{
         calls::types::with_weight::Weight,
@@ -437,6 +437,7 @@ pub async fn sign_and_submit_maximum_calls(
     let mut validator_index: ValidatorIndex = None;
     let mut era_index: EraIndex = 0;
     let mut validator_amount_value: ValidatorAmount = 0;
+    let mut validator_incentive_value: ValidatorAmount = 0;
     let mut nominators_amount_value: NominatorsAmount = 0;
     let mut nominators_quantity = 0;
 
@@ -476,6 +477,7 @@ pub async fn sign_and_submit_maximum_calls(
                         era_index = ev.era_index;
                         validator_index = validator_index_ref;
                         validator_amount_value = 0;
+                        validator_incentive_value = 0;
                         nominators_amount_value = 0;
                         nominators_quantity = 0;
                     } else if let Some(ev) = event.as_event::<Rewarded>()? {
@@ -491,6 +493,24 @@ pub async fn sign_and_submit_maximum_calls(
                             } else {
                                 nominators_amount_value += ev.amount;
                                 nominators_quantity += 1;
+                            }
+                        }
+                    } else if let Some(ev) = event.as_event::<ValidatorIncentivePaid>()? {
+                        // summary: The validator has been paid their self-stake incentive bonus.
+                        //
+                        // ValidatorIncentivePaid {
+                        // 	era: EraIndex,
+                        // 	validator_stash: T::AccountId,
+                        // 	dest: RewardDestination<T::AccountId>,
+                        // 	amount: BalanceOf<T>,
+                        // }
+                        //
+                        if let Some(i) = validator_index {
+                            let validator = &mut validators[i];
+                            if ev.validator_stash == validator.stash
+                                && ev.era == era_index
+                            {
+                                validator_incentive_value = ev.amount;
                             }
                         }
                     } else if let Some(_ev) = event.as_event::<ItemCompleted>()? {
@@ -516,6 +536,7 @@ pub async fn sign_and_submit_maximum_calls(
                                 extrinsic: tx_events.extrinsic_hash(),
                                 era_index,
                                 validator_amount_value,
+                                validator_incentive_value,
                                 nominators_amount_value,
                                 nominators_quantity,
                                 points,

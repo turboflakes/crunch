@@ -516,6 +516,7 @@ pub async fn sign_and_submit_maximum_calls(
                                 extrinsic: tx_events.extrinsic_hash(),
                                 era_index,
                                 validator_amount_value,
+                                validator_incentive_value: 0,
                                 nominators_amount_value,
                                 nominators_quantity,
                                 points,
