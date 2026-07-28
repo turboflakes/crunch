@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.34.0] - 2025-07-05
+## [0.36.0] - 2025-07-28
+- Update metadata asset-hub-polkadot/2003002
+- Update metadata asset-hub-kusama/2003002
+- Update metadata paseo/2003001
+- Update metadata asset-hub-paseo/2004002
+- Update metadata people-paseo/2004002
+
+## [0.35.0] - 2025-07-05
 - Show validator incentive value in report
 - Update metadata asset-hub-polkadot/2003001
 - Update metadata westend/1024001
