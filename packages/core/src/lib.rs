@@ -19,6 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
+pub mod config;
 
 use crunch_config::CONFIG;
 use crunch_error::CrunchError;
@@ -30,6 +31,7 @@ use regex::Regex;
 use serde::Deserialize;
 use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
 
+use config::CrunchConfig;
 use sp_core::crypto;
 use subxt::{
     backend::{
@@ -44,7 +46,7 @@ use subxt::{
     ext::subxt_rpcs::utils::validate_url_is_secure,
     lightclient::{LightClient, LightClientError, LightClientRpc},
     utils::AccountId32,
-    OnlineClient, SubstrateConfig,
+    OnlineClient,
 };
 use subxt_signer::{sr25519::Keypair, SecretUri};
 
@@ -108,8 +110,8 @@ pub async fn create_substrate_rpc_client_from_url(
 
 pub async fn create_substrate_client_from_rpc_client(
     rpc_client: RpcClient,
-) -> Result<OnlineClient<SubstrateConfig>, CrunchError> {
-    OnlineClient::<SubstrateConfig>::from_rpc_client(rpc_client)
+) -> Result<OnlineClient<CrunchConfig>, CrunchError> {
+    OnlineClient::<CrunchConfig>::from_rpc_client(rpc_client)
         .await
         .map_err(CrunchError::SubxtError)
 }
@@ -160,15 +162,15 @@ pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, Crun
 }
 
 pub async fn create_or_await_substrate_node_client() -> (
-    OnlineClient<SubstrateConfig>,
-    LegacyRpcMethods<SubstrateConfig>,
+    OnlineClient<CrunchConfig>,
+    LegacyRpcMethods<CrunchConfig>,
     SupportedRuntime,
 ) {
     loop {
         match create_substrate_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -274,12 +276,12 @@ pub async fn create_asset_hub_rpc_client_from_config() -> Result<RpcClient, Crun
     }
 }
 
-pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
+pub async fn create_or_await_people_client() -> OnlineClient<CrunchConfig> {
     loop {
         match create_people_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -307,15 +309,13 @@ pub async fn create_or_await_people_client() -> OnlineClient<SubstrateConfig> {
     }
 }
 
-pub async fn create_or_await_asset_hub_client() -> (
-    OnlineClient<SubstrateConfig>,
-    LegacyRpcMethods<SubstrateConfig>,
-) {
+pub async fn create_or_await_asset_hub_client(
+) -> (OnlineClient<CrunchConfig>, LegacyRpcMethods<CrunchConfig>) {
     loop {
         match create_asset_hub_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -372,14 +372,14 @@ pub struct Crunch {
     runtime: SupportedRuntime,
     // Note: Consider setting RC client API to become optional in chains where staking is already LIVE on Asset Hub;
     // Example, if substrate_ws_url is not provided then the Active/Inactive status for each stash is not displayed;
-    client: OnlineClient<SubstrateConfig>,
-    rpc: LegacyRpcMethods<SubstrateConfig>,
+    client: OnlineClient<CrunchConfig>,
+    rpc: LegacyRpcMethods<CrunchConfig>,
     // Note: AssetHub client API could stop being optional after all staking operations are mgrated to AH on all supported crunch chains.
-    asset_hub_client_option: Option<OnlineClient<SubstrateConfig>>,
-    asset_hub_rpc_option: Option<LegacyRpcMethods<SubstrateConfig>>,
+    asset_hub_client_option: Option<OnlineClient<CrunchConfig>>,
+    asset_hub_rpc_option: Option<LegacyRpcMethods<CrunchConfig>>,
     // Note: People client API is optional, if substrate_people_ws_url is not defined
     // identities are just not displayed and the full stash is displayed instead.
-    people_client_option: Option<OnlineClient<SubstrateConfig>>,
+    people_client_option: Option<OnlineClient<CrunchConfig>>,
     matrix: Matrix,
 }
 
@@ -440,7 +440,7 @@ impl Crunch {
         }
     }
 
-    pub fn client(&self) -> &OnlineClient<SubstrateConfig> {
+    pub fn client(&self) -> &OnlineClient<CrunchConfig> {
         &self.client
     }
 
@@ -448,19 +448,19 @@ impl Crunch {
         &self.runtime
     }
 
-    pub fn asset_hub_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
+    pub fn asset_hub_client(&self) -> &Option<OnlineClient<CrunchConfig>> {
         &self.asset_hub_client_option
     }
 
-    pub fn asset_hub_rpc(&self) -> &Option<LegacyRpcMethods<SubstrateConfig>> {
+    pub fn asset_hub_rpc(&self) -> &Option<LegacyRpcMethods<CrunchConfig>> {
         &self.asset_hub_rpc_option
     }
 
-    pub fn people_client(&self) -> &Option<OnlineClient<SubstrateConfig>> {
+    pub fn people_client(&self) -> &Option<OnlineClient<CrunchConfig>> {
         &self.people_client_option
     }
 
-    pub fn rpc(&self) -> &LegacyRpcMethods<SubstrateConfig> {
+    pub fn rpc(&self) -> &LegacyRpcMethods<CrunchConfig> {
         &self.rpc
     }
 
@@ -532,7 +532,7 @@ impl Crunch {
                 .as_ref()
                 .expect("AH API to be available");
 
-            let rpc = LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+            let rpc = LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
             if let Some(header) = rpc.chain_get_header(Some(api.genesis_hash())).await? {
                 if header.state_root != state_root {
                     return Err(CrunchError::GenesisError(format!(
@@ -571,7 +571,7 @@ impl Crunch {
                 .as_ref()
                 .expect("People API to be available");
 
-            let rpc = LegacyRpcMethods::<SubstrateConfig>::new(rpc_client.clone().into());
+            let rpc = LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
             if let Some(header) = rpc.chain_get_header(Some(api.genesis_hash())).await? {
                 if header.state_root != state_root {
                     return Err(CrunchError::GenesisError(format!(

@@ -21,8 +21,9 @@
 
 use crunch_config::CONFIG;
 use crunch_core::{
-    get_account_id_from_storage_key, to_hex, try_fetch_stashes_from_remote_url, Crunch,
-    NominatorsAmount, ValidatorAmount, ValidatorIndex,
+    config::CrunchExtrinsicParamsBuilder as TxParams, get_account_id_from_storage_key,
+    to_hex, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
+    ValidatorIndex,
 };
 use crunch_error::CrunchError;
 use crunch_people_westend::get_display_name;
@@ -39,7 +40,6 @@ use std::{
     str::FromStr,
 };
 use subxt::{
-    config::polkadot::PolkadotExtrinsicParamsBuilder as TxParams,
     error::DispatchError,
     tx::TxStatus,
     utils::{AccountId32, MultiAddress},
@@ -516,7 +516,7 @@ pub async fn sign_and_submit_maximum_calls(
                                 extrinsic: tx_events.extrinsic_hash(),
                                 era_index,
                                 validator_amount_value,
-                                validator_incentive_value:0,
+                                validator_incentive_value: 0,
                                 nominators_amount_value,
                                 nominators_quantity,
                                 points,
