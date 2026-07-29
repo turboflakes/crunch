@@ -1,0 +1,62 @@
+name: Rust CI - Update Artifacts
+
+on:
+  schedule:
+    - cron: '0 5 * * *' # Daily at 05:00 UTC
+  workflow_dispatch: # Allow manual triggers
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  update-artifacts:
+    runs-on: self-hosted
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+
+      - name: Install subxt
+        run: cargo install subxt-cli --locked --features chain-spec-pruning
+
+      - name: Run update-metadata script
+        run: bash scripts/update-metadata.sh
+
+      - name: Run update-chain-specs script
+        run: bash scripts/update-chain-specs.sh
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/update-artifacts
+          commit-message: 'chore: update artifacts'
+          title: 'chore: update artifacts'
+          body: |
+            Automated chain specs and metadata update.
+          labels: automated, chain-specs, metadata
+          delete-branch: true
