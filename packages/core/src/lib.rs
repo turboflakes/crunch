@@ -66,7 +66,7 @@ trait MessageTrait {
 
 impl MessageTrait for Message {
     fn log(&self) {
-        info!("{}", &self[self.len() - 1]);
+        info!("{}", self[self.len() - 1]);
     }
 
     fn show_or_hide(&mut self, value: String, hidden: bool) {

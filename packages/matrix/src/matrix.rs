@@ -327,7 +327,7 @@ impl Matrix {
                 debug!("response {:?}", res);
                 match res.status() {
                     reqwest::StatusCode::OK => {
-                        info!("{} * Matrix bot display name changed", &display_name);
+                        info!("{} * Matrix bot display name changed", display_name);
                         Ok(())
                     }
                     _ => {

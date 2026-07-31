@@ -57,7 +57,7 @@ pub async fn get_display_name(
                 debug!("identity {:?}", identity);
                 let parent = parse_identity_data(identity.info.display);
                 let name = match sub_account_name {
-                    Some(child) => format!("{}/{}", &parent, child),
+                    Some(child) => format!("{}/{}", parent, child),
                     None => parent.clone(),
                 };
                 Ok((name, parent.clone(), true))
