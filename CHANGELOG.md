@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.1] - 2025-07-31
+- Fix paseo new transaction extensions
+- Add CI dev and update artifacts workflows
+- Set and fix clippy warnings
+
 ## [0.36.0] - 2025-07-28
 - Update metadata asset-hub-polkadot/2003002
 - Update metadata asset-hub-kusama/2003002
