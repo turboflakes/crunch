@@ -108,3 +108,5 @@ jobs:
 
       - name: Run cargo test --locked
         run: cargo test --locked --all-features --all-targets
+        env:
+          CRUNCH_CONFIG_FILENAME: .env.example
