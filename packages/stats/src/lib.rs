@@ -19,23 +19,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-pub fn mean(list: &Vec<f64>) -> f64 {
-    if list.len() == 0 {
+pub fn mean(list: &[f64]) -> f64 {
+    if list.is_empty() {
         return 0.0;
     }
     let sum: f64 = list.iter().sum();
     sum / (list.len() as f64)
 }
 
-pub fn standard_deviation(list: &Vec<f64>) -> f64 {
+pub fn standard_deviation(list: &[f64]) -> f64 {
     let m = mean(list);
-    let mut variance: Vec<f64> =
-        list.iter().map(|&score| (score - m).powf(2.0)).collect();
-    mean(&mut variance).sqrt()
+    let variance: Vec<f64> = list.iter().map(|&score| (score - m).powf(2.0)).collect();
+    mean(&variance).sqrt()
 }
 
-pub fn median(list: &mut Vec<u32>) -> u32 {
-    if list.len() == 0 {
+pub fn median(list: &mut [u32]) -> u32 {
+    if list.is_empty() {
         return 0;
     }
     list.sort();
@@ -44,22 +43,22 @@ pub fn median(list: &mut Vec<u32>) -> u32 {
 }
 
 // Calculate 95% confidence interval
-pub fn _confidence_interval_95(list: &Vec<f64>) -> (f64, f64) {
+pub fn _confidence_interval_95(list: &[f64]) -> (f64, f64) {
     confidence_interval(list, 1.96)
 }
 
 // Calculate 99% confidence interval
-pub fn _confidence_interval_99(list: &Vec<f64>) -> (f64, f64) {
+pub fn _confidence_interval_99(list: &[f64]) -> (f64, f64) {
     confidence_interval(list, 2.576)
 }
 
 // Calculate 99.9% confidence interval
-pub fn confidence_interval_99_9(list: &Vec<f64>) -> (f64, f64) {
+pub fn confidence_interval_99_9(list: &[f64]) -> (f64, f64) {
     confidence_interval(list, 3.291)
 }
 
 // https://www.mathsisfun.com/data/confidence-interval.html
-pub fn confidence_interval(list: &Vec<f64>, z: f64) -> (f64, f64) {
+pub fn confidence_interval(list: &[f64], z: f64) -> (f64, f64) {
     let m = mean(list);
     let sd = standard_deviation(list);
     let v = z * (sd / ((list.len() as f64).sqrt()));
@@ -67,13 +66,15 @@ pub fn confidence_interval(list: &Vec<f64>, z: f64) -> (f64, f64) {
 }
 // Find outliers by Interquartile Range(IQR)
 // https://www.statisticshowto.com/statistics-basics/find-outliers/
-pub fn iqr_interval(list: &mut Vec<u32>) -> (f64, f64) {
-    if list.len() == 0 {
+pub fn iqr_interval(list: &mut [u32]) -> (f64, f64) {
+    if list.is_empty() {
         return (0.0, 0.0);
     }
     list.sort();
-    let q1 = median(&mut (&list[..&list.len() / 2]).into());
-    let q3 = median(&mut (&list[&list.len() - (&list.len() / 2)..]).into());
+    let mut q1_list = list[..list.len() / 2].to_vec();
+    let q1 = median(&mut q1_list);
+    let mut q3_list = list[list.len() - (list.len() / 2)..].to_vec();
+    let q3 = median(&mut q3_list);
     let iqr = q3 - q1;
     (
         (q1 as f64) - (iqr as f64 * 1.5),

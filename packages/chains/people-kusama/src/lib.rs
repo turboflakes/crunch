@@ -75,7 +75,7 @@ pub async fn get_display_name(
                 {
                     let sub_account_name = parse_identity_data(data);
                     return get_display_name(
-                        &crunch,
+                        crunch,
                         &parent_account,
                         Some(sub_account_name.to_string()),
                     )
@@ -198,12 +198,14 @@ fn parse_identity_data(
         people_metadata::runtime_types::pallet_identity::types::Data::Raw32(bytes) => {
             str(bytes.to_vec())
         }
-        _ => format!("???"),
+        _ => "???".to_string(),
     }
 }
 
 fn str(bytes: Vec<u8>) -> String {
-    format!("{}", String::from_utf8(bytes).expect("Identity not utf-8"))
+    String::from_utf8(bytes)
+        .expect("Identity not utf-8")
+        .to_string()
 }
 
 // Provides a distinct and sorted vector of parent identities by string

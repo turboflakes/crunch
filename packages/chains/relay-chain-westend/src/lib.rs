@@ -42,8 +42,8 @@ pub async fn fetch_authorities(crunch: &Crunch) -> Result<Validators, CrunchErro
         .fetch(&addr)
         .await?
         .ok_or_else(|| {
-            CrunchError::from(format!(
-                "Current validators not defined at latest block hash"
-            ))
+            CrunchError::from(
+                "Current validators not defined at latest block hash".to_string(),
+            )
         })
 }

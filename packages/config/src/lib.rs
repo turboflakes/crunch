@@ -31,7 +31,6 @@
 // Set Config struct into a CONFIG lazy_static to avoid multiple processing.
 //
 use clap::{App, Arg, SubCommand};
-use dotenv;
 use lazy_static::lazy_static;
 use log::{info, warn};
 use serde::Deserialize;
@@ -632,12 +631,12 @@ fn get_config() -> Config {
 
     // Try to load configuration from file first
     let config_path = matches.value_of("config-path").unwrap_or(".env");
-    match dotenv::from_filename(&config_path).ok() {
+    match dotenv::from_filename(config_path).ok() {
         Some(_) => info!("Loading configuration from {} file", &config_path),
         None => {
             let config_path =
                 env::var("CRUNCH_CONFIG_FILENAME").unwrap_or(".env".to_string());
-            if let Some(_) = dotenv::from_filename(&config_path).ok() {
+            if dotenv::from_filename(&config_path).ok().is_some() {
                 info!("Loading configuration from {} file", &config_path);
             }
         }

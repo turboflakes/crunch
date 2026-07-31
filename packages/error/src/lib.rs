@@ -19,8 +19,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use codec;
-use reqwest;
 use std::{str::Utf8Error, string::String};
 use subxt::{
     error::{DispatchError, MetadataError},

@@ -84,7 +84,7 @@ impl Room {
         let v: Vec<&str> = config.matrix_bot_user.split(":").collect();
         Room {
             room_alias_name: room_alias_name.to_string(),
-            room_alias: format!("#{}:{}", room_alias_name.to_string(), v.last().unwrap()),
+            room_alias: format!("#{}:{}", room_alias_name, v.last().unwrap()),
             ..Default::default()
         }
     }
@@ -182,7 +182,7 @@ impl Matrix {
             return Ok(());
         }
         let config = CONFIG.clone();
-        if let None = config.matrix_bot_user.find(":") {
+        if config.matrix_bot_user.find(":").is_none() {
             return Err(MatrixError::Other(format!("matrix bot user '{}' does not specify the matrix server e.g. '@your-own-crunch-bot-account:matrix.org'", config.matrix_bot_user)));
         }
         let client = self.client.clone();
@@ -505,11 +505,11 @@ impl Matrix {
         }
         let config = CONFIG.clone();
         // Send message to private room (private assigned to the matrix_username in config)
-        self.dispatch_message(&self.private_room_id, &message, &formatted_message)
+        self.dispatch_message(&self.private_room_id, message, formatted_message)
             .await?;
         // Send message to public room (public room available for the connected chain)
         if !config.matrix_public_room_disabled {
-            self.dispatch_message(&self.public_room_id, &message, &formatted_message)
+            self.dispatch_message(&self.public_room_id, message, formatted_message)
                 .await?;
         }
 

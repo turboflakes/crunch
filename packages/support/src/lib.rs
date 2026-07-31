@@ -246,7 +246,7 @@ fn get_state_root_hash(chain_specs: &str) -> H256 {
             let state_root = json["genesis"]["stateRootHash"]
                 .as_str()
                 .expect("chain spec does not contain state root hash");
-            return H256::from_str(state_root).expect("invalid state root hash");
+            H256::from_str(state_root).expect("invalid state root hash")
         }
         Err(err) => panic!("Failed to parse JSON: {}", err),
     }

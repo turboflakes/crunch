@@ -19,7 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-pub mod config;
+pub mod substrate;
 
 use crunch_config::CONFIG;
 use crunch_error::CrunchError;
@@ -31,8 +31,8 @@ use regex::Regex;
 use serde::Deserialize;
 use std::{convert::TryInto, fs, result::Result, str::FromStr, thread, time};
 
-use config::CrunchConfig;
 use sp_core::crypto;
+use substrate::CrunchConfig;
 use subxt::{
     backend::{
         legacy::{rpc_methods::StorageKey, LegacyRpcMethods},
@@ -95,7 +95,7 @@ impl MessageTrait for Message {
 pub async fn create_substrate_rpc_client_from_url(
     url: &str,
 ) -> Result<ReconnectingRpcClient, CrunchError> {
-    if let Err(_) = validate_url_is_secure(url) {
+    if validate_url_is_secure(url).is_err() {
         warn!("Insecure URL provided: {}", url);
     };
     info!("Using RPC endpoint {}", url);
@@ -128,7 +128,7 @@ pub async fn create_light_client_from_relay_chain_specs(
 pub async fn create_light_client_from_people_chain_specs(
     chain: &str,
 ) -> Result<LightClientRpc, LightClientError> {
-    let (lc, _) = create_light_client_from_relay_chain_specs(&chain).await?;
+    let (lc, _) = create_light_client_from_relay_chain_specs(chain).await?;
     let runtime = SupportedRuntime::from(chain);
     let people_runtime = runtime.people_runtime().unwrap();
     lc.parachain(people_runtime.chain_specs())
@@ -137,7 +137,7 @@ pub async fn create_light_client_from_people_chain_specs(
 pub async fn create_light_client_from_asset_hub_chain_specs(
     chain: &str,
 ) -> Result<LightClientRpc, LightClientError> {
-    let (lc, _) = create_light_client_from_relay_chain_specs(&chain).await?;
+    let (lc, _) = create_light_client_from_relay_chain_specs(chain).await?;
     let runtime = SupportedRuntime::from(chain);
     let asset_hub_runtime = runtime.asset_hub_runtime().unwrap();
     lc.parachain(asset_hub_runtime.chain_specs())
@@ -149,7 +149,7 @@ pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, Crun
     if config.light_client_enabled {
         let (_, rpc) =
             create_light_client_from_relay_chain_specs(&config.chain_name).await?;
-        return Ok(rpc.into());
+        Ok(rpc.into())
     } else {
         if config.substrate_ws_url.is_empty() {
             return Err(CrunchError::Other(
@@ -157,7 +157,7 @@ pub async fn create_substrate_rpc_client_from_config() -> Result<RpcClient, Crun
             ));
         }
         let rpc = create_substrate_rpc_client_from_url(&config.substrate_ws_url).await?;
-        return Ok(rpc.into());
+        Ok(rpc.into())
     }
 }
 
@@ -170,7 +170,7 @@ pub async fn create_or_await_substrate_node_client() -> (
         match create_substrate_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
+                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -232,11 +232,11 @@ pub async fn create_people_rpc_client_from_config() -> Result<RpcClient, CrunchE
         if runtime.people_runtime().is_none() {
             return Err(CrunchError::Other(format!(
                 "People chain not supported for the relay {}",
-                runtime.to_string()
+                runtime
             )));
         }
         let rpc = create_light_client_from_people_chain_specs(&config.chain_name).await?;
-        return Ok(rpc.into());
+        Ok(rpc.into())
     } else {
         if config.substrate_people_ws_url.is_empty() {
             return Err(CrunchError::Other(
@@ -245,7 +245,7 @@ pub async fn create_people_rpc_client_from_config() -> Result<RpcClient, CrunchE
         }
         let rpc =
             create_substrate_rpc_client_from_url(&config.substrate_people_ws_url).await?;
-        return Ok(rpc.into());
+        Ok(rpc.into())
     }
 }
 
@@ -257,12 +257,12 @@ pub async fn create_asset_hub_rpc_client_from_config() -> Result<RpcClient, Crun
         if runtime.asset_hub_runtime().is_none() {
             return Err(CrunchError::Other(format!(
                 "Asset Hub chain not supported for the relay {}",
-                runtime.to_string()
+                runtime
             )));
         }
         let rpc =
             create_light_client_from_asset_hub_chain_specs(&config.chain_name).await?;
-        return Ok(rpc.into());
+        Ok(rpc.into())
     } else {
         if config.substrate_asset_hub_ws_url.is_empty() {
             return Err(CrunchError::Other(
@@ -272,7 +272,7 @@ pub async fn create_asset_hub_rpc_client_from_config() -> Result<RpcClient, Crun
         let rpc =
             create_substrate_rpc_client_from_url(&config.substrate_asset_hub_ws_url)
                 .await?;
-        return Ok(rpc.into());
+        Ok(rpc.into())
     }
 }
 
@@ -281,7 +281,7 @@ pub async fn create_or_await_people_client() -> OnlineClient<CrunchConfig> {
         match create_people_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
+                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -315,7 +315,7 @@ pub async fn create_or_await_asset_hub_client(
         match create_asset_hub_rpc_client_from_config().await {
             Ok(rpc_client) => {
                 let legacy_rpc =
-                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
+                    LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone());
                 let chain = legacy_rpc.system_chain().await.unwrap_or_default();
                 let name = legacy_rpc.system_name().await.unwrap_or_default();
                 let version = legacy_rpc.system_version().await.unwrap_or_default();
@@ -353,6 +353,7 @@ pub async fn create_or_await_asset_hub_client(
 // }
 
 /// Helper function to generate a keypair from the content of the seed file
+#[allow(clippy::result_large_err)]
 pub fn get_keypair_from_seed_file() -> Result<Keypair, CrunchError> {
     let config = CONFIG.clone();
 
@@ -361,7 +362,7 @@ pub fn get_keypair_from_seed_file() -> Result<Keypair, CrunchError> {
 
     // clear control characters from data
     let re = Regex::new(r"[\x00-\x1F]").unwrap();
-    let data = re.replace_all(&data.trim(), "");
+    let data = re.replace_all(data.trim(), "");
 
     // parse data into a secret
     let uri = SecretUri::from_str(&data)?;
@@ -392,12 +393,8 @@ impl Crunch {
         // Initialize people node client if supported and people url is defined
         let people_client_option = if let Some(people_runtime) = runtime.people_runtime()
         {
-            if config.light_client_enabled {
-                let people_client = create_or_await_people_client().await;
-                Some(people_client)
-            } else if !people_runtime.rpc_url().is_empty() {
-                let people_client = create_or_await_people_client().await;
-                Some(people_client)
+            if config.light_client_enabled || !people_runtime.rpc_url().is_empty() {
+                Some(create_or_await_people_client().await)
             } else {
                 None
             }
@@ -409,10 +406,7 @@ impl Crunch {
         let (asset_hub_client_option, asset_hub_rpc_option) = if let Some(ah_runtime) =
             runtime.asset_hub_runtime()
         {
-            if config.light_client_enabled {
-                let (ah_client, ah_rpc_client) = create_or_await_asset_hub_client().await;
-                (Some(ah_client), Some(ah_rpc_client))
-            } else if !ah_runtime.rpc_url().is_empty() {
+            if config.light_client_enabled || !ah_runtime.rpc_url().is_empty() {
                 let (ah_client, ah_rpc_client) = create_or_await_asset_hub_client().await;
                 (Some(ah_client), Some(ah_rpc_client))
             } else {
@@ -521,7 +515,7 @@ impl Crunch {
             let state_root = asset_hub_runtime.chain_state_root_hash();
 
             let rpc_client =
-                if let Err(_) = validate_url_is_secure(&asset_hub_runtime.rpc_url()) {
+                if validate_url_is_secure(&asset_hub_runtime.rpc_url()).is_err() {
                     RpcClient::from_insecure_url(&asset_hub_runtime.rpc_url()).await?
                 } else {
                     RpcClient::from_url(&asset_hub_runtime.rpc_url()).await?
@@ -532,12 +526,12 @@ impl Crunch {
                 .as_ref()
                 .expect("AH API to be available");
 
-            let rpc = LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
+            let rpc = LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone());
             if let Some(header) = rpc.chain_get_header(Some(api.genesis_hash())).await? {
                 if header.state_root != state_root {
                     return Err(CrunchError::GenesisError(format!(
                         "verify {} endpoint {} as state root {}",
-                        asset_hub_runtime.to_string(),
+                        asset_hub_runtime,
                         asset_hub_runtime.rpc_url(),
                         header.state_root
                     )));
@@ -559,24 +553,24 @@ impl Crunch {
         if let Some(people_runtime) = self.runtime.people_runtime() {
             let state_root = people_runtime.chain_state_root_hash();
 
-            let rpc_client =
-                if let Err(_) = validate_url_is_secure(&people_runtime.rpc_url()) {
-                    RpcClient::from_insecure_url(&people_runtime.rpc_url()).await?
-                } else {
-                    RpcClient::from_url(&people_runtime.rpc_url()).await?
-                };
+            let rpc_client = if validate_url_is_secure(&people_runtime.rpc_url()).is_err()
+            {
+                RpcClient::from_insecure_url(&people_runtime.rpc_url()).await?
+            } else {
+                RpcClient::from_url(&people_runtime.rpc_url()).await?
+            };
 
             let api = self
                 .people_client()
                 .as_ref()
                 .expect("People API to be available");
 
-            let rpc = LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone().into());
+            let rpc = LegacyRpcMethods::<CrunchConfig>::new(rpc_client.clone());
             if let Some(header) = rpc.chain_get_header(Some(api.genesis_hash())).await? {
                 if header.state_root != state_root {
                     return Err(CrunchError::GenesisError(format!(
                         "verify {} endpoint {} as state root {}",
-                        people_runtime.to_string(),
+                        people_runtime,
                         people_runtime.rpc_url(),
                         header.state_root
                     )));
@@ -604,11 +598,11 @@ pub fn random_wait(max: u64) -> u64 {
 pub async fn try_fetch_stashes_from_remote_url(
 ) -> Result<Option<Vec<String>>, CrunchError> {
     let config = CONFIG.clone();
-    if config.stashes_url.len() == 0 {
+    if config.stashes_url.is_empty() {
         return Ok(None);
     }
 
-    let response = if config.github_pat.len() == 0 {
+    let response = if config.github_pat.is_empty() {
         // Fetch public remote file
         reqwest::get(&config.stashes_url).await?.text().await?
     } else {

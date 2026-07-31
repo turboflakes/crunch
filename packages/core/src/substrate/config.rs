@@ -1,4 +1,4 @@
-use crate::config::extrinsic_params::CrunchExtrinsicParams;
+use crate::substrate::extrinsic_params::CrunchExtrinsicParams;
 use subxt::{
     config::substrate::{DynamicHasher256, SubstrateHeader},
     utils::{AccountId32, MultiAddress, MultiSignature},

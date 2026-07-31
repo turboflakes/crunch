@@ -44,7 +44,7 @@ pub async fn run_and_subscribe_era_paid_events(
 ) -> Result<(), CrunchError> {
     info!("Inspect and `crunch` unclaimed payout rewards");
     // Run once before start subscription
-    try_crunch(&crunch).await?;
+    try_crunch(crunch).await?;
     let mut latest_block_number_processed: Option<u32> = Some(0);
     info!("Subscribe 'EraPaid' on-chain finalized event");
     let api = crunch
@@ -105,7 +105,7 @@ pub async fn run_and_subscribe_era_paid_events(
                             let wait: u64 = random_wait(240);
                             info!("Waiting {} seconds before run batch", wait);
                             thread::sleep(time::Duration::from_secs(wait));
-                            try_crunch(&crunch).await?;
+                            try_crunch(crunch).await?;
                         }
                     }
                 }
@@ -121,7 +121,7 @@ pub async fn run_and_subscribe_era_paid_events(
             let wait: u64 = random_wait(240);
             info!("Waiting {} seconds before run batch", wait);
             thread::sleep(time::Duration::from_secs(wait));
-            try_crunch(&crunch).await?;
+            try_crunch(crunch).await?;
         }
 
         // Event --> system::CodeUpdated
@@ -143,19 +143,19 @@ async fn collect_validators_data(
     era_index: EraIndex,
 ) -> Result<Validators, CrunchError> {
     // Get unclaimed eras for the stash addresses
-    let active_validators = fetch_authorities(&crunch).await?;
+    let active_validators = fetch_authorities(crunch).await?;
     debug!("active_validators {:?}", active_validators);
 
     let mut validators: Validators = Vec::new();
 
-    let stashes = get_stashes(&crunch).await?;
+    let stashes = get_stashes(crunch).await?;
 
-    for (_i, stash_str) in stashes.iter().enumerate() {
+    for stash_str in stashes.iter() {
         let stash = AccountId32::from_str(stash_str).map_err(|e| {
             CrunchError::Other(format!("Invalid account: {stash_str} error: {e:?}"))
         })?;
 
-        let controller = fetch_controller(&crunch, &stash, &mut validators).await?;
+        let controller = fetch_controller(crunch, &stash, &mut validators).await?;
 
         if controller.is_none() {
             continue;
@@ -169,18 +169,17 @@ async fn collect_validators_data(
 
         // Get validator name
         (v.name, v.parent_identity, v.has_identity) =
-            get_display_name(&crunch, &stash, None).await?;
+            get_display_name(crunch, &stash, None).await?;
 
         // Check if validator is in active set
         v.is_active = active_validators.contains(&stash);
 
         // Look for unclaimed eras, starting on current_era - maximum_eras
-        let start_index = get_era_index_start(&crunch, era_index).await?;
+        let start_index = get_era_index_start(crunch, era_index).await?;
 
         // Find unclaimed eras in previous 84 eras (reverse order)
         for era in (start_index..era_index).rev() {
-            fetch_claimed_or_unclaimed_pages_per_era(&crunch, &stash, era, &mut v)
-                .await?;
+            fetch_claimed_or_unclaimed_pages_per_era(crunch, &stash, era, &mut v).await?;
         }
         validators.push(v);
     }
@@ -190,7 +189,7 @@ async fn collect_validators_data(
     let mut validators_with_warnings = validators
         .clone()
         .into_iter()
-        .filter(|v| v.warnings.len() > 0)
+        .filter(|v| !v.warnings.is_empty())
         .collect::<Vec<Validator>>();
 
     validators_with_warnings.sort_by(|a, b| {
@@ -202,12 +201,12 @@ async fn collect_validators_data(
     let validators_with_no_identity = validators
         .clone()
         .into_iter()
-        .filter(|v| v.warnings.len() == 0 && !v.has_identity)
+        .filter(|v| v.warnings.is_empty() && !v.has_identity)
         .collect::<Vec<Validator>>();
 
     let mut validators = validators
         .into_iter()
-        .filter(|v| v.warnings.len() == 0 && v.has_identity)
+        .filter(|v| v.warnings.is_empty() && v.has_identity)
         .collect::<Vec<Validator>>();
 
     validators.sort_by(|a, b| {
@@ -228,13 +227,13 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     let signer_keypair: Keypair = get_keypair_from_seed_file()?;
     let seed_account_id: AccountId32 = signer_keypair.public_key().into();
 
-    let signer_details = get_signer_details(&crunch, &seed_account_id).await?;
+    let signer_details = get_signer_details(crunch, &seed_account_id).await?;
 
     // Get Network name
     let chain_name = crunch.rpc().system_chain().await?;
 
     // Get Era index
-    let active_era_index = fetch_active_era_index(&crunch).await?;
+    let active_era_index = fetch_active_era_index(crunch).await?;
 
     let properties = crunch.rpc().system_properties().await?;
 
@@ -273,7 +272,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
     if config.group_identity_enabled {
         // Try run payouts in batches
         let mut all_validators =
-            collect_validators_data(&crunch, active_era_index).await?;
+            collect_validators_data(crunch, active_era_index).await?;
 
         let parent_identities: Vec<String> =
             get_distinct_parent_identites(all_validators.clone());
@@ -290,10 +289,10 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
             all_validators
                 .retain(|v| replace_emoji_lowercase(&v.parent_identity) != parent);
 
-            if validators.len() > 0 {
+            if !validators.is_empty() {
                 // Try run payouts in batches
                 let payout_summary =
-                    try_run_batch_payouts(&crunch, &signer_keypair, &mut validators)
+                    try_run_batch_payouts(crunch, &signer_keypair, &mut validators)
                         .await?;
 
                 // Try fetch ONE-T grade data
@@ -306,9 +305,9 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
                 // NOTE: In the last iteration try to batch pools if any and include them in the report
                 // TODO: Eventually we could do a separate message containing only the pools report
                 let pools_summary: Option<NominationPoolsSummary> =
-                    if all_validators.len() == 0 {
+                    if all_validators.is_empty() {
                         // Try run pool members in batches
-                        Some(try_run_batch_pool_members(&crunch, &signer_keypair).await?)
+                        Some(try_run_batch_pool_members(crunch, &signer_keypair).await?)
                     } else {
                         None
                     };
@@ -330,11 +329,11 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
             thread::sleep(time::Duration::from_secs(5));
         }
     } else {
-        let mut validators = collect_validators_data(&crunch, active_era_index).await?;
+        let mut validators = collect_validators_data(crunch, active_era_index).await?;
 
         // Try run payouts in batches
         let payout_summary =
-            try_run_batch_payouts(&crunch, &signer_keypair, &mut validators).await?;
+            try_run_batch_payouts(crunch, &signer_keypair, &mut validators).await?;
 
         // Try fetch ONE-T grade data
         for v in &mut validators {
@@ -343,7 +342,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
         }
 
         // Try run members in batches
-        let pools_summary = try_run_batch_pool_members(&crunch, &signer_keypair).await?;
+        let pools_summary = try_run_batch_pool_members(crunch, &signer_keypair).await?;
 
         let data = RawData {
             network,

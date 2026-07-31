@@ -188,6 +188,12 @@ pub struct Report {
     verbosity: Verbosity,
 }
 
+impl Default for Report {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Report {
     pub fn new() -> Report {
         Report {
@@ -252,7 +258,7 @@ impl From<RawData> for Report {
                 )
             }
         } else {
-            format!("")
+            String::new()
         };
 
         let mut prefix = "Next".to_string();
@@ -317,7 +323,7 @@ impl From<RawData> for Report {
                 is_active_desc, data.network.subdomain, validator.stash, validator.name,
             ));
             // Show validator warnings
-            if validator.warnings.len() > 0 {
+            if !validator.warnings.is_empty() {
                 for warning in validator.warnings {
                     report.add_raw_text(format!("⚠️ {} ⚠️", warning.clone()));
                     warn!("{}", warning);
@@ -331,7 +337,7 @@ impl From<RawData> for Report {
             ));
 
             // Check if there are no payouts
-            if validator.payouts.len() == 0 {
+            if validator.payouts.is_empty() {
                 if validator.is_active {
                     report.add_text(format!(
                         "🥣 Looking forward for next <code>crunch</code> {} {}",
@@ -355,7 +361,7 @@ impl From<RawData> for Report {
                             / 10f64.powi(data.network.token_decimals.into()),
                         data.network.token_symbol,
                         good_performance(
-                            payout.points.validator.into(),
+                            payout.points.validator,
                             payout.points.ci99_9_interval.1,
                             payout.points.outlier_limits.1,
                         )
@@ -444,12 +450,12 @@ impl From<RawData> for Report {
                         payout.block_number,
                         data.network.subdomain,
                         payout.extrinsic,
-                        payout.extrinsic.to_string()
+                        payout.extrinsic
                     ));
                 }
 
                 // Check if there are still eras left to claim
-                if validator.unclaimed.len() > 0 {
+                if !validator.unclaimed.is_empty() {
                     let symbols = number_to_symbols(validator.unclaimed.len(), "⚡", 84);
                     report.add_text(format!(
 						"{} There are still {} payouts left with {} to <code>crunch</code> {}",
@@ -497,7 +503,7 @@ impl From<RawData> for Report {
             ));
 
             // Claimed
-            if validator.claimed.len() > 0 {
+            if !validator.claimed.is_empty() {
                 let claimed_percentage = (validator.claimed.len() as f32
                     / (validator.claimed.len() + validator.unclaimed.len()) as f32)
                     * 100.0;
@@ -526,80 +532,78 @@ impl From<RawData> for Report {
         report.add_break();
 
         // Nomination Pools compound info
-        if (config.pool_members_compound_enabled
-            || config.pool_only_operator_compound_enabled
-            || config.pool_claim_commission_enabled)
-            && data.pools_summary.is_some()
-        {
-            let pool_summary_data = data.pools_summary.unwrap();
-
-            let threshold = format!(
-                "{:.4} {}",
-                config.pool_compound_threshold as f64
-                    / 10f64.powi(data.network.token_decimals.into()),
-                data.network.token_symbol,
-            );
-
-            let pools_desc = if config.pool_ids.len() == 1 {
-                format!("Pool {}", config.pool_ids.get(0).unwrap())
-            } else {
-                format!("Pools {:?}", config.pool_ids)
-            };
-
-            if pool_summary_data.total_members > 0
-                || pool_summary_data.pool_commissions.len() > 0
+        if let Some(pool_summary_data) = data.pools_summary {
+            if config.pool_members_compound_enabled
+                || config.pool_only_operator_compound_enabled
+                || config.pool_claim_commission_enabled
             {
-                let members_desc = if pool_summary_data.total_members == 1 {
-                    format!("1 reward")
+                let threshold = format!(
+                    "{:.4} {}",
+                    config.pool_compound_threshold as f64
+                        / 10f64.powi(data.network.token_decimals.into()),
+                    data.network.token_symbol,
+                );
+
+                let pools_desc = if config.pool_ids.len() == 1 {
+                    format!("Pool {}", config.pool_ids.first().unwrap())
                 } else {
-                    format!("{} rewards", pool_summary_data.total_members)
+                    format!("Pools {:?}", config.pool_ids)
                 };
 
-                if config.pool_only_operator_compound_enabled {
-                    report.add_raw_text(format!(
-                        "♻️ Pool operator reward compounded from {}",
-                        pools_desc
-                    ));
-                } else {
-                    report.add_raw_text(format!(
-                        "♻️ {} compounded from {}",
-                        members_desc, pools_desc
-                    ));
-                }
+                if pool_summary_data.total_members > 0
+                    || !pool_summary_data.pool_commissions.is_empty()
+                {
+                    let members_desc = if pool_summary_data.total_members == 1 {
+                        "1 reward".to_string()
+                    } else {
+                        format!("{} rewards", pool_summary_data.total_members)
+                    };
 
-                if pool_summary_data.pool_commissions.len() > 0 {
-                    for pool_commission in pool_summary_data.pool_commissions {
-                        let commission_amount = format!(
-                            "{:.4} {}",
-                            pool_commission.commission as f64
-                                / 10f64.powi(data.network.token_decimals.into()),
-                            data.network.token_symbol,
-                        );
+                    if config.pool_only_operator_compound_enabled {
                         report.add_raw_text(format!(
-                            "💸 {} commission from Pool {}",
-                            commission_amount, pool_commission.pool_id
+                            "♻️ Pool operator reward compounded from {}",
+                            pools_desc
+                        ));
+                    } else {
+                        report.add_raw_text(format!(
+                            "♻️ {} compounded from {}",
+                            members_desc, pools_desc
                         ));
                     }
-                }
 
-                for batch in pool_summary_data.batches {
-                    report.add_raw_text(format!(
-                        "💯 Batch finalized at block #{}
+                    if !pool_summary_data.pool_commissions.is_empty() {
+                        for pool_commission in pool_summary_data.pool_commissions {
+                            let commission_amount = format!(
+                                "{:.4} {}",
+                                pool_commission.commission as f64
+                                    / 10f64.powi(data.network.token_decimals.into()),
+                                data.network.token_symbol,
+                            );
+                            report.add_raw_text(format!(
+                                "💸 {} commission from Pool {}",
+                                commission_amount, pool_commission.pool_id
+                            ));
+                        }
+                    }
+
+                    for batch in pool_summary_data.batches {
+                        report.add_raw_text(format!(
+                            "💯 Batch finalized at block #{}
                     (<a href=\"https://{}.subscan.io/extrinsic/{:?}\">{}</a>) ✨",
-                        batch.block_number,
-                        data.network.subdomain,
-                        batch.extrinsic,
-                        batch.extrinsic.to_string()
-                    ));
+                            batch.block_number,
+                            data.network.subdomain,
+                            batch.extrinsic,
+                            batch.extrinsic
+                        ));
+                    }
+                } else {
+                    // NOTE: Just log if there are no pending rewards to compound
+                    info!(
+                        "♻️ No pending rewards to compound above {} from {}",
+                        threshold, pools_desc,
+                    );
                 }
-            } else {
-                // NOTE: Just log if there are no pending rewards to compound
-                info!(
-                    "♻️ No pending rewards to compound above {} from {}",
-                    threshold, pools_desc,
-                );
             }
-            report.add_break();
         }
 
         match config.run_mode {
@@ -629,7 +633,7 @@ impl From<RawData> for Report {
     }
 }
 
-pub fn replace_emoji_lowercase(string: &String) -> String {
+pub fn replace_emoji_lowercase(string: &str) -> String {
     let regex = Regex::new(concat!(
         "[",
         "\u{01F600}-\u{01F64F}",
@@ -662,9 +666,9 @@ pub fn replace_emoji_lowercase(string: &String) -> String {
 
 fn number_to_symbols(n: usize, symbol: &str, max: usize) -> String {
     let cap: usize = match n {
-        n if n < (max / 4) as usize => 1,
-        n if n < (max / 2) as usize => 2,
-        n if n < max - (max / 4) as usize => 3,
+        n if n < (max / 4) => 1,
+        n if n < (max / 2) => 2,
+        n if n < max - (max / 4) => 3,
         _ => 4,
     };
     let v = vec![""; cap + 1];
@@ -689,10 +693,9 @@ fn performance(a: f64, b: f64, out: String) -> Option<String> {
 fn good_performance(value: u32, higher_limit: f64, outlier_limit: f64) -> String {
     match performance(value.into(), outlier_limit, "🤑 🤯 🚀".into()) {
         Some(p) => p,
-        None => match performance(value.into(), higher_limit, "😊 🔥".into()) {
-            Some(p) => p,
-            None => String::from(""),
-        },
+        None => {
+            performance(value.into(), higher_limit, "😊 🔥".into()).unwrap_or_default()
+        }
     }
 }
 
@@ -792,7 +795,6 @@ fn context() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crunch_stats;
 
     #[test]
     fn good_performance_emojis() {

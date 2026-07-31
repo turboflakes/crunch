@@ -21,7 +21,7 @@
 
 use crunch_config::CONFIG;
 use crunch_core::{
-    config::CrunchExtrinsicParamsBuilder as TxParams, get_account_id_from_storage_key,
+    get_account_id_from_storage_key, substrate::CrunchExtrinsicParamsBuilder as TxParams,
     to_hex, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
     ValidatorIndex,
 };
@@ -99,7 +99,7 @@ pub async fn try_run_batch_pool_members(
     let mut summary: NominationPoolsSummary = Default::default();
 
     // Fetch pool members and add member rewards calls to the batch
-    if let Some(members) = try_fetch_pool_members_for_compound(&crunch).await? {
+    if let Some(members) = try_fetch_pool_members_for_compound(crunch).await? {
         //
         for member in &members {
             //
@@ -116,15 +116,14 @@ pub async fn try_run_batch_pool_members(
     // Add claim commission calls if enabled and pool ids are set
     if config.pool_claim_commission_enabled {
         for pool_id in config.pool_ids.clone() {
-            let call = Call::NominationPools(NominationPoolsCall::claim_commission {
-                pool_id: pool_id.clone(),
-            });
+            let call =
+                Call::NominationPools(NominationPoolsCall::claim_commission { pool_id });
             calls_for_batch.push(call);
             summary.calls += 1;
         }
     }
 
-    if calls_for_batch.len() > 0 {
+    if !calls_for_batch.is_empty() {
         // TODO check batch call weight or maximum_calls [default: 8]
         //
         // Calculate the number of extrinsics (iteractions) based on the maximum number of calls per batch
@@ -360,7 +359,7 @@ pub async fn try_run_batch_payouts(
         //
         // sign_and_submit_maximum_calls
         //
-        if calls_for_batch.len() > 0 {
+        if !calls_for_batch.is_empty() {
             sign_and_submit_maximum_calls(
                 crunch,
                 signer,
@@ -505,7 +504,7 @@ pub async fn sign_and_submit_maximum_calls(
                             validator.claimed.push((era_index, 0));
                             // Fetch stash points
                             let points = get_validator_points_info(
-                                &crunch,
+                                crunch,
                                 era_index,
                                 &validator.stash,
                             )
@@ -605,6 +604,7 @@ pub async fn sign_and_submit_maximum_calls(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 fn build_calls_for_batch(
     validators: &mut Validators,
     summary: &mut PayoutSummary,
@@ -613,9 +613,9 @@ fn build_calls_for_batch(
     // Add unclaimed eras into payout staker calls
     let mut calls_for_batch: Vec<Call> = vec![];
 
-    for v in validators.into_iter() {
+    for v in validators.iter_mut() {
         //
-        if v.unclaimed.len() > 0 {
+        if !v.unclaimed.is_empty() {
             let mut maximum_payouts = Some(config.maximum_payouts);
             // define extrinsic payout stakers calls as many as unclaimed eras or maximum_payouts reached
             while let Some(i) = maximum_payouts {
@@ -667,7 +667,7 @@ pub async fn validate_calls_for_batch(
         });
 
         match validate_call_via_tx_payment(
-            &crunch,
+            crunch,
             batch_call.clone(),
             available_balance,
             existencial_deposit,
@@ -705,7 +705,7 @@ pub async fn validate_calls_for_batch(
                     // Remove half of the calls to speed up the process
                     let mut split_point = calls.len() / 2;
                     // Ensure split_point is even and try to fit one more if it's odd
-                    if split_point % 2 != 0 {
+                    if !split_point.is_multiple_of(2) {
                         split_point = if split_point > 1 { split_point + 1 } else { 1 };
                     }
                     let mut removed = calls.split_off(split_point);
@@ -839,7 +839,7 @@ pub async fn fetch_controller(
         None => {
             let mut v = Validator::new(stash.clone());
             (v.name, v.parent_identity, v.has_identity) =
-                get_display_name(&crunch, &stash, None).await?;
+                get_display_name(crunch, stash, None).await?;
             v.warnings = vec![format!("No controller bonded!")];
             validators.push(v);
             Ok(None)
@@ -954,7 +954,7 @@ pub async fn fetch_active_era_index(crunch: &Crunch) -> Result<u32, CrunchError>
         .await?
     {
         Some(info) => Ok(info.index),
-        None => return Err(CrunchError::Other("Active era not available".into())),
+        None => Err(CrunchError::Other("Active era not available".into())),
     }
 }
 
@@ -1015,7 +1015,7 @@ pub async fn get_stashes(crunch: &Crunch) -> Result<Vec<String>, CrunchError> {
         stashes.extend(remotes);
     };
 
-    if let Some(nominees) = try_fetch_stashes_from_pool_ids(&crunch).await? {
+    if let Some(nominees) = try_fetch_stashes_from_pool_ids(crunch).await? {
         stashes.extend(nominees);
     }
 
@@ -1039,7 +1039,7 @@ pub async fn get_signer_details(
         .expect("AH API to be available");
 
     // Get signer account identity
-    let (signer_name, _, _) = get_display_name(&crunch, &seed_account_id, None).await?;
+    let (signer_name, _, _) = get_display_name(crunch, seed_account_id, None).await?;
     let mut signer_details = SignerDetails {
         account: seed_account_id.clone(),
         name: signer_name,
@@ -1070,15 +1070,14 @@ pub async fn get_signer_details(
         }
         info!(
             "Signer {} has {:?} free plancks",
-            seed_account_id.to_string(),
-            seed_account_info.data.free
+            seed_account_id, seed_account_info.data.free
         );
     } else {
         let rpc = crunch.rpc().clone();
         let chain_name = rpc.system_chain().await?;
         warn!(
             "Signer {} not found on the {chain_name} network!",
-            seed_account_id.to_string(),
+            seed_account_id,
         );
     }
 
@@ -1090,7 +1089,7 @@ pub async fn try_fetch_pool_operators_for_compound(
 ) -> Result<Option<Vec<AccountId32>>, CrunchError> {
     let config = CONFIG.clone();
 
-    if config.pool_ids.len() == 0 && !config.pool_only_operator_compound_enabled {
+    if config.pool_ids.is_empty() && !config.pool_only_operator_compound_enabled {
         return Ok(None);
     }
 
@@ -1155,7 +1154,7 @@ pub async fn try_fetch_pool_members_for_compound(
     crunch: &Crunch,
 ) -> Result<Option<Vec<AccountId32>>, CrunchError> {
     let config = CONFIG.clone();
-    if config.pool_ids.len() == 0
+    if config.pool_ids.is_empty()
         && !config.pool_only_operator_compound_enabled
         && !config.pool_members_compound_enabled
     {
@@ -1163,7 +1162,7 @@ pub async fn try_fetch_pool_members_for_compound(
     }
 
     if config.pool_only_operator_compound_enabled {
-        return try_fetch_pool_operators_for_compound(&crunch).await;
+        return try_fetch_pool_operators_for_compound(crunch).await;
     }
 
     let api = crunch
@@ -1234,7 +1233,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
     crunch: &Crunch,
 ) -> Result<Option<Vec<String>>, CrunchError> {
     let config = CONFIG.clone();
-    if config.pool_ids.len() == 0
+    if config.pool_ids.is_empty()
         || (!config.pool_active_nominees_payout_enabled
             && !config.pool_all_nominees_payout_enabled)
     {
@@ -1346,7 +1345,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
         .as_ref()
         .expect("AH API to be available");
 
-    let stashes = get_stashes(&crunch).await?;
+    let stashes = get_stashes(crunch).await?;
     info!("Inspect {} stashes -> {}", stashes.len(), stashes.join(","));
 
     let history_depth_addr = ah_metadata::constants().staking().history_depth();
