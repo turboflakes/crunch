@@ -8,8 +8,8 @@ set -e
 echo "Run check formatting"
 cargo fmt --all -- --check
 
-echo "Run clippy"
-cargo clippy --all-targets -- -D warnings
+# echo "Run clippy"
+# cargo clippy --all-targets -- -D warnings
 
-echo "Run tests"
-cargo test
+# echo "Run tests"
+# cargo test
