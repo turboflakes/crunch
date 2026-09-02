@@ -113,7 +113,7 @@ pub async fn create_substrate_client_from_rpc_client(
 ) -> Result<OnlineClient<CrunchConfig>, CrunchError> {
     OnlineClient::<CrunchConfig>::from_rpc_client(rpc_client)
         .await
-        .map_err(CrunchError::SubxtError)
+        .map_err(CrunchError::from)
 }
 
 pub async fn create_light_client_from_relay_chain_specs(

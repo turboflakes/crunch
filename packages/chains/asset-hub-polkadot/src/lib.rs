@@ -860,7 +860,7 @@ pub async fn fetch_controller(
             let mut v = Validator::new(stash.clone());
             (v.name, v.parent_identity, v.has_identity) =
                 get_display_name(crunch, stash, None).await?;
-            v.warnings = vec![format!("No controller bonded!")];
+            v.warnings = vec!["No controller bonded!".to_string()];
             validators.push(v);
             Ok(None)
         }

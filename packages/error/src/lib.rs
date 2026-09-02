@@ -31,9 +31,9 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum CrunchError {
     #[error("Subxt error: {0}")]
-    SubxtError(#[from] subxt::Error),
+    SubxtError(Box<subxt::Error>),
     #[error("SubxtCore error: {0}")]
-    SubxtCoreError(#[from] subxt::ext::subxt_core::Error),
+    SubxtCoreError(Box<subxt::ext::subxt_core::Error>),
     #[error("LightClient error: {0}")]
     LightClientError(#[from] LightClientError),
     #[error("Codec error: {0}")]
@@ -74,6 +74,20 @@ pub enum CrunchError {
     RuntimeUpgradeDetected(u32, u32),
     #[error("Other error: {0}")]
     Other(String),
+}
+
+/// Convert subxt::Error to CrunchError, boxing it to keep `CrunchError` small
+impl From<subxt::Error> for CrunchError {
+    fn from(error: subxt::Error) -> Self {
+        CrunchError::SubxtError(Box::new(error))
+    }
+}
+
+/// Convert subxt_core::Error to CrunchError, boxing it to keep `CrunchError` small
+impl From<subxt::ext::subxt_core::Error> for CrunchError {
+    fn from(error: subxt::ext::subxt_core::Error) -> Self {
+        CrunchError::SubxtCoreError(Box::new(error))
+    }
 }
 
 /// Convert &str to CrunchError
