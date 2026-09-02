@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.0] - 2025-09-02
+- Update chainspecs
+- Update metadata polkadot/2004000
+- Update metadata asset-hub-polkadot/2004000
+- Update metadata people-polkadot/2004000
+- Update metadata asset-hub-westend/1024002
+
 ## [0.36.1] - 2025-07-31
 - Fix paseo new transaction extensions
 - Add CI dev and update artifacts workflows
