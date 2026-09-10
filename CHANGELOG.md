@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - 2025-09-10
+- polkadot/2005000 (updated)
+- asset-hub-polkadot/2005000 (updated)
+- people-polkadot/2005000 (updated)
+- kusama/2003002 (updated)
+- asset-hub-kusama/2003002 (updated)
+- people-kusama/2003002 (updated)
+
 ## [0.37.0] - 2025-09-02
 - fix clippy by boxing the two oversized `subxt::Error`/`subxt_core::Error` variants
 - Update chainspecs
