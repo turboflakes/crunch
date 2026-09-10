@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.1] - 2025-09-11
+- fix regression for kusama/paseo/westend 
+- add test to validate which transaction version is used for each network
+
 ## [0.39.0] - 2025-09-10
 - update subxt v0.50.3
 - default all networks to transaction V5
