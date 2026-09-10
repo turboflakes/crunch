@@ -22,9 +22,7 @@
 use crunch_config::CONFIG;
 use crunch_core::{
     get_account_id_from_storage_key,
-    substrate::{
-        sign_and_submit_v5_then_watch, CrunchExtrinsicParamsBuilder as TxParams,
-    },
+    substrate::{sign_and_submit_then_watch, CrunchExtrinsicParamsBuilder as TxParams},
     to_hex, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
     ValidatorIndex,
 };
@@ -179,17 +177,17 @@ pub async fn try_run_batch_pool_members(
                     TxParams::new().tip(config.tx_tip.into()).build()
                 };
 
-                let ah_tx = ah_api.tx().await?;
+                let ah_block = ah_api.at_current_block().await?;
 
                 // Log call data in debug mode
                 if config.is_debug {
-                    let call_data = ah_tx.call_data(&tx)?;
+                    let call_data = ah_block.transactions().call_data(&tx)?;
                     let hex_call_data = to_hex(&call_data);
                     debug!("call_data: {hex_call_data}");
                 }
 
                 let mut tx_progress =
-                    sign_and_submit_v5_then_watch(&ah_tx, &tx, signer, tx_params).await?;
+                    sign_and_submit_then_watch(&ah_block, &tx, signer, tx_params).await?;
 
                 while let Some(status) = tx_progress.next().await {
                     match status? {
@@ -429,17 +427,17 @@ pub async fn sign_and_submit_maximum_calls(
         TxParams::new().tip(config.tx_tip.into()).build()
     };
 
-    let ah_tx = ah_api.tx().await?;
+    let ah_block = ah_api.at_current_block().await?;
 
     // Log call data in debug mode
     if config.is_debug {
-        let call_data = ah_tx.call_data(&tx)?;
+        let call_data = ah_block.transactions().call_data(&tx)?;
         let hex_call_data = to_hex(&call_data);
         debug!("call_data: {hex_call_data}");
     }
 
     let mut tx_progress =
-        sign_and_submit_v5_then_watch(&ah_tx, &tx, signer, tx_params).await?;
+        sign_and_submit_then_watch(&ah_block, &tx, signer, tx_params).await?;
 
     let mut validator_index: ValidatorIndex = None;
     let mut era_index: EraIndex = 0;
@@ -1470,4 +1468,22 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
     }
     info!("Job done!");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    /// Guards the V4/V5 transaction-format decision in
+    /// `crunch_core::substrate::sign_and_submit_then_watch`: whether this network's
+    /// committed metadata advertises a second transaction-extension pipeline (which is
+    /// what makes a V5 "General" transaction able to carry a signed origin here). If a
+    /// metadata refresh flips this, the signing path for this network changes too, so it
+    /// deserves a deliberate look rather than a silent behavior change.
+    #[test]
+    fn should_use_v5_transaction_matches_expectations() {
+        let bytes = include_bytes!("../metadata/asset_hub_paseo_metadata_small.scale");
+        let metadata = subxt::Metadata::decode_from(&bytes[..]).expect("valid metadata");
+        assert!(!crunch_core::substrate::should_use_v5_transaction(
+            &metadata
+        ));
+    }
 }
