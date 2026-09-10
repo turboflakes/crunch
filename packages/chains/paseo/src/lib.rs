@@ -169,10 +169,10 @@ async fn collect_validators_data(
         }
 
         // Instantiates a new validator struct
-        let mut v = Validator::new(stash.clone());
+        let mut v = Validator::new(stash);
 
         // Set controller
-        v.controller = controller.clone();
+        v.controller = controller;
 
         // Get validator name
         (v.name, v.parent_identity, v.has_identity) =
@@ -305,8 +305,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
                 // Try fetch ONE-T grade data
                 for v in &mut validators {
                     v.onet =
-                        try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone())
-                            .await?;
+                        try_fetch_onet_data(chain_name.to_lowercase(), v.stash).await?;
                 }
 
                 // NOTE: In the last iteration try to batch pools if any and include them in the report
@@ -344,8 +343,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
         // Try fetch ONE-T grade data
         for v in &mut validators {
-            v.onet =
-                try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone()).await?;
+            v.onet = try_fetch_onet_data(chain_name.to_lowercase(), v.stash).await?;
         }
 
         // Try run members in batches
