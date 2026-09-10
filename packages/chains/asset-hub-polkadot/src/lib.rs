@@ -107,7 +107,7 @@ pub async fn try_run_batch_pool_members(
         for member in &members {
             //
             let call = Call::NominationPools(NominationPoolsCall::bond_extra_other {
-                member: MultiAddress::Id(member.clone()),
+                member: MultiAddress::Id(*member),
                 extra: BondExtra::Rewards,
             });
             calls_for_batch.push(call);
@@ -677,7 +677,7 @@ fn build_calls_for_batch(
                         // PR: https://github.com/paritytech/polkadot-sdk/pull/1189
                         //
                         let call = Call::Staking(StakingCall::payout_stakers {
-                            validator_stash: v.stash.clone(),
+                            validator_stash: v.stash,
                             era: claim_era,
                         });
                         calls_for_batch.push(call);
@@ -878,12 +878,12 @@ pub async fn fetch_controller(
         .at_current_block()
         .await?
         .storage()
-        .try_fetch(&controller_addr, (stash.clone(),))
+        .try_fetch(&controller_addr, (*stash,))
         .await?
     {
         Some(ctrl) => Ok(Some(ctrl.decode()?)),
         None => {
-            let mut v = Validator::new(stash.clone());
+            let mut v = Validator::new(*stash);
             (v.name, v.parent_identity, v.has_identity) =
                 get_display_name(crunch, stash, None).await?;
             v.warnings = vec!["No controller bonded!".to_string()];
@@ -938,7 +938,7 @@ pub async fn fetch_claimed_or_unclaimed_pages_per_era(
     let claimed_rewards_addr = ah_metadata::storage().staking().claimed_rewards();
     if let Some(WeakBoundedVec(claimed_rewards)) = ah_block
         .storage()
-        .try_fetch(&claimed_rewards_addr, (era, stash.clone()))
+        .try_fetch(&claimed_rewards_addr, (era, *stash))
         .await?
         .map(|v| v.decode())
         .transpose()?
@@ -948,7 +948,7 @@ pub async fn fetch_claimed_or_unclaimed_pages_per_era(
             ah_metadata::storage().staking().eras_stakers_overview();
         if let Some(exposure) = ah_block
             .storage()
-            .try_fetch(&eras_stakers_overview_addr, (era, stash.clone()))
+            .try_fetch(&eras_stakers_overview_addr, (era, *stash))
             .await?
             .map(|v| v.decode())
             .transpose()?
@@ -973,7 +973,7 @@ pub async fn fetch_claimed_or_unclaimed_pages_per_era(
             ah_metadata::storage().staking().eras_stakers_paged();
         let mut iter = ah_block
             .storage()
-            .iter(eras_stakers_paged_addr, (era, stash.clone()))
+            .iter(eras_stakers_paged_addr, (era, *stash))
             .await?;
 
         let mut page_index = 0;
@@ -1088,7 +1088,7 @@ pub async fn get_signer_details(
     // Get signer account identity
     let (signer_name, _, _) = get_display_name(crunch, seed_account_id, None).await?;
     let mut signer_details = SignerDetails {
-        account: seed_account_id.clone(),
+        account: *seed_account_id,
         name: signer_name,
         warnings: Vec::new(),
     };
@@ -1103,7 +1103,7 @@ pub async fn get_signer_details(
     let seed_account_info_addr = ah_metadata::storage().system().account();
     if let Some(seed_account_info) = api_block
         .storage()
-        .try_fetch(&seed_account_info_addr, (seed_account_id.clone(),))
+        .try_fetch(&seed_account_info_addr, (*seed_account_id,))
         .await?
         .map(|v| v.decode())
         .transpose()?
@@ -1163,7 +1163,7 @@ pub async fn try_fetch_pool_operators_for_compound(
 
             if let Some(permissions) = api_block
                 .storage()
-                .try_fetch(&permissions_addr, (pool.roles.depositor.clone(),))
+                .try_fetch(&permissions_addr, (pool.roles.depositor,))
                 .await?
                 .map(|v| v.decode())
                 .transpose()?
@@ -1177,13 +1177,13 @@ pub async fn try_fetch_pool_operators_for_compound(
                     // fetch pool owner pending rewards
                     let runtime_api_call = ah_metadata::runtime_apis()
                         .nomination_pools_api()
-                        .pending_rewards(pool.roles.depositor.clone());
+                        .pending_rewards(pool.roles.depositor);
 
                     let claimable =
                         api_block.runtime_apis().call(runtime_api_call).await?;
 
                     if claimable > config.pool_compound_threshold as u128 {
-                        members.push(pool.roles.depositor.clone());
+                        members.push(pool.roles.depositor);
                     }
                 }
             }
@@ -1238,7 +1238,7 @@ pub async fn try_fetch_pool_members_for_compound(
                 ah_metadata::storage().nomination_pools().pool_members();
             if let Some(pool_member) = api_block
                 .storage()
-                .try_fetch(&pool_member_addr, (member.clone(),))
+                .try_fetch(&pool_member_addr, (member,))
                 .await?
                 .map(|v| v.decode())
                 .transpose()?
@@ -1247,7 +1247,7 @@ pub async fn try_fetch_pool_members_for_compound(
                     // fetch pool member pending rewards
                     let runtime_api_call = ah_metadata::runtime_apis()
                         .nomination_pools_api()
-                        .pending_rewards(member.clone());
+                        .pending_rewards(member);
 
                     let claimable =
                         api_block.runtime_apis().call(runtime_api_call).await?;
@@ -1300,7 +1300,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
         let nominators_addr = ah_metadata::storage().staking().nominators();
         if let Some(nominations) = api_block
             .storage()
-            .try_fetch(&nominators_addr, (pool_stash_account.clone(),))
+            .try_fetch(&nominators_addr, (pool_stash_account,))
             .await?
             .map(|v| v.decode())
             .transpose()?
@@ -1323,7 +1323,7 @@ pub async fn try_fetch_stashes_from_pool_ids(
                     ah_metadata::storage().staking().eras_stakers_paged();
                 let mut iter = api_block
                     .storage()
-                    .iter(eras_stakers_paged_addr, (era_index - 1, stash.clone()))
+                    .iter(eras_stakers_paged_addr, (era_index - 1, stash))
                     .await?;
 
                 while let Some(Ok(data)) = iter.next().await {
@@ -1410,7 +1410,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
             let claimed_rewards_addr = ah_metadata::storage().staking().claimed_rewards();
             if let Some(WeakBoundedVec(claimed_rewards)) = api_block
                 .storage()
-                .try_fetch(&claimed_rewards_addr, (era_index, stash.clone()))
+                .try_fetch(&claimed_rewards_addr, (era_index, stash))
                 .await?
                 .map(|v| v.decode())
                 .transpose()?
@@ -1420,7 +1420,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                     ah_metadata::storage().staking().eras_stakers_overview();
                 if let Some(exposure) = api_block
                     .storage()
-                    .try_fetch(&eras_stakers_overview_addr, (era_index, stash.clone()))
+                    .try_fetch(&eras_stakers_overview_addr, (era_index, stash))
                     .await?
                     .map(|v| v.decode())
                     .transpose()?
@@ -1445,7 +1445,7 @@ pub async fn inspect(crunch: &Crunch) -> Result<(), CrunchError> {
                     ah_metadata::storage().staking().eras_stakers_paged();
                 let mut iter = api_block
                     .storage()
-                    .iter(eras_stakers_paged_addr, (era_index, stash.clone()))
+                    .iter(eras_stakers_paged_addr, (era_index, stash))
                     .await?;
 
                 let mut page_index = 0;

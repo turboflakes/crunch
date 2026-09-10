@@ -20,6 +20,7 @@ use subxt::{
 /// V5 doesn't have this bug, since it's *meant* to always use the highest pipeline version.
 /// It's also safe on chains with only one pipeline (kusama/paseo/westend asset-hubs today):
 /// there, V5 just selects the same single pipeline V4 would have used.
+#[allow(clippy::result_large_err)]
 pub async fn sign_and_submit_v5_then_watch<Call, S>(
     tx_client: &TransactionsClient<CrunchConfig, OnlineClientAtBlockImpl<CrunchConfig>>,
     call: &Call,
