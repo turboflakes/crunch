@@ -34,6 +34,8 @@ jobs:
         run: cargo install subxt-cli --locked --features chain-spec-pruning
 
       - name: Run update-metadata script
+        env:
+          METADATA_VERSIONS_FILE: ${{ runner.temp }}/metadata_versions.md
         run: bash scripts/update-metadata.sh
 
       - name: Run update-chain-specs script
