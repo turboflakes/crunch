@@ -22,6 +22,7 @@
 use crunch_core::Crunch;
 use crunch_error::CrunchError;
 use std::result::Result;
+use subxt::utils::AccountId32;
 
 #[subxt::subxt(
     runtime_metadata_path = "metadata/westend_metadata_small.scale",
@@ -29,21 +30,13 @@ use std::result::Result;
 )]
 mod rc_metadata {}
 
-use rc_metadata::session::storage::types::validators::Validators;
-
 /// Fetch the set of authorities (validators) at the latest block hash
-pub async fn fetch_authorities(crunch: &Crunch) -> Result<Validators, CrunchError> {
+pub async fn fetch_authorities(crunch: &Crunch) -> Result<Vec<AccountId32>, CrunchError> {
     let api = crunch.client().clone();
     let addr = rc_metadata::storage().session().validators();
 
-    api.storage()
-        .at_latest()
-        .await?
-        .fetch(&addr)
-        .await?
-        .ok_or_else(|| {
-            CrunchError::from(
-                "Current validators not defined at latest block hash".to_string(),
-            )
-        })
+    let at = api.at_current_block().await?;
+    let value = at.storage().entry(addr)?.fetch(()).await?.decode()?;
+
+    Ok(value)
 }

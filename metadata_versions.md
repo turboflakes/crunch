@@ -1,0 +1,13 @@
+📦️ Current builtin runtime metadata
+- relay-chain-polkadot/2005000
+- asset-hub-polkadot/2005000
+- people-polkadot/2005000
+- relay-chain-kusama/2003002
+- asset-hub-kusama/2003002
+- people-kusama/2003002
+- relay-chain-paseo/
+- asset-hub-paseo/2004002
+- people-paseo/
+- relay-chain-westend/1025000 (updated)
+- asset-hub-westend/1025000 (updated)
+- people-westend/1025000 (updated)

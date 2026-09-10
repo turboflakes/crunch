@@ -1,35 +1,23 @@
-use super::signed_extensions::{
-    AsDotnsGateway, AsPgas, AsRingAlias, AuthorizeCall, AuthorizeValueTransfer,
-    RestrictOrigins,
-};
 use subxt::config::{
-    transaction_extensions, DefaultExtrinsicParamsBuilder, ExtrinsicParams,
+    transaction_extensions, DefaultExtrinsicParamsBuilder, TransactionExtensions,
 };
 
-/// The default [`super::ExtrinsicParams`] implementation understands common signed extensions
-/// and how to apply them to a given chain.
-pub type CrunchExtrinsicParams<T> = transaction_extensions::AnyOf<
-    T,
-    (
-        transaction_extensions::VerifySignature<T>,
-        transaction_extensions::CheckSpecVersion,
-        transaction_extensions::CheckTxVersion,
-        transaction_extensions::CheckNonce,
-        transaction_extensions::CheckGenesis<T>,
-        transaction_extensions::CheckMortality<T>,
-        transaction_extensions::ChargeAssetTxPayment<T>,
-        transaction_extensions::ChargeTransactionPayment,
-        transaction_extensions::CheckMetadataHash,
-        AuthorizeValueTransfer,
-        AsPgas,
-        AsRingAlias,
-        AsDotnsGateway,
-        RestrictOrigins,
-        AuthorizeCall,
-    ),
->;
+use crate::substrate::signed_extensions::RestrictOrigins;
 
-/// Wraps subxt's [`DefaultExtrinsicParamsBuilder`], extended with the parameters.
+pub type CrunchExtrinsicParams<T> = (
+    transaction_extensions::VerifySignature<T>,
+    transaction_extensions::CheckSpecVersion,
+    transaction_extensions::CheckTxVersion,
+    transaction_extensions::CheckNonce,
+    transaction_extensions::CheckGenesis<T>,
+    transaction_extensions::CheckMortality<T>,
+    transaction_extensions::ChargeAssetTxPayment<T>,
+    transaction_extensions::ChargeTransactionPayment,
+    transaction_extensions::CheckMetadataHash,
+    RestrictOrigins,
+);
+
+// Wraps subxt's [`DefaultExtrinsicParamsBuilder`], extended with the parameters.
 #[derive(Default)]
 pub struct CrunchExtrinsicParamsBuilder<T: subxt::Config>(
     DefaultExtrinsicParamsBuilder<T>,
@@ -52,7 +40,7 @@ impl<T: subxt::Config> CrunchExtrinsicParamsBuilder<T> {
         Self(self.0.tip(tip))
     }
 
-    pub fn build(self) -> <CrunchExtrinsicParams<T> as ExtrinsicParams<T>>::Params {
+    pub fn build(self) -> <CrunchExtrinsicParams<T> as TransactionExtensions<T>>::Params {
         let default = self.0.build();
         (
             default.0,
@@ -65,11 +53,6 @@ impl<T: subxt::Config> CrunchExtrinsicParamsBuilder<T> {
             default.7,
             default.8,
             // Additional extensions take no parameters.
-            (),
-            (),
-            (),
-            (),
-            (),
             (),
         )
     }

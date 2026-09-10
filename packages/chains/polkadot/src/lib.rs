@@ -57,12 +57,12 @@ pub async fn run_and_subscribe_era_paid_events(
         .expect("AH Legacy API to be available");
 
     // Keep track of the last known runtime version
-    let last_spec_version = api.runtime_version().spec_version;
+    let last_spec_version = api.at_current_block().await?.spec_version();
 
-    let mut block_sub = api.blocks().subscribe_finalized().await?;
+    let mut block_sub = api.stream_blocks().await?;
     while let Some(block) = block_sub.next().await {
         // Fetch current runtime version before trying to decode anything
-        let current_spec_version = api.runtime_version().spec_version;
+        let current_spec_version = api.at_current_block().await?.spec_version();
 
         // If a runtime upgrade occurred, raise known error so all clients could be
         // gracefully recreated
@@ -78,6 +78,7 @@ pub async fn run_and_subscribe_era_paid_events(
         let block = match block {
             Ok(b) => b,
             Err(e) => {
+                let e: subxt::Error = e.into();
                 if e.is_disconnected_will_reconnect() {
                     warn!("The RPC connection was dropped will try to reconnect.");
                     continue;
@@ -86,22 +87,28 @@ pub async fn run_and_subscribe_era_paid_events(
             }
         };
 
+        let block_number: u32 = block.number().try_into().unwrap();
+
         // Process blocks that might have been dropped while reconnecting
         while let Some(processed_block_number) = latest_block_number_processed {
-            if block.number() == processed_block_number || processed_block_number == 0 {
+            if block_number == processed_block_number || processed_block_number == 0 {
                 latest_block_number_processed = None;
             } else {
-                let block_number = processed_block_number + 1;
+                let next_block_number = processed_block_number + 1;
 
                 // Skip current block and fetch only blocks that have not yet been processed
-                if block.number() - block_number > 0 {
-                    if let Some(block_hash) =
-                        rpc.chain_get_block_hash(Some(block_number.into())).await?
+                if block_number - next_block_number > 0 {
+                    if let Some(block_hash) = rpc
+                        .chain_get_block_hash(Some(next_block_number.into()))
+                        .await?
                     {
-                        let events = api.events().at(block_hash).await?;
+                        let events =
+                            api.at_block(block_hash).await?.events().fetch().await?;
 
                         // Event --> staking::EraPaid
-                        if let Some(_event) = events.find_first::<EraPaid>()? {
+                        if let Some(_event) =
+                            events.find_first::<EraPaid>().transpose()?
+                        {
                             let wait: u64 = random_wait(240);
                             info!("Waiting {} seconds before run batch", wait);
                             thread::sleep(time::Duration::from_secs(wait));
@@ -110,14 +117,14 @@ pub async fn run_and_subscribe_era_paid_events(
                     }
                 }
 
-                latest_block_number_processed = Some(block_number);
+                latest_block_number_processed = Some(next_block_number);
             }
         }
 
-        let events = block.events().await?;
+        let events = block.at().await?.events().fetch().await?;
 
         // Event --> staking::EraPaid
-        if let Some(_event) = events.find_first::<EraPaid>()? {
+        if let Some(_event) = events.find_first::<EraPaid>().transpose()? {
             let wait: u64 = random_wait(240);
             info!("Waiting {} seconds before run batch", wait);
             thread::sleep(time::Duration::from_secs(wait));
@@ -125,14 +132,14 @@ pub async fn run_and_subscribe_era_paid_events(
         }
 
         // Event --> system::CodeUpdated
-        if let Some(_event) = events.find_first::<CodeUpdated>()? {
+        if let Some(_event) = events.find_first::<CodeUpdated>().transpose()? {
             return Err(CrunchError::RuntimeUpgradeDetected(
                 last_spec_version,
                 current_spec_version,
             ));
         }
 
-        latest_block_number_processed = Some(block.number());
+        latest_block_number_processed = Some(block_number);
     }
     // If subscription has closed for some reason await and subscribe again
     Err(CrunchError::SubscriptionFinished)
@@ -162,10 +169,10 @@ async fn collect_validators_data(
         }
 
         // Instantiates a new validator struct
-        let mut v = Validator::new(stash.clone());
+        let mut v = Validator::new(stash);
 
         // Set controller
-        v.controller = controller.clone();
+        v.controller = controller;
 
         // Get validator name
         (v.name, v.parent_identity, v.has_identity) =
@@ -298,8 +305,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
                 // Try fetch ONE-T grade data
                 for v in &mut validators {
                     v.onet =
-                        try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone())
-                            .await?;
+                        try_fetch_onet_data(chain_name.to_lowercase(), v.stash).await?;
                 }
 
                 // NOTE: In the last iteration try to batch pools if any and include them in the report
@@ -337,8 +343,7 @@ pub async fn try_crunch(crunch: &Crunch) -> Result<(), CrunchError> {
 
         // Try fetch ONE-T grade data
         for v in &mut validators {
-            v.onet =
-                try_fetch_onet_data(chain_name.to_lowercase(), v.stash.clone()).await?;
+            v.onet = try_fetch_onet_data(chain_name.to_lowercase(), v.stash).await?;
         }
 
         // Try run members in batches

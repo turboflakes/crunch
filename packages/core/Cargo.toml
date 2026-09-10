@@ -19,6 +19,7 @@ env_logger = { workspace = true }
 hex = { workspace = true }
 log = { workspace = true }
 scale-info = { workspace = true }
+scale-info-legacy = "0.4.2"
 serde = { workspace = true }
 serde_json = { workspace = true }
 sp-core = { workspace = true }
