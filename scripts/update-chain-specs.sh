@@ -5,12 +5,19 @@
 #
 # > subxt-cli must be installed to update metadata
 # cargo install subxt-cli --force --features chain-spec-pruning
-
+#
+# Optionally restrict the run to a single network, e.g.
+# `update-chain-specs.sh polkadot`
 BASE="packages/support"
+NETWORK="$1"
 
 fetch_chain_specs() {
   local chain="$1"      # e.g. "westend"
   local host="$2"       # e.g. "westend.rpc.turboflakes.io"
+
+  if [ -n "$NETWORK" ] && [ "$chain" != "$NETWORK" ]; then
+    return 0
+  fi
 
   # Derive output filename: replace hyphens with underscores
   local filename="${chain//-/_}.json"

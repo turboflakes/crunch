@@ -6,9 +6,21 @@
 # Optionally flag specific chains as updated by passing their names as
 # arguments, e.g. `print-metadata-versions.sh westend asset-hub-westend`.
 #
+# Optionally restrict the printed list to a single network via the
+# NETWORK_FILTER env var, e.g. `NETWORK_FILTER=polkadot print-metadata-versions.sh`.
+#
 # > subxt-cli must be installed
 # cargo install subxt-cli --force
 BASE="packages/chains"
+
+chain_in_network() {
+  local chain="$1"
+  [ -z "$NETWORK_FILTER" ] && return 0
+  case "$chain" in
+    "$NETWORK_FILTER"|*-"$NETWORK_FILTER") return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 spec_version_of() {
   local chain="$1"      # e.g. "westend", "asset-hub-westend", "people-westend"
@@ -38,11 +50,16 @@ is_updated() {
   return 1
 }
 
-echo "📦️ Current builtin runtime metadata"
+if [ -n "$NETWORK_FILTER" ]; then
+  echo "📦️ Current builtin runtime metadata for $NETWORK_FILTER"
+else
+  echo "📦️ Current builtin runtime metadata"
+fi
 for chain in relay-chain-polkadot asset-hub-polkadot people-polkadot \
              relay-chain-kusama asset-hub-kusama people-kusama \
              relay-chain-paseo asset-hub-paseo people-paseo \
              relay-chain-westend asset-hub-westend people-westend; do
+  chain_in_network "$chain" || continue
   suffix=""
   is_updated "$chain" "$@" && suffix=" (updated)"
   echo "- $chain/$(spec_version_of "$chain")$suffix"

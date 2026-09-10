@@ -5,16 +5,33 @@
 #
 # > subxt-cli must be installed to update metadata
 # cargo install subxt-cli --force
+#
+# Optionally restrict the run to a single network (e.g. "polkadot", "kusama",
+# "paseo", "westend"), fetching only its relay/asset-hub/people chains:
+# `update-metadata.sh polkadot`
 BASE="packages/chains"
+NETWORK="$1"
 
 # Where to write the spec versions fetched in this run.
 # Override with the METADATA_VERSIONS_FILE env var (e.g. to keep it out of the repo).
 VERSIONS_FILE="${METADATA_VERSIONS_FILE:-metadata_versions.md}"
 
+# Returns success if $chain belongs to $NETWORK, or if no network filter is set.
+chain_in_network() {
+  local chain="$1"
+  [ -z "$NETWORK" ] && return 0
+  case "$chain" in
+    "$NETWORK"|*-"$NETWORK") return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 fetch_metadata() {
   local chain="$1"      # e.g. "westend", "asset-hub-westend", "people-westend"
   local host="$2"       # e.g. "westend.rpc.turboflakes.io"
   local pallets="$3"
+
+  chain_in_network "$chain" || return 0
 
   # Derive output filename: replace hyphens with underscores
   local tmp="${chain//relay-chain-/}"
@@ -60,7 +77,7 @@ changed_chains=$(git status --porcelain -- "$BASE" \
   | awk '{print $2}' \
   | sed -E "s#$BASE/([^/]+)/.*#\1#" \
   | sort -u)
-bash "$(dirname "$0")/print-metadata-versions.sh" $changed_chains > "$VERSIONS_FILE"
+NETWORK_FILTER="$NETWORK" bash "$(dirname "$0")/print-metadata-versions.sh" $changed_chains > "$VERSIONS_FILE"
 
 # Generate runtime API client code from metadata.
 

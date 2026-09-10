@@ -19,6 +19,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        network: [polkadot, kusama, paseo, westend]
 
     steps:
       - name: Checkout sources
@@ -35,40 +40,48 @@ jobs:
 
       - name: Run update-metadata script
         env:
-          METADATA_VERSIONS_FILE: ${{ runner.temp }}/metadata_versions.md
-        run: bash scripts/update-metadata.sh
+          METADATA_VERSIONS_FILE: ${{ runner.temp }}/metadata_versions-${{ matrix.network }}.md
+        run: bash scripts/update-metadata.sh ${{ matrix.network }}
 
       - name: Run update-chain-specs script
-        run: bash scripts/update-chain-specs.sh
+        run: bash scripts/update-chain-specs.sh ${{ matrix.network }}
 
       - name: Check for changes
         id: changes
+        env:
+          NETWORK_PATHS: >-
+            packages/chains/relay-chain-${{ matrix.network }}
+            packages/chains/asset-hub-${{ matrix.network }}
+            packages/chains/people-${{ matrix.network }}
+            packages/support/chain-specs/${{ matrix.network }}.json
         run: |
-          if git diff --quiet && git diff --staged --quiet; then
+          if git diff --quiet -- $NETWORK_PATHS && git diff --staged --quiet -- $NETWORK_PATHS; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
+          echo "network_paths=$(echo $NETWORK_PATHS | tr ' ' ',')" >> $GITHUB_OUTPUT
 
       - name: Build PR body
         if: steps.changes.outputs.has_changes == 'true'
         run: |
           {
-            echo "Automated chain specs and metadata update."
+            echo "Automated ${{ matrix.network }} chain specs and metadata update."
             echo
             echo '```'
-            cat "${{ runner.temp }}/metadata_versions.md"
+            cat "${{ runner.temp }}/metadata_versions-${{ matrix.network }}.md"
             echo '```'
-          } > "${{ runner.temp }}/pr_body.md"
+          } > "${{ runner.temp }}/pr_body-${{ matrix.network }}.md"
 
       - name: Create Pull Request
         if: steps.changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: chore/update-artifacts
-          commit-message: 'chore: update artifacts'
-          title: 'chore: update artifacts'
-          body-path: ${{ runner.temp }}/pr_body.md
-          labels: automated, chain-specs, metadata
+          branch: chore/update-artifacts-${{ matrix.network }}
+          add-paths: ${{ steps.changes.outputs.network_paths }}
+          commit-message: 'chore: update ${{ matrix.network }} artifacts'
+          title: 'chore: update ${{ matrix.network }} artifacts'
+          body-path: ${{ runner.temp }}/pr_body-${{ matrix.network }}.md
+          labels: automated, chain-specs, metadata, ${{ matrix.network }}
           delete-branch: true
