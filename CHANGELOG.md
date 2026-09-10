@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] - 2025-09-10
+- update subxt v0.50.3
+- default all networks to transaction V5
+
 ## [0.38.0] - 2025-09-10
 - polkadot/2005000 (updated)
 - asset-hub-polkadot/2005000 (updated)
