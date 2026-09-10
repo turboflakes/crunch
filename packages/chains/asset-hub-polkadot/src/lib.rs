@@ -57,7 +57,7 @@ use ah_metadata::{
     runtime_types::{
         asset_hub_polkadot_runtime::OriginCaller,
         bounded_collections::{
-            bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec,
+            bounded_btree_map::BoundedBTreeMap1, bounded_vec::BoundedVec,
             weak_bounded_vec::WeakBoundedVec,
         },
         frame_support::dispatch::RawOrigin,
@@ -999,7 +999,7 @@ async fn get_validator_points_info(
         .fetch(&era_reward_points_addr)
         .await?
     {
-        let BoundedBTreeMap(individual) = era_reward_points.individual;
+        let BoundedBTreeMap1(individual) = era_reward_points.individual;
 
         let stash_points = match individual.iter().find(|(s, _)| *s == *stash) {
             Some((_, p)) => *p,
