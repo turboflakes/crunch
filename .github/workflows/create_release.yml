@@ -199,6 +199,21 @@ jobs:
         id: get_tag
         run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
+      - name: Install subxt
+        run: cargo install subxt-cli --locked --features chain-spec-pruning
+
+      - name: Build release body
+        id: release_body
+        run: |
+          {
+            echo "Note: This release was built using \`${{ steps.get_rustc.outputs.rustc }}\`"
+            echo
+            echo '```'
+            bash scripts/print-metadata-versions.sh
+            echo '```'
+          } > "${{ runner.temp }}/release_body.md"
+          echo "path=${{ runner.temp }}/release_body.md" >> $GITHUB_OUTPUT
+
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -207,7 +222,7 @@ jobs:
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
           release_name: Crunch ${{ steps.get_tag.outputs.tag }}
-          body: "Note: This release was built using `${{ steps.get_rustc.outputs.rustc }}`"
+          body_path: ${{ steps.release_body.outputs.path }}
           draft: true
           prerelease: false
 

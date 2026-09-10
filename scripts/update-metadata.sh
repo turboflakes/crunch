@@ -5,11 +5,11 @@
 #
 # > subxt-cli must be installed to update metadata
 # cargo install subxt-cli --force
-
 BASE="packages/chains"
-RC_PALLETS="Session"
-AH_PALLETS="System,Balances,Staking,Utility,NominationPools"
-PEOPLE_PALLETS="Identity"
+
+# Where to write the spec versions fetched in this run.
+# Override with the METADATA_VERSIONS_FILE env var (e.g. to keep it out of the repo).
+VERSIONS_FILE="${METADATA_VERSIONS_FILE:-metadata_versions.md}"
 
 fetch_metadata() {
   local chain="$1"      # e.g. "westend", "asset-hub-westend", "people-westend"
@@ -26,7 +26,7 @@ fetch_metadata() {
   # Retry fetching metadata up to $max_attempts times
   local max_attempts=3
   local attempt=1
-  until subxt metadata --url "wss://$host:443" --pallets "$pallets" -f bytes > "$out_dir/$filename"; do
+  until subxt metadata --url "wss://$host:443" -f bytes > "$out_dir/$filename"; do
     if [ "$attempt" -ge "$max_attempts" ]; then
       echo "ERROR: failed to fetch metadata for $chain after $max_attempts attempts"
       return 1
@@ -50,10 +50,17 @@ fetch_metadata "asset-hub-kusama"   "asset-hub-kusama.rpc.turboflakes.io"   "$AH
 fetch_metadata "asset-hub-polkadot" "asset-hub-polkadot.rpc.turboflakes.io" "$AH_PALLETS"
 
 # People Chains
-fetch_metadata "people-westend"  "people-westend.rpc.turboflakes.io"  "$PEOPLE_PALLETS"
-fetch_metadata "people-paseo"    "people-paseo.rpc.turboflakes.io"    "$PEOPLE_PALLETS"
-fetch_metadata "people-kusama"   "people-kusama.rpc.turboflakes.io"   "$PEOPLE_PALLETS"
-fetch_metadata "people-polkadot" "people-polkadot.rpc.turboflakes.io" "$PEOPLE_PALLETS"
+fetch_metadata "people-westend"  "people-westend.rpc.turboflakes.io"    "$PEOPLE_PALLETS"
+fetch_metadata "people-paseo"    "people-paseo.rpc.turboflakes.io"      "$PEOPLE_PALLETS"
+fetch_metadata "people-kusama"   "people-kusama.rpc.turboflakes.io"     "$PEOPLE_PALLETS"
+fetch_metadata "people-polkadot" "people-polkadot.rpc.turboflakes.io"   "$PEOPLE_PALLETS"
+
+# Report all spec versions, flagging the chains whose metadata actually changed.
+changed_chains=$(git status --porcelain -- "$BASE" \
+  | awk '{print $2}' \
+  | sed -E "s#$BASE/([^/]+)/.*#\1#" \
+  | sort -u)
+bash "$(dirname "$0")/print-metadata-versions.sh" $changed_chains > "$VERSIONS_FILE"
 
 # Generate runtime API client code from metadata.
 
