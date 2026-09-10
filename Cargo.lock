@@ -1033,6 +1033,7 @@ dependencies = [
  "crunch-config",
  "crunch-core",
  "crunch-error",
+ "crunch-kusama",
  "crunch-matrix",
  "crunch-polkadot",
  "crunch-support",
@@ -1046,6 +1047,22 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-core",
+ "subxt",
+ "subxt-signer",
+]
+
+[[package]]
+name = "crunch-asset-hub-kusama"
+version = "0.38.0"
+dependencies = [
+ "crunch-config",
+ "crunch-core",
+ "crunch-error",
+ "crunch-people-kusama",
+ "crunch-pools",
+ "crunch-report",
+ "crunch-stats",
+ "log",
  "subxt",
  "subxt-signer",
 ]
@@ -1121,6 +1138,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "crunch-kusama"
+version = "0.38.0"
+dependencies = [
+ "async-recursion",
+ "crunch-asset-hub-kusama",
+ "crunch-config",
+ "crunch-core",
+ "crunch-error",
+ "crunch-people-kusama",
+ "crunch-relay-chain-kusama",
+ "crunch-report",
+ "crunch-stats",
+ "log",
+ "subxt",
+ "subxt-signer",
+]
+
+[[package]]
 name = "crunch-matrix"
 version = "0.38.0"
 dependencies = [
@@ -1136,6 +1171,18 @@ dependencies = [
  "subxt",
  "thiserror 2.0.17",
  "url",
+]
+
+[[package]]
+name = "crunch-people-kusama"
+version = "0.38.0"
+dependencies = [
+ "async-recursion",
+ "crunch-core",
+ "crunch-error",
+ "crunch-report",
+ "log",
+ "subxt",
 ]
 
 [[package]]
@@ -1174,6 +1221,15 @@ version = "0.38.0"
 dependencies = [
  "hex",
  "sp-core",
+ "subxt",
+]
+
+[[package]]
+name = "crunch-relay-chain-kusama"
+version = "0.38.0"
+dependencies = [
+ "crunch-core",
+ "crunch-error",
  "subxt",
 ]
 

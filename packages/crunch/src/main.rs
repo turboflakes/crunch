@@ -199,9 +199,9 @@ async fn run_and_subscribe_era_paid_events(crunch: &Crunch) -> Result<(), Crunch
         SupportedRuntime::Polkadot => {
             crunch_polkadot::run_and_subscribe_era_paid_events(crunch).await
         }
-        // SupportedRuntime::Kusama => {
-        //     crunch_kusama::run_and_subscribe_era_paid_events(crunch).await
-        // }
+        SupportedRuntime::Kusama => {
+            crunch_kusama::run_and_subscribe_era_paid_events(crunch).await
+        }
         // SupportedRuntime::Paseo => {
         //     crunch_paseo::run_and_subscribe_era_paid_events(crunch).await
         // }
