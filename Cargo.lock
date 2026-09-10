@@ -1035,6 +1035,7 @@ dependencies = [
  "crunch-error",
  "crunch-kusama",
  "crunch-matrix",
+ "crunch-paseo",
  "crunch-polkadot",
  "crunch-support",
  "env_logger",
@@ -1059,6 +1060,22 @@ dependencies = [
  "crunch-core",
  "crunch-error",
  "crunch-people-kusama",
+ "crunch-pools",
+ "crunch-report",
+ "crunch-stats",
+ "log",
+ "subxt",
+ "subxt-signer",
+]
+
+[[package]]
+name = "crunch-asset-hub-paseo"
+version = "0.38.0"
+dependencies = [
+ "crunch-config",
+ "crunch-core",
+ "crunch-error",
+ "crunch-people-paseo",
  "crunch-pools",
  "crunch-report",
  "crunch-stats",
@@ -1174,7 +1191,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "crunch-paseo"
+version = "0.38.0"
+dependencies = [
+ "async-recursion",
+ "crunch-asset-hub-paseo",
+ "crunch-config",
+ "crunch-core",
+ "crunch-error",
+ "crunch-people-paseo",
+ "crunch-relay-chain-paseo",
+ "crunch-report",
+ "crunch-stats",
+ "log",
+ "subxt",
+ "subxt-signer",
+]
+
+[[package]]
 name = "crunch-people-kusama"
+version = "0.38.0"
+dependencies = [
+ "async-recursion",
+ "crunch-core",
+ "crunch-error",
+ "crunch-report",
+ "log",
+ "subxt",
+]
+
+[[package]]
+name = "crunch-people-paseo"
 version = "0.38.0"
 dependencies = [
  "async-recursion",
@@ -1226,6 +1273,15 @@ dependencies = [
 
 [[package]]
 name = "crunch-relay-chain-kusama"
+version = "0.38.0"
+dependencies = [
+ "crunch-core",
+ "crunch-error",
+ "subxt",
+]
+
+[[package]]
+name = "crunch-relay-chain-paseo"
 version = "0.38.0"
 dependencies = [
  "crunch-core",
