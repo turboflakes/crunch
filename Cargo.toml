@@ -4,18 +4,18 @@ members = [
     "packages/chains/people-polkadot",
     "packages/chains/relay-chain-polkadot",
     "packages/chains/polkadot",
-    "packages/chains/asset-hub-kusama",
-    "packages/chains/people-kusama",
-    "packages/chains/relay-chain-kusama",
-    "packages/chains/kusama",
-    "packages/chains/asset-hub-paseo",
-    "packages/chains/people-paseo",
-    "packages/chains/relay-chain-paseo",
-    "packages/chains/paseo",
-    "packages/chains/asset-hub-westend",
-    "packages/chains/people-westend",
-    "packages/chains/relay-chain-westend",
-    "packages/chains/westend",
+    # "packages/chains/asset-hub-kusama",
+    # "packages/chains/people-kusama",
+    # "packages/chains/relay-chain-kusama",
+    # "packages/chains/kusama",
+    # "packages/chains/asset-hub-paseo",
+    # "packages/chains/people-paseo",
+    # "packages/chains/relay-chain-paseo",
+    # "packages/chains/paseo",
+    # "packages/chains/asset-hub-westend",
+    # "packages/chains/people-westend",
+    # "packages/chains/relay-chain-westend",
+    # "packages/chains/westend",
     "packages/config",
     "packages/core",
     "packages/crunch",
@@ -66,12 +66,12 @@ url = "2.5.4"
 base64 = "0.22.1"
 rand = "0.9.0"
 # subxt dependencies
-subxt = { version = "0.44.2", features = [
+subxt = { version = "0.50.3", features = [
     "native",
     "reconnecting-rpc-client",
-    "unstable-light-client",
+    "light-client",
 ] }
-subxt-signer = { version = "0.44.2", features = ["subxt"] }
+subxt-signer = { version = "0.50.3", features = ["subxt"] }
 scale-info = "2.11.6"
 # substrate dependencies
 sp-core = "35.0.0"

@@ -20,10 +20,7 @@
 // SOFTWARE.
 
 use std::{str::Utf8Error, string::String};
-use subxt::{
-    error::{DispatchError, MetadataError},
-    lightclient::LightClientError,
-};
+use subxt::{error::DispatchError, lightclient::LightClientError};
 
 use thiserror::Error;
 
@@ -32,20 +29,16 @@ use thiserror::Error;
 pub enum CrunchError {
     #[error("Subxt error: {0}")]
     SubxtError(Box<subxt::Error>),
-    #[error("SubxtCore error: {0}")]
-    SubxtCoreError(Box<subxt::ext::subxt_core::Error>),
     #[error("LightClient error: {0}")]
     LightClientError(#[from] LightClientError),
     #[error("Codec error: {0}")]
     CodecError(#[from] codec::Error),
     #[error("Utf8 error: {0}")]
     Utf8Error(#[from] Utf8Error),
-    #[error("Metadata error: {0}")]
-    MetadataError(#[from] MetadataError),
     #[error("Dispatch error: {0}")]
     DispatchError(#[from] DispatchError),
     #[error("RPC error: {0}")]
-    RpcError(#[from] subxt::ext::subxt_rpcs::Error),
+    RpcError(#[from] subxt::rpcs::Error),
     #[error("Matrix error: {0}")]
     MatrixError(#[from] crunch_matrix::error::MatrixError),
     #[error("Subscription finished")]
@@ -83,12 +76,39 @@ impl From<subxt::Error> for CrunchError {
     }
 }
 
-/// Convert subxt_core::Error to CrunchError, boxing it to keep `CrunchError` small
-impl From<subxt::ext::subxt_core::Error> for CrunchError {
-    fn from(error: subxt::ext::subxt_core::Error) -> Self {
-        CrunchError::SubxtCoreError(Box::new(error))
-    }
+/// subxt 0.50 splits what used to be one `subxt::Error` into many granular,
+/// per-operation error enums. Each of them still converts into `subxt::Error`
+/// via `#[from]`, so route them all through the same `SubxtError` variant
+/// instead of growing `CrunchError` by one variant per subxt error type.
+macro_rules! impl_from_subxt_error {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl From<$ty> for CrunchError {
+                fn from(error: $ty) -> Self {
+                    CrunchError::from(subxt::Error::from(error))
+                }
+            }
+        )*
+    };
 }
+
+impl_from_subxt_error!(
+    subxt::error::StorageError,
+    subxt::error::StorageValueError,
+    subxt::error::StorageKeyError,
+    subxt::error::OnlineClientAtBlockError,
+    subxt::error::OnlineClientError,
+    subxt::error::ConstantError,
+    subxt::error::RuntimeApiError,
+    subxt::error::ExtrinsicError,
+    subxt::error::TransactionProgressError,
+    subxt::error::TransactionEventsError,
+    subxt::error::EventsError,
+    subxt::error::AccountNonceError,
+    subxt::error::BlocksError,
+    subxt::error::BlockError,
+    subxt::error::DispatchErrorDecodeError,
+);
 
 /// Convert &str to CrunchError
 impl From<&str> for CrunchError {

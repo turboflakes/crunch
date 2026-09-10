@@ -3,4 +3,4 @@ mod extrinsic_params;
 mod signed_extensions;
 
 pub use config::CrunchConfig;
-pub use extrinsic_params::CrunchExtrinsicParamsBuilder;
+pub use extrinsic_params::{CrunchExtrinsicParams, CrunchExtrinsicParamsBuilder};

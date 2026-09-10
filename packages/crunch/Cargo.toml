@@ -13,10 +13,10 @@ crunch-config = { path = "../config" }
 crunch-error = { path = "../error" }
 crunch-matrix = { path = "../matrix" }
 crunch-support = { path = "../support" }
-crunch-kusama = { path = "../chains/kusama" }
-crunch-paseo = { path = "../chains/paseo" }
+# crunch-kusama = { path = "../chains/kusama" }
+# crunch-paseo = { path = "../chains/paseo" }
 crunch-polkadot = { path = "../chains/polkadot" }
-crunch-westend = { path = "../chains/westend" }
+# crunch-westend = { path = "../chains/westend" }
 
 async-std = { workspace = true }
 env_logger = { workspace = true }

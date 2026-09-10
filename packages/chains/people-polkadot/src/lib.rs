@@ -43,35 +43,38 @@ pub async fn get_display_name(
     sub_account_name: Option<String>,
 ) -> Result<(String, String, bool), CrunchError> {
     if let Some(api) = crunch.people_client().clone() {
-        let identity_of_addr = people_metadata::storage()
-            .identity()
-            .identity_of(stash.clone());
-        match api
+        let identity_of_addr = people_metadata::storage().identity().identity_of();
+
+        let at = api.at_current_block().await?;
+        let res = at
             .storage()
-            .at_latest()
+            .entry(identity_of_addr)?
+            .try_fetch((stash.clone(),))
             .await?
-            .fetch(&identity_of_addr)
-            .await?
-        {
-            Some(identity) => {
-                debug!("identity {:?}", identity);
-                let parent = parse_identity_data(identity.info.display);
+            .map(|entry| entry.decode())
+            .transpose()?;
+
+        match res {
+            Some(registration) => {
+                debug!("identity {:?}", registration);
+                let parent = parse_identity_data(registration.info.display);
                 let name = match sub_account_name {
                     Some(child) => format!("{}/{}", parent, child),
                     None => parent.clone(),
                 };
                 Ok((name, parent.clone(), true))
             }
+
             None => {
-                let super_of_addr = people_metadata::storage()
-                    .identity()
-                    .super_of(stash.clone());
-                if let Some((parent_account, data)) = api
+                let super_of_addr = people_metadata::storage().identity().super_of();
+
+                if let Some((parent_account, data)) = at
                     .storage()
-                    .at_latest()
+                    .entry(super_of_addr)?
+                    .try_fetch((stash.clone(),))
                     .await?
-                    .fetch(&super_of_addr)
-                    .await?
+                    .map(|entry| entry.decode())
+                    .transpose()?
                 {
                     let sub_account_name = parse_identity_data(data);
                     return get_display_name(
