@@ -22,7 +22,9 @@
 use crunch_config::CONFIG;
 use crunch_core::{
     get_account_id_from_storage_key,
-    substrate::{CrunchConfig, CrunchExtrinsicParamsBuilder as TxParams},
+    substrate::{
+        sign_and_submit_v5_then_watch, CrunchExtrinsicParamsBuilder as TxParams,
+    },
     to_hex, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
     ValidatorIndex,
 };
@@ -42,7 +44,7 @@ use std::{
 };
 use subxt::{
     error::DispatchError,
-    tx::{Signer, TransactionStatus as TxStatus},
+    tx::TransactionStatus as TxStatus,
     utils::{AccountId32, MultiAddress},
 };
 use subxt_signer::sr25519::Keypair;
@@ -186,21 +188,8 @@ pub async fn try_run_batch_pool_members(
                     debug!("call_data: {hex_call_data}");
                 }
 
-                // Note: build and submit a V5 "General" transaction explicitly rather than
-                // relying on subxt's default (V4) auto-selection. subxt/frame-decode currently
-                // pick the highest transaction-extension pipeline version even when encoding a
-                // V4 extrinsic, which corrupts the signed-extra bytes on chains (like this one)
-                // that publish more than one pipeline version. V5 doesn't have that bug, since
-                // it's *meant* to always use the highest pipeline version.
-                let mut signable = ah_tx
-                    .create_v5_signable(
-                        &tx,
-                        &Signer::<CrunchConfig>::account_id(signer),
-                        tx_params,
-                    )
-                    .await?;
-                let submittable = signable.sign(signer)?;
-                let mut tx_progress = submittable.submit_and_watch().await?;
+                let mut tx_progress =
+                    sign_and_submit_v5_then_watch(&ah_tx, &tx, signer, tx_params).await?;
 
                 while let Some(status) = tx_progress.next().await {
                     match status? {
@@ -449,17 +438,8 @@ pub async fn sign_and_submit_maximum_calls(
         debug!("call_data: {hex_call_data}");
     }
 
-    // Note: build and submit a V5 "General" transaction explicitly rather than relying on
-    // subxt's default (V4) auto-selection. subxt/frame-decode currently pick the highest
-    // transaction-extension pipeline version even when encoding a V4 extrinsic, which
-    // corrupts the signed-extra bytes on chains (like this one) that publish more than one
-    // pipeline version. V5 doesn't have that bug, since it's *meant* to always use the
-    // highest pipeline version.
-    let mut signable = ah_tx
-        .create_v5_signable(&tx, &Signer::<CrunchConfig>::account_id(signer), tx_params)
-        .await?;
-    let submittable = signable.sign(signer)?;
-    let mut tx_progress = submittable.submit_and_watch().await?;
+    let mut tx_progress =
+        sign_and_submit_v5_then_watch(&ah_tx, &tx, signer, tx_params).await?;
 
     let mut validator_index: ValidatorIndex = None;
     let mut era_index: EraIndex = 0;
