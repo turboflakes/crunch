@@ -49,7 +49,7 @@ pub async fn get_display_name(
         let res = at
             .storage()
             .entry(identity_of_addr)?
-            .try_fetch((stash.clone(),))
+            .try_fetch((*stash,))
             .await?
             .map(|entry| entry.decode())
             .transpose()?;
@@ -71,7 +71,7 @@ pub async fn get_display_name(
                 if let Some((parent_account, data)) = at
                     .storage()
                     .entry(super_of_addr)?
-                    .try_fetch((stash.clone(),))
+                    .try_fetch((*stash,))
                     .await?
                     .map(|entry| entry.decode())
                     .transpose()?
