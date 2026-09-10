@@ -1038,6 +1038,7 @@ dependencies = [
  "crunch-paseo",
  "crunch-polkadot",
  "crunch-support",
+ "crunch-westend",
  "env_logger",
  "hex",
  "log",
@@ -1092,6 +1093,22 @@ dependencies = [
  "crunch-core",
  "crunch-error",
  "crunch-people-polkadot",
+ "crunch-pools",
+ "crunch-report",
+ "crunch-stats",
+ "log",
+ "subxt",
+ "subxt-signer",
+]
+
+[[package]]
+name = "crunch-asset-hub-westend"
+version = "0.38.0"
+dependencies = [
+ "crunch-config",
+ "crunch-core",
+ "crunch-error",
+ "crunch-people-westend",
  "crunch-pools",
  "crunch-report",
  "crunch-stats",
@@ -1245,6 +1262,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "crunch-people-westend"
+version = "0.38.0"
+dependencies = [
+ "async-recursion",
+ "crunch-core",
+ "crunch-error",
+ "crunch-report",
+ "log",
+ "subxt",
+]
+
+[[package]]
 name = "crunch-polkadot"
 version = "0.38.0"
 dependencies = [
@@ -1299,6 +1328,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crunch-relay-chain-westend"
+version = "0.38.0"
+dependencies = [
+ "crunch-core",
+ "crunch-error",
+ "subxt",
+]
+
+[[package]]
 name = "crunch-report"
 version = "0.38.0"
 dependencies = [
@@ -1322,6 +1360,24 @@ dependencies = [
  "crunch-config",
  "serde_json",
  "subxt",
+]
+
+[[package]]
+name = "crunch-westend"
+version = "0.38.0"
+dependencies = [
+ "async-recursion",
+ "crunch-asset-hub-westend",
+ "crunch-config",
+ "crunch-core",
+ "crunch-error",
+ "crunch-people-westend",
+ "crunch-relay-chain-westend",
+ "crunch-report",
+ "crunch-stats",
+ "log",
+ "subxt",
+ "subxt-signer",
 ]
 
 [[package]]
