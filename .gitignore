@@ -3,3 +3,4 @@
 .env
 .private.seed
 bump-version.sh
+.claude/settings.local.json
