@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] - 2025-10-28
+- update polkadot chain spec (lightSyncState)
+- fix clippy warnings
+- asset-hub-polkadot/2005001 (updated)
+- people-polkadot/2005000 (updated)
+
 ## [0.39.1] - 2025-09-11
 - fix regression for kusama/paseo/westend 
 - add test to validate which transaction version is used for each network
