@@ -36,6 +36,7 @@ mod people_metadata {}
 // Recursive function that looks up the identity of a validator given its stash,
 // outputs a tuple with [primary identity/ sub-identity], primary identity and whether
 // an identity is present.
+#[allow(clippy::double_must_use)]
 #[async_recursion]
 pub async fn get_display_name(
     crunch: &Crunch,
