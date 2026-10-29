@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.0] - 2025-10-29
+- update kusama and paseo chain specs (lightSyncState)
+- relay-chain-kusama/2005001 (updated)
+- asset-hub-kusama/2005001 (updated)
+- people-kusama/2005001 (updated)
+- relay-chain-paseo/2003001 (updated)
+- asset-hub-paseo/2005004 (updated)
+- people-paseo/2005004 (updated)
+
 ## [0.40.0] - 2025-10-28
 - update polkadot chain spec (lightSyncState)
 - fix clippy warnings
