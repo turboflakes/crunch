@@ -103,6 +103,17 @@ fn default_tx_mortal_period() -> u64 {
     96
 }
 
+/// provides the default number of times a transaction is submitted before giving up
+fn default_tx_max_submit_attempts() -> u32 {
+    3
+}
+
+/// provides the default number of seconds to wait before checking the signer nonce
+/// after losing track of a transaction
+fn default_tx_lost_settle_secs() -> u64 {
+    30
+}
+
 /// provides default value for pool_compound_threshold if CRUNCH_POOL_COMPOUND_THRESHOLD env var is not set
 fn default_pool_compound_threshold() -> u64 {
     100000000000
@@ -183,6 +194,10 @@ pub struct Config {
     pub tx_tip: u64,
     #[serde(default = "default_tx_mortal_period")]
     pub tx_mortal_period: u64,
+    #[serde(default = "default_tx_max_submit_attempts")]
+    pub tx_max_submit_attempts: u32,
+    #[serde(default = "default_tx_lost_settle_secs")]
+    pub tx_lost_settle_secs: u64,
     #[serde(default)]
     pub only_view: bool,
     #[serde(default)]
