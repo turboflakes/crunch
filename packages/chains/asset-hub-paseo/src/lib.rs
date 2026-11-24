@@ -22,7 +22,7 @@
 use crunch_config::CONFIG;
 use crunch_core::{
     get_account_id_from_storage_key,
-    substrate::{sign_and_submit_then_watch, CrunchExtrinsicParamsBuilder as TxParams},
+    substrate::{submit_and_wait_finalized, CrunchExtrinsicParamsBuilder as TxParams},
     to_hex, try_fetch_stashes_from_remote_url, Crunch, NominatorsAmount, ValidatorAmount,
     ValidatorIndex,
 };
@@ -42,7 +42,6 @@ use std::{
 };
 use subxt::{
     error::DispatchError,
-    tx::TransactionStatus as TxStatus,
     utils::{AccountId32, MultiAddress},
 };
 use subxt_signer::sr25519::Keypair;
@@ -168,13 +167,15 @@ pub async fn try_run_batch_pool_members(
                     .unvalidated();
 
                 // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
-                let tx_params = if config.tx_mortal_period > 0 {
-                    TxParams::new()
-                        .tip(config.tx_tip.into())
-                        .mortal(config.tx_mortal_period)
-                        .build()
-                } else {
-                    TxParams::new().tip(config.tx_tip.into()).build()
+                let tx_params = || {
+                    if config.tx_mortal_period > 0 {
+                        TxParams::new()
+                            .tip(config.tx_tip.into())
+                            .mortal(config.tx_mortal_period)
+                            .build()
+                    } else {
+                        TxParams::new().tip(config.tx_tip.into()).build()
+                    }
                 };
 
                 let ah_block = ah_api.at_current_block().await?;
@@ -186,12 +187,15 @@ pub async fn try_run_batch_pool_members(
                     debug!("call_data: {hex_call_data}");
                 }
 
-                let mut tx_progress =
-                    sign_and_submit_then_watch(&ah_block, &tx, signer, tx_params).await?;
-
-                while let Some(status) = tx_progress.next().await {
-                    match status? {
-                        TxStatus::InFinalizedBlock(in_block) => {
+                match submit_and_wait_finalized(ah_api, &tx, signer, tx_params).await? {
+                    None => {
+                        warn!(
+                            "Batch included but its events could not be read ({} calls)",
+                            calls_for_batch_clipped.len()
+                        );
+                    }
+                    Some(in_block) => {
+                        {
                             // Get block number
                             let block_number = if let Some(header) = ah_rpc
                                 .chain_get_header(Some(in_block.block_hash()))
@@ -264,30 +268,6 @@ pub async fn try_run_batch_pool_members(
                                     summary.batches.push(b);
                                 }
                             }
-                        }
-                        TxStatus::Error { message } => {
-                            warn!("TxStatus: {message:?}");
-                        }
-                        TxStatus::Invalid { message } => {
-                            warn!("TxStatus: {message:?}");
-                        }
-                        TxStatus::Dropped { message } => {
-                            warn!("TxStatus: {message:?}");
-                        }
-                        TxStatus::Broadcasted => {
-                            debug!("TxStatus: Broadcasted");
-                        }
-                        TxStatus::InBestBlock(in_block) => {
-                            debug!(
-                                "TxStatus: InBestBlock hash: {:?}",
-                                in_block.block_hash()
-                            );
-                        }
-                        TxStatus::NoLongerInBestBlock => {
-                            debug!("TxStatus: NoLongerInBestBlock");
-                        }
-                        TxStatus::Validated => {
-                            debug!("TxStatus: Validated");
                         }
                     }
                 }
@@ -418,13 +398,15 @@ pub async fn sign_and_submit_maximum_calls(
             .unvalidated();
 
     // Configure the transaction parameters by defining `tip` and `tx_mortal` as per user config;
-    let tx_params = if config.tx_mortal_period > 0 {
-        TxParams::new()
-            .tip(config.tx_tip.into())
-            .mortal(config.tx_mortal_period)
-            .build()
-    } else {
-        TxParams::new().tip(config.tx_tip.into()).build()
+    let tx_params = || {
+        if config.tx_mortal_period > 0 {
+            TxParams::new()
+                .tip(config.tx_tip.into())
+                .mortal(config.tx_mortal_period)
+                .build()
+        } else {
+            TxParams::new().tip(config.tx_tip.into()).build()
+        }
     };
 
     let ah_block = ah_api.at_current_block().await?;
@@ -436,9 +418,6 @@ pub async fn sign_and_submit_maximum_calls(
         debug!("call_data: {hex_call_data}");
     }
 
-    let mut tx_progress =
-        sign_and_submit_then_watch(&ah_block, &tx, signer, tx_params).await?;
-
     let mut validator_index: ValidatorIndex = None;
     let mut era_index: EraIndex = 0;
     let mut validator_amount_value: ValidatorAmount = 0;
@@ -446,9 +425,17 @@ pub async fn sign_and_submit_maximum_calls(
     let mut nominators_amount_value: NominatorsAmount = 0;
     let mut nominators_quantity = 0;
 
-    while let Some(status) = tx_progress.next().await {
-        match status? {
-            TxStatus::InFinalizedBlock(in_block) => {
+    let in_block = submit_and_wait_finalized(ah_api, &tx, signer, tx_params).await?;
+
+    match in_block {
+        None => {
+            warn!(
+                "Batch included but its events could not be read ({} calls)",
+                calls.len()
+            );
+        }
+        Some(in_block) => {
+            {
                 // Get block number
                 let block_number = if let Some(header) =
                     ah_rpc.chain_get_header(Some(in_block.block_hash())).await?
@@ -620,27 +607,6 @@ pub async fn sign_and_submit_maximum_calls(
                         }
                     }
                 }
-            }
-            TxStatus::Error { message } => {
-                warn!("TxStatus: {message:?}");
-            }
-            TxStatus::Invalid { message } => {
-                warn!("TxStatus: {message:?}");
-            }
-            TxStatus::Dropped { message } => {
-                warn!("TxStatus: {message:?}");
-            }
-            TxStatus::Broadcasted => {
-                debug!("TxStatus: Broadcasted");
-            }
-            TxStatus::InBestBlock(in_block) => {
-                debug!("TxStatus: InBestBlock hash: {:?}", in_block.block_hash());
-            }
-            TxStatus::NoLongerInBestBlock => {
-                debug!("TxStatus: NoLongerInBestBlock");
-            }
-            TxStatus::Validated => {
-                debug!("TxStatus: Validated");
             }
         }
     }
