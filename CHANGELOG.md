@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] - 2025-11-24
+- fix retry transactions
+- update polkadot, kusama and westend chain specs (lightSyncState)
+- relay-chain-polkadot/2006000 (updated)
+- asset-hub-polkadot/2006000 (updated)
+- people-polkadot/2006000 (updated)
+- relay-chain-kusama/2005003 (updated)
+- asset-hub-kusama/2005003 (updated)
+- people-kusama/2005003 (updated)
+- relay-chain-westend/1025002 (updated)
+- asset-hub-westend/1025006 (updated)
+- people-westend/1025003 (updated)
+
 ## [0.41.0] - 2025-10-29
 - update kusama and paseo chain specs (lightSyncState)
 - relay-chain-kusama/2005001 (updated)
